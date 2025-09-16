@@ -17,8 +17,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const [hintTimer, setHintTimer] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   const [updateCounter, setUpdateCounter] = useState(0);
-  const [shuffledQuestions, setShuffledQuestions] = useState([]); // New state for shuffled questions
-  const [maxQuestions] = useState(5); // Number of questions per game
+  const [shuffledQuestions, setShuffledQuestions] = useState([]);
+  const [maxQuestions] = useState(5);
 
   useEffect(() => {
     if (!player) {
@@ -26,7 +26,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }
   }, [playerName, player]);
 
-  // Fisher-Yates shuffle algorithm
   const shuffleArray = (array) => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -36,10 +35,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     return shuffled;
   };
 
-  // Initialize shuffled questions when game starts
   const initializeQuestions = () => {
     const shuffled = shuffleArray(sampleQuestions);
-    const gameQuestions = shuffled.slice(0, maxQuestions); // Take only the number we need
+    const gameQuestions = shuffled.slice(0, maxQuestions);
     setShuffledQuestions(gameQuestions);
     return gameQuestions;
   };
@@ -50,7 +48,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       const question = new Question(questionData.id, questionData.answer, questionData.category, questionData.difficulty);
 
       questionData.hints.forEach((hint, hintIndex) => {
-        question.addHint(hint, hintIndex * 15); // 15 second intervals
+        question.addHint(hint, hintIndex * 15);
       });
 
       question.start();
@@ -70,17 +68,14 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     setQuestionIndex(0);
     setGameState('playing');
 
-    // Initialize and shuffle questions
     const gameQuestions = initializeQuestions();
     const question = loadQuestion(0, gameQuestions);
 
     if (question) {
-      // Start hint timer
       const timer = setInterval(() => {
         question.revealNextHint();
         forceUpdate();
 
-        // AI has chance to guess after each hint
         if (Math.random() < 0.3) {
           setTimeout(() => {
             handleAIGuess(question);
@@ -90,7 +85,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
       setHintTimer(timer);
 
-      // Reveal first hint immediately
       setTimeout(() => {
         question.revealNextHint();
         forceUpdate();
@@ -104,7 +98,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const timeElapsed = question.getElapsedTime() / 1000;
     const hintCount = question.getRevealedHints().length;
 
-    // AI gets more likely to be correct with more hints
     const correctChance = Math.min(0.9, hintCount * 0.15 + 0.1);
     const isCorrect = Math.random() < correctChance;
 
@@ -149,7 +142,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
       nextQuestion();
     } else {
-      // Wrong answer, continue playing
       setGameResult({
         winner: null,
         playerGuess: guess,
@@ -211,7 +203,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   if (gameState === 'setup') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-hitman-black to-hitman-darkGray flex items-center justify-center p-4">
+      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MISSION BRIEFING</h2>
@@ -237,7 +229,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   if (gameState === 'finished') {
     const humanWon = player.score > aiPlayer.score;
     return (
-      <div className="min-h-screen bg-gradient-to-b from-hitman-black to-hitman-darkGray flex items-center justify-center p-4">
+      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">
@@ -277,17 +269,17 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   if (!currentQuestion || !player) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-hitman-black to-hitman-darkGray flex items-center justify-center">
+      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center">
         <LoadingSpinner size="lg" message="Preparing mission..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-hitman-black to-hitman-darkGray p-4">
+    <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="bg-hitman-black p-4 rounded-lg mb-6 border border-hitman-red">
+        <div className="bg-hitman-black bg-opacity-90 p-4 rounded-lg mb-6 border border-hitman-red">
           <div className="flex justify-between items-center mb-4">
             <div className="text-hitman-white">
               <h2 className="text-xl font-spy">TARGET: {questionIndex + 1} / {shuffledQuestions.length}</h2>

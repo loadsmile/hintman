@@ -15,20 +15,77 @@
   .dossier-card {
     @apply bg-hitman-white text-hitman-black p-6 rounded-lg shadow-2xl border-l-4 border-hitman-red;
   }
-
   .agent-button {
     @apply bg-hitman-red text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-700 transition duration-200 transform hover:scale-105;
   }
-
   .hint-reveal {
     @apply animate-pulse bg-hitman-darkGray p-3 rounded border-l-2 border-hitman-red text-sm;
   }
-
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in-out;
   }
 }
 
+/* Background for login/game mode select screens */
+.background-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('/background.png') center center / cover no-repeat, #1a1a1a;
+  z-index: 1;
+}
+
+.background-image::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.60);
+  z-index: 1;
+}
+
+/* Background for game screens (mission briefing, gameplay, results) */
+.background-city {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('/backgroundcity.png') center center / cover no-repeat, #1a1a1a;
+  z-index: 1;
+}
+
+.background-city::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.50);
+  z-index: 1;
+}
+
+/* Ensure Layout components have proper z-index */
+header {
+  position: relative;
+  z-index: 50;
+}
+
+footer {
+  position: relative;
+  z-index: 50;
+}
+
+/* Hide scrollbars */
+::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Fade-in animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -38,22 +95,4 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* Custom scrollbar for webkit browsers */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #2d3748;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #b91c1c;
 }
