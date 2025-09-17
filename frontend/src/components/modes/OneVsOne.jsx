@@ -9,7 +9,7 @@ import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const OneVsOne = ({ playerName, onBackToMenu }) => {
-  const [gameState, setGameState] = useState('setup'); // setup, playing, finished
+  const [gameState, setGameState] = useState('setup');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [player, setPlayer] = useState(null);
@@ -19,10 +19,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
   const [maxQuestions] = useState(5);
   const [isProcessingNext, setIsProcessingNext] = useState(false);
-  const [revealedHints, setRevealedHints] = useState([]); // Store revealed hints
+  const [revealedHints, setRevealedHints] = useState([]);
   const [aiHasGuessed, setAiHasGuessed] = useState(false);
 
-  // Use refs to track current values for timers
   const gameStateRef = useRef(gameState);
   const isProcessingNextRef = useRef(isProcessingNext);
   const aiHasGuessedRef = useRef(aiHasGuessed);
@@ -45,7 +44,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }
   }, [playerName, player]);
 
-  // Cleanup effect
   useEffect(() => {
     return () => {
       if (hintTimer) {
@@ -81,7 +79,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
       question.start();
       setCurrentQuestion(question);
-      setRevealedHints([]); // Reset hints for new question
+      setRevealedHints([]);
       setAiHasGuessed(false);
       return question;
     }
@@ -105,13 +103,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const startGame = () => {
-    console.log('Starting game...');
-    if (!player) {
-      console.log('No player found, cannot start game');
-      return;
-    }
+    if (!player) return;
 
-    // Reset everything
     player.resetForNewGame();
     aiPlayer.resetForNewGame();
     setQuestionIndex(0);
@@ -119,92 +112,76 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     setGameResult(null);
     setRevealedHints([]);
 
-    // Initialize questions
     const gameQuestions = initializeQuestions();
-    console.log('Game questions initialized:', gameQuestions);
-
-    // Change to playing state
     setGameState('playing');
 
-    // Start first question immediately
     setTimeout(() => {
-      console.log('Starting first question...');
       startQuestion(0, gameQuestions);
     }, 100);
   };
 
   const startQuestion = (index, questionArray) => {
-    console.log('Starting question', index);
     clearTimers();
     setGameResult(null);
 
     const question = loadQuestion(index, questionArray);
-    if (!question) {
-      console.log('No question loaded');
-      return;
-    }
-
-    console.log('Question loaded:', question);
+    if (!question) return;
 
     // Reveal first hint after 1 second
     setTimeout(() => {
-      console.log('Revealing first hint...');
       if (gameStateRef.current === 'playing' && question.hints.length > 0) {
         const firstHint = question.hints[0];
         addRevealedHint(firstHint.text, 0);
-        question.revealNextHint(); // Also mark as revealed in question object
+        question.revealNextHint();
       }
     }, 1000);
 
     // Set up timer for subsequent hints
     const timer = setInterval(() => {
-      console.log('Hint timer fired, game state:', gameStateRef.current);
       if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) {
         clearInterval(timer);
         return;
       }
 
-      // Reveal next hint
       const nextHintIndex = revealedHints.length;
       if (nextHintIndex < question.hints.length) {
         const nextHint = question.hints[nextHintIndex];
         addRevealedHint(nextHint.text, nextHintIndex);
         question.revealNextHint();
 
-        console.log('Revealed hint:', nextHint.text);
+        // Both players lose health for each hint revealed
+        player.loseHealthForHints(1);
+        aiPlayer.loseHealthForHints(1);
 
-        // AI guess logic - more conservative
-        if (!aiHasGuessedRef.current && nextHintIndex >= 2) { // AI only considers after 3rd hint
-          const guessChance = Math.min(0.2, nextHintIndex * 0.05); // Very low chance
+        // AI guess logic
+        if (!aiHasGuessedRef.current && nextHintIndex >= 2) {
+          const guessChance = Math.min(0.2, nextHintIndex * 0.05);
 
           if (Math.random() < guessChance) {
             setTimeout(() => {
               if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
                 handleAIGuess(question, nextHintIndex + 1);
               }
-            }, Math.random() * 8000 + 3000); // 3-11 seconds delay
+            }, Math.random() * 8000 + 3000);
           }
         }
       }
-    }, 15000); // 15 seconds between hints
+    }, 15000);
 
     setHintTimer(timer);
-    console.log('Hint timer set up');
   };
 
   const handleAIGuess = (question, hintCount) => {
     if (gameStateRef.current !== 'playing' || isProcessingNextRef.current || aiHasGuessedRef.current) return;
 
-    console.log('AI attempting guess...');
     setAiHasGuessed(true);
 
     const timeElapsed = question.getElapsedTime() / 1000;
-
-    // Conservative AI accuracy
     const correctChance = Math.min(0.5, (hintCount - 2) * 0.15);
     const isCorrect = Math.random() < correctChance;
 
-    console.log('AI guess - hints:', hintCount, 'chance:', correctChance, 'correct:', isCorrect);
+    // AI loses health for time elapsed
+    aiPlayer.loseHealthForTime(timeElapsed);
 
     if (isCorrect) {
       const points = question.calculateScore(timeElapsed);
@@ -228,10 +205,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const handlePlayerGuess = async (guess) => {
     if (!currentQuestion || gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
 
-    console.log('Player guess:', guess);
     const timeElapsed = currentQuestion.getElapsedTime() / 1000;
     const isCorrect = currentQuestion.checkAnswer(guess);
 
+    // Player loses health for time elapsed
+    player.loseHealthForTime(timeElapsed);
     player.recordGuess(isCorrect, timeElapsed);
 
     if (isCorrect) {
@@ -267,12 +245,14 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const handleTimeUp = () => {
     if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
 
-    console.log('Time up!');
     if (player && currentQuestion) {
-      player.recordGuess(false, currentQuestion.getElapsedTime() / 1000);
+      const maxTime = 120;
+      player.loseHealthForTime(maxTime);
+      player.recordGuess(false, maxTime);
 
       if (!aiHasGuessedRef.current) {
-        aiPlayer.recordGuess(false, currentQuestion.getElapsedTime() / 1000);
+        aiPlayer.loseHealthForTime(maxTime);
+        aiPlayer.recordGuess(false, maxTime);
       }
 
       setGameResult({
@@ -290,14 +270,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const proceedToNextQuestion = () => {
     if (isProcessingNextRef.current) return;
 
-    console.log('Proceeding to next question...');
     setIsProcessingNext(true);
     clearTimers();
 
     setTimeout(() => {
       const nextIndex = questionIndex + 1;
 
-      if (nextIndex < shuffledQuestions.length) {
+      if (nextIndex < shuffledQuestions.length && player.isAlive() && aiPlayer.isAlive()) {
         setQuestionIndex(nextIndex);
         startQuestion(nextIndex, shuffledQuestions);
         setIsProcessingNext(false);
@@ -308,13 +287,42 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const endGame = () => {
-    console.log('Ending game...');
     clearTimers();
     setIsProcessingNext(false);
     setGameState('finished');
   };
 
-  // MISSION BRIEFING SCREEN
+  // Health Bar Component
+  const HealthBar = ({ player: p }) => {
+    const healthPercentage = p.getHealthPercentage();
+    const healthStatus = p.getHealthStatus();
+
+    const getHealthColor = () => {
+      switch (healthStatus) {
+        case 'excellent': return 'bg-green-500';
+        case 'good': return 'bg-yellow-500';
+        case 'warning': return 'bg-orange-500';
+        case 'critical': return 'bg-red-500';
+        default: return 'bg-gray-500';
+      }
+    };
+
+    return (
+      <div className="w-full">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-xs text-hitman-gray">Health</span>
+          <span className="text-xs text-hitman-gray">{p.health}/{p.maxHealth}</span>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full transition-all duration-300 ${getHealthColor()}`}
+            style={{ width: `${healthPercentage}%` }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   if (gameState === 'setup') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -325,8 +333,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
               <p className="mb-2">🎯 <strong>Objective:</strong> Identify targets faster than your opponent</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Clues will be revealed every 15 seconds</p>
+              <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
               <p className="mb-2">⚡ <strong>Scoring:</strong> Speed and fewer clues = higher points</p>
-              <p>🏆 <strong>Victory:</strong> Highest score after {maxQuestions} targets wins</p>
+              <p>🏆 <strong>Victory:</strong> Highest score after {maxQuestions} targets wins (or last agent standing)</p>
             </div>
           </div>
 
@@ -340,9 +349,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // GAME FINISHED SCREEN
   if (gameState === 'finished') {
-    const humanWon = player?.score > aiPlayer.score;
+    const humanWon = player?.score > aiPlayer.score || (player?.isAlive() && !aiPlayer.isAlive());
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
@@ -360,12 +368,18 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
               <h3 className="font-spy text-lg mb-2">👤 {player?.name || 'Player'}</h3>
               <p className="text-2xl font-bold text-hitman-red">{player?.score || 0} points</p>
               <p className="text-sm text-hitman-gray">{player?.totalCorrect || 0}/{player?.totalQuestions || 0} correct</p>
+              <div className="mt-2">
+                <HealthBar player={player} />
+              </div>
             </div>
 
             <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
               <h3 className="font-spy text-lg mb-2">🤖 Agent 47</h3>
               <p className="text-2xl font-bold text-hitman-red">{aiPlayer.score} points</p>
               <p className="text-sm text-hitman-gray">{aiPlayer.totalCorrect}/{aiPlayer.totalQuestions} correct</p>
+              <div className="mt-2">
+                <HealthBar player={aiPlayer} />
+              </div>
             </div>
           </div>
 
@@ -382,7 +396,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // LOADING SCREEN
   if (!currentQuestion || !player) {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center">
@@ -391,7 +404,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // MAIN GAME SCREEN
   return (
     <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
       <div className="max-w-6xl mx-auto">
@@ -414,12 +426,14 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <div className="bg-hitman-darkGray p-3 rounded">
               <h3 className="font-spy text-hitman-red mb-1">👤 {player.name}</h3>
               <p className="text-hitman-white font-bold">{player.score} points</p>
-              <p className="text-xs text-hitman-gray">Streak: {player.currentStreak}</p>
+              <p className="text-xs text-hitman-gray mb-2">Streak: {player.currentStreak}</p>
+              <HealthBar player={player} />
             </div>
             <div className="bg-hitman-darkGray p-3 rounded">
               <h3 className="font-spy text-hitman-red mb-1">🤖 Agent 47</h3>
               <p className="text-hitman-white font-bold">{aiPlayer.score} points</p>
-              <p className="text-xs text-hitman-gray">Streak: {aiPlayer.currentStreak}</p>
+              <p className="text-xs text-hitman-gray mb-2">Streak: {aiPlayer.currentStreak}</p>
+              <HealthBar player={aiPlayer} />
             </div>
           </div>
         </div>
@@ -434,16 +448,16 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           }`}>
             <div className="text-center text-white">
               {gameResult.winner === 'human' && (
-                <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +{gameResult.points} points</p>
+                <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +{gameResult.points} points • +200 Health</p>
               )}
               {gameResult.winner === 'ai' && (
                 <p className="text-lg font-bold">💀 Agent 47 eliminated the target first!</p>
               )}
               {gameResult.winner === 'timeout' && (
-                <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped!</p>
+                <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped! -120 Health</p>
               )}
               {!gameResult.winner && gameResult.winner !== 'timeout' && (
-                <p className="text-lg font-bold">❌ Incorrect. Continue the hunt...</p>
+                <p className="text-lg font-bold">❌ Incorrect. Continue the hunt... -500 Health</p>
               )}
               {gameResult.correctAnswer && (
                 <p className="text-sm mt-2">The answer was: <strong>{gameResult.correctAnswer}</strong></p>
@@ -453,17 +467,15 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Hints */}
           <HintDisplay
             hints={revealedHints}
             totalHints={currentQuestion.hints.length}
             key={`hints-${questionIndex}-${revealedHints.length}`}
           />
 
-          {/* Guess Input */}
           <GuessInput
             onSubmit={handlePlayerGuess}
-            disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner}
+            disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner || !player?.isAlive()}
             placeholder="Enter your target identification..."
             key={`input-${questionIndex}`}
           />
