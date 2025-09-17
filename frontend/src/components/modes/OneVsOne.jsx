@@ -151,6 +151,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         player.loseHealthForHints(1);
         aiPlayer.loseHealthForHints(1);
 
+        // Force re-render to show updated health immediately
+        setPlayer(prevPlayer => ({ ...prevPlayer }));
+
         // AI guess logic
         if (!aiHasGuessedRef.current && nextHintIndex >= 2) {
           const guessChance = Math.min(0.2, nextHintIndex * 0.05);
@@ -194,6 +197,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       proceedToNextQuestion();
     } else {
       aiPlayer.recordGuess(false, timeElapsed);
+      // Force re-render to show AI health loss immediately
+      setAiHasGuessed(prev => !prev && prev); // Trigger re-render
     }
   };
 
@@ -206,6 +211,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     // Player loses health for time elapsed
     player.loseHealthForTime(timeElapsed);
     player.recordGuess(isCorrect, timeElapsed);
+
+    // Force immediate re-render to show health changes
+    setPlayer(prevPlayer => ({ ...prevPlayer }));
 
     if (isCorrect) {
       setGameResult({
@@ -244,6 +252,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         aiPlayer.loseHealthForTime(maxTime);
         aiPlayer.recordGuess(false, maxTime);
       }
+
+      // Force re-render to show health changes
+      setPlayer(prevPlayer => ({ ...prevPlayer }));
 
       setGameResult({
         winner: 'timeout',
@@ -324,6 +335,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
               <p className="mb-2">📋 <strong>Intel:</strong> Clues will be revealed every 15 seconds</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
+              <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>

@@ -140,6 +140,14 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       if (newHealth) setHealth(newHealth);
     });
 
+    // NEW: Real-time health updates
+    socket.on('healthUpdate', ({ health: newHealth }) => {
+      if (!mountedRef.current) return;
+
+      console.log('💊 Health updated:', newHealth);
+      setHealth(newHealth);
+    });
+
     socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth }) => {
       if (!mountedRef.current) return;
 
@@ -343,6 +351,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               <p className="mb-2">📋 <strong>Intel:</strong> Real-time hint reveals</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
+              <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>

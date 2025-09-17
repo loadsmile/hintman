@@ -75,6 +75,13 @@ class GameRoom {
     return this.players.filter(p => this.isPlayerAlive(p.id)).length;
   }
 
+  // Broadcast health update to all players immediately
+  broadcastHealthUpdate() {
+    this.broadcast('healthUpdate', {
+      health: this.health
+    });
+  }
+
   startGame() {
     if (this.players.length !== 2) return;
 
@@ -182,16 +189,20 @@ class GameRoom {
 
       this.nextQuestion();
     } else {
-      // Wrong answer - player loses additional health
+      // Wrong answer - player loses additional health IMMEDIATELY
       this.updatePlayerHealth(socketId, -500);
 
       console.log(`Game ${this.id}: ${player.name} got it wrong. Health: ${this.health[socketId]}`);
 
+      // Send wrong answer response to the player who guessed
       player.socket.emit('wrongAnswer', {
         guess,
         healthLost: 500,
         currentHealth: this.health[socketId]
       });
+
+      // Immediately broadcast health update to all players
+      this.broadcastHealthUpdate();
 
       // Check if player died from wrong answer
       if (!this.isPlayerAlive(socketId)) {
