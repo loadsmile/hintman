@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player } from '../../classes/Player.js';
 import { Question } from '../../classes/Question.js';
 import { sampleQuestions } from '../../data/questions.js';
@@ -9,22 +9,44 @@ import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const OneVsOne = ({ playerName, onBackToMenu }) => {
-  const [gameState, setGameState] = useState('setup'); // setup, playing, paused, finished
+  const [gameState, setGameState] = useState('setup');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [player, setPlayer] = useState(null);
   const [aiPlayer] = useState(new Player('ai', 'Agent 47', '🤖'));
   const [hintTimer, setHintTimer] = useState(null);
   const [gameResult, setGameResult] = useState(null);
-  const [updateCounter, setUpdateCounter] = useState(0);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
   const [maxQuestions] = useState(5);
+  const [isProcessingNext, setIsProcessingNext] = useState(false);
+  const [updateTrigger, setUpdateTrigger] = useState(0); // Force re-renders
+
+  // Use refs to track current values
+  const gameStateRef = useRef(gameState);
+  const isProcessingNextRef = useRef(isProcessingNext);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  useEffect(() => {
+    isProcessingNextRef.current = isProcessingNext;
+  }, [isProcessingNext]);
 
   useEffect(() => {
     if (!player) {
       setPlayer(new Player('human', playerName, '👤'));
     }
   }, [playerName, player]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (hintTimer) {
+        clearInterval(hintTimer);
+      }
+    };
+  }, [hintTimer]);
 
   const shuffleArray = (array) => {
     const shuffled = [...array];
@@ -58,42 +80,88 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     return null;
   }, []);
 
-  const forceUpdate = () => {
-    setUpdateCounter(prev => prev + 1);
-  };
-
-  const startGame = () => {
-    player.resetForNewGame();
-    aiPlayer.resetForNewGame();
-    setQuestionIndex(0);
-    setGameState('playing');
-
-    const gameQuestions = initializeQuestions();
-    const question = loadQuestion(0, gameQuestions);
-
-    if (question) {
-      const timer = setInterval(() => {
-        question.revealNextHint();
-        forceUpdate();
-
-        if (Math.random() < 0.3) {
-          setTimeout(() => {
-            handleAIGuess(question);
-          }, Math.random() * 3000 + 1000);
-        }
-      }, 15000);
-
-      setHintTimer(timer);
-
-      setTimeout(() => {
-        question.revealNextHint();
-        forceUpdate();
-      }, 1000);
+  const clearTimers = () => {
+    if (hintTimer) {
+      clearInterval(hintTimer);
+      setHintTimer(null);
     }
   };
 
+  const forceUpdate = () => {
+    setUpdateTrigger(prev => prev + 1);
+  };
+
+  const revealHint = (question) => {
+    const newHint = question.revealNextHint();
+    if (newHint) {
+      forceUpdate(); // Force component re-render
+    }
+    return newHint;
+  };
+
+  const startGame = () => {
+    if (!player) return;
+
+    player.resetForNewGame();
+    aiPlayer.resetForNewGame();
+    setQuestionIndex(0);
+    setIsProcessingNext(false);
+    setGameResult(null);
+
+    const gameQuestions = initializeQuestions();
+
+    // Set game state and start first question
+    setGameState('playing');
+
+    // Start the first question after state updates
+    setTimeout(() => {
+      startQuestion(0, gameQuestions);
+    }, 50);
+  };
+
+  const startQuestion = (index, questionArray) => {
+    clearTimers();
+    setGameResult(null);
+
+    const question = loadQuestion(index, questionArray);
+    if (!question) return;
+
+    // Reveal first hint after 1 second
+    const firstHintTimeout = setTimeout(() => {
+      if (gameStateRef.current === 'playing' && !isProcessingNextRef.current) {
+        revealHint(question);
+      }
+    }, 1000);
+
+    // Start hint timer for subsequent hints (every 15 seconds)
+    const timer = setInterval(() => {
+      if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) {
+        clearInterval(timer);
+        return;
+      }
+
+      const revealed = revealHint(question);
+
+      // AI guess logic - only if hint was actually revealed
+      if (revealed && Math.random() < 0.3) {
+        setTimeout(() => {
+          if (gameStateRef.current === 'playing' && !isProcessingNextRef.current) {
+            handleAIGuess(question);
+          }
+        }, Math.random() * 3000 + 1000);
+      }
+    }, 15000);
+
+    setHintTimer(timer);
+
+    // Cleanup first hint timeout when component unmounts or question changes
+    return () => {
+      clearTimeout(firstHintTimeout);
+    };
+  };
+
   const handleAIGuess = (question) => {
-    if (gameState !== 'playing') return;
+    if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
 
     const timeElapsed = question.getElapsedTime() / 1000;
     const hintCount = question.getRevealedHints().length;
@@ -114,14 +182,14 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         points: points
       });
 
-      nextQuestion();
+      proceedToNextQuestion();
     } else {
       aiPlayer.recordGuess(false, timeElapsed);
     }
   };
 
   const handlePlayerGuess = async (guess) => {
-    if (!currentQuestion || gameState !== 'playing') return;
+    if (!currentQuestion || gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
 
     const timeElapsed = currentQuestion.getElapsedTime() / 1000;
     const isCorrect = currentQuestion.checkAnswer(guess);
@@ -140,7 +208,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         points: points
       });
 
-      nextQuestion();
+      proceedToNextQuestion();
     } else {
       setGameResult({
         winner: null,
@@ -150,43 +218,46 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         points: 0
       });
 
-      setTimeout(() => setGameResult(null), 2000);
+      setTimeout(() => {
+        if (gameStateRef.current === 'playing') {
+          setGameResult(null);
+        }
+      }, 2000);
     }
   };
 
-  const nextQuestion = () => {
-    if (hintTimer) {
-      clearInterval(hintTimer);
-      setHintTimer(null);
+  const handleTimeUp = () => {
+    if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
+
+    if (player && currentQuestion) {
+      player.recordGuess(false, currentQuestion.getElapsedTime() / 1000);
+      aiPlayer.recordGuess(false, currentQuestion.getElapsedTime() / 1000);
+
+      setGameResult({
+        winner: 'timeout',
+        playerGuess: null,
+        aiGuess: null,
+        correctAnswer: currentQuestion.correctAnswer,
+        points: 0
+      });
     }
 
+    proceedToNextQuestion();
+  };
+
+  const proceedToNextQuestion = () => {
+    if (isProcessingNextRef.current) return;
+
+    setIsProcessingNext(true);
+    clearTimers();
+
     setTimeout(() => {
-      setGameResult(null);
       const nextIndex = questionIndex + 1;
 
       if (nextIndex < shuffledQuestions.length) {
         setQuestionIndex(nextIndex);
-        const question = loadQuestion(nextIndex, shuffledQuestions);
-
-        if (question) {
-          const timer = setInterval(() => {
-            question.revealNextHint();
-            forceUpdate();
-
-            if (Math.random() < 0.3) {
-              setTimeout(() => {
-                handleAIGuess(question);
-              }, Math.random() * 3000 + 1000);
-            }
-          }, 15000);
-
-          setHintTimer(timer);
-
-          setTimeout(() => {
-            question.revealNextHint();
-            forceUpdate();
-          }, 1000);
-        }
+        startQuestion(nextIndex, shuffledQuestions);
+        setIsProcessingNext(false);
       } else {
         endGame();
       }
@@ -194,10 +265,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const endGame = () => {
-    if (hintTimer) {
-      clearInterval(hintTimer);
-      setHintTimer(null);
-    }
+    clearTimers();
+    setIsProcessingNext(false);
     setGameState('finished');
   };
 
@@ -227,7 +296,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   }
 
   if (gameState === 'finished') {
-    const humanWon = player.score > aiPlayer.score;
+    const humanWon = player?.score > aiPlayer.score;
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
@@ -242,9 +311,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
           <div className="grid grid-cols-2 gap-6 mb-6">
             <div className={`p-4 rounded ${humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
-              <h3 className="font-spy text-lg mb-2">👤 {player.name}</h3>
-              <p className="text-2xl font-bold text-hitman-red">{player.score} points</p>
-              <p className="text-sm text-hitman-gray">{player.totalCorrect}/{player.totalQuestions} correct</p>
+              <h3 className="font-spy text-lg mb-2">👤 {player?.name || 'Player'}</h3>
+              <p className="text-2xl font-bold text-hitman-red">{player?.score || 0} points</p>
+              <p className="text-sm text-hitman-gray">{player?.totalCorrect || 0}/{player?.totalQuestions || 0} correct</p>
             </div>
 
             <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
@@ -287,8 +356,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             </div>
             <Timer
               duration={120}
-              onComplete={() => nextQuestion()}
-              isActive={gameState === 'playing'}
+              onComplete={handleTimeUp}
+              isActive={gameState === 'playing' && !isProcessingNext}
+              key={`timer-${questionIndex}`}
             />
           </div>
 
@@ -311,6 +381,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           <div className={`mb-6 p-4 rounded-lg border-2 ${
             gameResult.winner === 'human' ? 'bg-green-900 border-green-500' :
             gameResult.winner === 'ai' ? 'bg-red-900 border-red-500' :
+            gameResult.winner === 'timeout' ? 'bg-orange-900 border-orange-500' :
             'bg-yellow-900 border-yellow-500'
           }`}>
             <div className="text-center text-white">
@@ -320,7 +391,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
               {gameResult.winner === 'ai' && (
                 <p className="text-lg font-bold">💀 Agent 47 eliminated the target first!</p>
               )}
-              {!gameResult.winner && (
+              {gameResult.winner === 'timeout' && (
+                <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped!</p>
+              )}
+              {!gameResult.winner && gameResult.winner !== 'timeout' && (
                 <p className="text-lg font-bold">❌ Incorrect. Continue the hunt...</p>
               )}
               {gameResult.correctAnswer && (
@@ -333,16 +407,18 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Hints */}
           <HintDisplay
-            hints={currentQuestion.hints}
-            currentHintIndex={currentQuestion.currentHintIndex}
-            key={updateCounter}
+            hints={currentQuestion.getRevealedHints()}
+            currentHintIndex={currentQuestion.getRevealedHints().length}
+            totalHints={currentQuestion.hints.length}
+            key={`hints-${questionIndex}-${updateTrigger}`}
           />
 
           {/* Guess Input */}
           <GuessInput
             onSubmit={handlePlayerGuess}
-            disabled={gameState !== 'playing' || gameResult?.winner}
+            disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner}
             placeholder="Enter your target identification..."
+            key={`input-${questionIndex}`}
           />
         </div>
       </div>
