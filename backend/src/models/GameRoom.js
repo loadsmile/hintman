@@ -10,10 +10,10 @@ class GameRoom {
     this.currentHintIndex = 0;
     this.hintTimer = null;
     this.questionTimer = null;
-    this.health = {};
+    this.health = {}; // Only track health
     this.startTime = null;
     this.questionAnswered = false;
-    this.questionsPerGame = 5;
+    this.questionsPerGame = 5; // 5 rounds/targets
   }
 
   shuffleQuestions(questionsData) {
@@ -102,11 +102,11 @@ class GameRoom {
     this.startTime = Date.now();
     this.questionAnswered = false;
 
-    console.log(`Game ${this.id}: Starting question ${this.currentQuestion + 1}: ${question.answer}`);
+    console.log(`Game ${this.id}: Starting target ${this.currentQuestion + 1}: ${question.answer}`);
 
     this.broadcast('questionStart', {
-      questionIndex: this.currentQuestion + 1,
-      totalQuestions: this.questions.length,
+      targetIndex: this.currentQuestion + 1, // Changed from questionIndex to targetIndex
+      totalTargets: this.questions.length, // Changed from totalQuestions to totalTargets
       category: question.category,
       difficulty: question.difficulty,
       health: this.health // Send current health status
@@ -174,8 +174,9 @@ class GameRoom {
     if (isCorrect) {
       this.questionAnswered = true;
 
-      // Player gains health for correct answer
-      this.updatePlayerHealth(socketId, 200);
+      // INCREASED: Player gains significant health for correct answer (1000 instead of 200)
+      // This ensures correct answers outweigh mistakes (500 penalty + time penalty)
+      this.updatePlayerHealth(socketId, 1000);
 
       console.log(`Game ${this.id}: ${player.name} got it right! Health: ${this.health[socketId]}`);
 
@@ -184,7 +185,8 @@ class GameRoom {
         winnerName: player.name,
         correctAnswer: question.answer,
         timeElapsed: timeElapsed,
-        health: this.health
+        health: this.health,
+        healthGained: 1000
       });
 
       this.nextQuestion();
@@ -225,7 +227,7 @@ class GameRoom {
     if (this.questionAnswered) return;
 
     const question = this.questions[this.currentQuestion];
-    console.log(`Game ${this.id}: Question timeout: ${question.answer}`);
+    console.log(`Game ${this.id}: Target timeout: ${question.answer}`);
 
     // All alive players lose health for timeout (full 120 seconds)
     this.players.forEach(player => {
@@ -305,8 +307,8 @@ class GameRoom {
       id: this.id,
       playerCount: this.players.length,
       gameState: this.gameState,
-      currentQuestion: this.currentQuestion + 1,
-      totalQuestions: this.questions.length,
+      currentTarget: this.currentQuestion + 1,
+      totalTargets: this.questions.length,
       playersHealth: this.health,
       alivePlayersCount: this.getAlivePlayersCount()
     };

@@ -17,7 +17,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const [hintTimer, setHintTimer] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
-  const [maxQuestions] = useState(5); // Fixed to 5 questions
+  const [maxTargets] = useState(5); // Changed from maxQuestions to maxTargets
   const [isProcessingNext, setIsProcessingNext] = useState(false);
   const [revealedHints, setRevealedHints] = useState([]);
   const [aiHasGuessed, setAiHasGuessed] = useState(false);
@@ -63,7 +63,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   const initializeQuestions = () => {
     const shuffled = shuffleArray(sampleQuestions);
-    const gameQuestions = shuffled.slice(0, maxQuestions);
+    const gameQuestions = shuffled.slice(0, maxTargets);
     setShuffledQuestions(gameQuestions);
     return gameQuestions;
   };
@@ -191,7 +191,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         winner: 'ai',
         playerGuess: null,
         aiGuess: question.correctAnswer,
-        correctAnswer: question.correctAnswer
+        correctAnswer: question.correctAnswer,
+        healthGained: 1000
       });
 
       proceedToNextQuestion();
@@ -220,7 +221,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         winner: 'human',
         playerGuess: guess,
         aiGuess: null,
-        correctAnswer: currentQuestion.correctAnswer
+        correctAnswer: currentQuestion.correctAnswer,
+        healthGained: 1000
       });
 
       proceedToNextQuestion();
@@ -331,11 +333,12 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MISSION BRIEFING</h2>
             <p className="text-lg mb-4">Agent {playerName} vs Agent 47</p>
             <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
-              <p className="mb-2">🎯 <strong>Objective:</strong> Survive {maxQuestions} targets with the most health</p>
+              <p className="mb-2">🎯 <strong>Objective:</strong> Survive {maxTargets} targets with the most health</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Clues will be revealed every 15 seconds</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
+              <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
@@ -449,10 +452,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           }`}>
             <div className="text-center text-white">
               {gameResult.winner === 'human' && (
-                <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +200 Health</p>
+                <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +{gameResult.healthGained || 1000} Health</p>
               )}
               {gameResult.winner === 'ai' && (
-                <p className="text-lg font-bold">💀 Agent 47 eliminated the target first!</p>
+                <p className="text-lg font-bold">💀 Agent 47 eliminated the target first! +{gameResult.healthGained || 1000} Health</p>
               )}
               {gameResult.winner === 'timeout' && (
                 <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped! -120 Health</p>

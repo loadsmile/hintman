@@ -24,8 +24,8 @@ export class Player {
       if (this.currentStreak > this.bestStreak) {
         this.bestStreak = this.currentStreak;
       }
-      // Restore health for correct answers
-      this.addHealth(200);
+      // INCREASED: Restore significant health for correct answers (1000 instead of 200)
+      this.addHealth(1000);
     } else {
       this.currentStreak = 0;
       // Lose health for wrong answers

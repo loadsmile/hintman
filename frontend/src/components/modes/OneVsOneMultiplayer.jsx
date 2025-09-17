@@ -10,7 +10,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [gameState, setGameState] = useState('connecting');
   const [gameData, setGameData] = useState(null);
   const [players, setPlayers] = useState([]);
-  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [currentTarget, setCurrentTarget] = useState(null); // Changed from currentQuestion
   const [hints, setHints] = useState([]);
   const [gameResult, setGameResult] = useState(null);
   const [health, setHealth] = useState({}); // Only health, no scores
@@ -122,11 +122,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
     });
 
-    socket.on('questionStart', ({ questionIndex, totalQuestions, category, difficulty, health: newHealth }) => {
+    // Changed from questionStart to targetStart
+    socket.on('questionStart', ({ targetIndex, totalTargets, category, difficulty, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('❓ Question started:', { questionIndex, category });
-      setCurrentQuestion({ questionIndex, totalQuestions, category, difficulty });
+      console.log('🎯 Target started:', { targetIndex, category });
+      setCurrentTarget({ targetIndex, totalTargets, category, difficulty });
       setHints([]);
       setGameResult(null);
       if (newHealth) setHealth(newHealth);
@@ -148,10 +149,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(newHealth);
     });
 
-    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth }) => {
+    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, healthGained }) => {
       if (!mountedRef.current) return;
 
-      console.log('📊 Question result:', { winner, winnerName });
+      console.log('📊 Target result:', { winner, winnerName, healthGained });
 
       if (newHealth) setHealth(newHealth);
 
@@ -159,7 +160,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         winner,
         winnerName,
         correctAnswer,
-        timeElapsed
+        timeElapsed,
+        healthGained
       });
     });
 
@@ -352,6 +354,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
+              <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
@@ -447,7 +450,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  if (gameState === 'playing' && currentQuestion) {
+  if (gameState === 'playing' && currentTarget) {
     const opponent = players.find(p => p.name !== playerName);
     const myHealth = health[players.find(p => p.name === playerName)?.id] || 5000;
     const opponentHealth = health[opponent?.id] || 5000;
@@ -458,13 +461,13 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           <div className="bg-hitman-black bg-opacity-90 p-4 rounded-lg mb-6 border border-hitman-red">
             <div className="flex justify-between items-center mb-4">
               <div className="text-hitman-white">
-                <h2 className="text-xl font-spy">TARGET: {currentQuestion.questionIndex} / {currentQuestion.totalQuestions}</h2>
-                <p className="text-sm text-hitman-gray">Category: {currentQuestion.category}</p>
+                <h2 className="text-xl font-spy">TARGET: {currentTarget.targetIndex} / {currentTarget.totalTargets}</h2>
+                <p className="text-sm text-hitman-gray">Category: {currentTarget.category}</p>
               </div>
               <Timer
                 duration={120}
                 isActive={true}
-                key={`timer-${currentQuestion.questionIndex}`}
+                key={`timer-${currentTarget.targetIndex}`}
               />
             </div>
 
@@ -496,10 +499,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             }`}>
               <div className="text-center text-white">
                 {gameResult.winner === players.find(p => p.name === playerName)?.id && (
-                  <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +200 Health</p>
+                  <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +{gameResult.healthGained || 1000} Health</p>
                 )}
                 {gameResult.winner && gameResult.winner !== players.find(p => p.name === playerName)?.id && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' && (
-                  <p className="text-lg font-bold">💀 {gameResult.winnerName} eliminated the target first!</p>
+                  <p className="text-lg font-bold">💀 {gameResult.winnerName} eliminated the target first! +{gameResult.healthGained || 1000} Health</p>
                 )}
                 {gameResult.winner === 'disconnect' && (
                   <p className="text-lg font-bold">🏆 {gameResult.message}</p>
@@ -521,14 +524,14 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <HintDisplay
               hints={hints}
               totalHints={5}
-              key={`hints-${currentQuestion.questionIndex}-${hints.length}`}
+              key={`hints-${currentTarget.targetIndex}-${hints.length}`}
             />
 
             <GuessInput
               onSubmit={submitGuess}
               disabled={gameResult?.winner && gameResult.winner !== 'disconnect' || myHealth <= 0}
               placeholder={myHealth <= 0 ? "You have been eliminated..." : "Enter your target identification..."}
-              key={`input-${currentQuestion.questionIndex}`}
+              key={`input-${currentTarget.targetIndex}`}
             />
           </div>
         </div>
