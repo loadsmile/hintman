@@ -10,10 +10,10 @@ class GameRoom {
     this.currentHintIndex = 0;
     this.hintTimer = null;
     this.questionTimer = null;
-    this.health = {}; // Only track health
+    this.health = {};
     this.startTime = null;
     this.questionAnswered = false;
-    this.questionsPerGame = 5; // Fixed to 5 rounds
+    this.questionsPerGame = 5;
   }
 
   shuffleQuestions(questionsData) {
