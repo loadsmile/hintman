@@ -14,13 +14,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [hints, setHints] = useState([]);
   const [gameResult, setGameResult] = useState(null);
   const [scores, setScores] = useState({});
-  const [health, setHealth] = useState({}); // Track health
+  const [health, setHealth] = useState({});
   const [connectionError, setConnectionError] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
+  const connectionAttempted = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -68,92 +70,90 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   };
 
-  const connectToServer = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
+  const setupSocketListeners = useCallback((socket) => {
+    // Remove all existing listeners first
+    socket.removeAllListeners();
 
-    setIsConnecting(true);
-
-    const newSocket = io('https://hintman-backend.onrender.com', {
-      transports: ['websocket', 'polling'],
-      timeout: 20000,
-      forceNew: true,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      maxReconnectionAttempts: 5
-    });
-
-    socketRef.current = newSocket;
-
-    newSocket.on('connect', () => {
+    socket.on('connect', () => {
       if (!mountedRef.current) return;
 
-      console.log('✅ Connected to server:', newSocket.id);
-      setMyPlayerId(newSocket.id);
+      console.log('✅ Connected to server:', socket.id);
+      setMyPlayerId(socket.id);
       setConnectionError(false);
       setIsConnecting(false);
+      setIsConnected(true);
     });
 
-    newSocket.on('disconnect', (reason) => {
+    socket.on('disconnect', (reason) => {
       if (!mountedRef.current) return;
 
       console.log('❌ Disconnected from server. Reason:', reason);
-      if (reason !== 'io client disconnect') {
+      setIsConnected(false);
+
+      // Only show error if it wasn't intentional
+      if (reason !== 'io client disconnect' && reason !== 'client namespace disconnect') {
         setConnectionError(true);
       }
       setIsConnecting(false);
     });
 
-    newSocket.on('connect_error', (error) => {
+    socket.on('connect_error', (error) => {
       if (!mountedRef.current) return;
 
       console.error('🔥 Connection error:', error);
       setConnectionError(true);
       setIsConnecting(false);
+      setIsConnected(false);
     });
 
-    newSocket.on('waitingForMatch', () => {
+    socket.on('reconnect_error', (error) => {
+      if (!mountedRef.current) return;
+
+      console.error('🔄 Reconnection error:', error);
+      setConnectionError(true);
+      setIsConnected(false);
+    });
+
+    socket.on('waitingForMatch', () => {
       if (!mountedRef.current) return;
       setGameState('waiting');
     });
 
-    newSocket.on('matchFound', ({ players: matchedPlayers }) => {
+    socket.on('matchFound', ({ players: matchedPlayers }) => {
       if (!mountedRef.current) return;
 
       console.log('🎯 Match found!', matchedPlayers);
       setPlayers(matchedPlayers);
       setGameState('playing');
       setScores(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 0 }), {}));
-      setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {})); // Initialize health
+      setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
     });
 
-    newSocket.on('questionStart', ({ questionIndex, totalQuestions, category, difficulty, health: newHealth }) => {
+    socket.on('questionStart', ({ questionIndex, totalQuestions, category, difficulty, health: newHealth }) => {
       if (!mountedRef.current) return;
 
       console.log('❓ Question started:', { questionIndex, category });
       setCurrentQuestion({ questionIndex, totalQuestions, category, difficulty });
       setHints([]);
       setGameResult(null);
-      if (newHealth) setHealth(newHealth); // Update health from server
+      if (newHealth) setHealth(newHealth);
     });
 
-    newSocket.on('hintRevealed', ({ index, text, health: newHealth }) => {
+    socket.on('hintRevealed', ({ index, text, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('💡 Hint revealed:', text, 'Health update:', newHealth);
+      console.log('💡 Hint revealed:', text);
       setHints(prev => [...prev, { index, text }]);
-      if (newHealth) setHealth(newHealth); // Update health after hint penalty
+      if (newHealth) setHealth(newHealth);
     });
 
-    newSocket.on('questionResult', ({ winner, winnerName, correctAnswer, points, timeElapsed, scores: newScores, health: newHealth }) => {
+    socket.on('questionResult', ({ winner, winnerName, correctAnswer, points, timeElapsed, scores: newScores, health: newHealth }) => {
       if (!mountedRef.current) return;
 
       console.log('📊 Question result:', { winner, winnerName, points });
 
       if (newScores) setScores(newScores);
-      if (newHealth) setHealth(newHealth); // Update health
+      if (newHealth) setHealth(newHealth);
 
       setGameResult({
         winner,
@@ -164,10 +164,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       });
     });
 
-    newSocket.on('wrongAnswer', ({ guess, healthLost }) => {
+    socket.on('wrongAnswer', ({ guess, healthLost }) => {
       if (!mountedRef.current) return;
 
-      console.log('❌ Wrong answer:', guess, 'Health lost:', healthLost);
+      console.log('❌ Wrong answer:', guess);
       setGameResult({
         winner: null,
         incorrectGuess: guess,
@@ -183,7 +183,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       }, 2000);
     });
 
-    newSocket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
+    socket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
       if (!mountedRef.current) return;
 
       console.log('💀 Player eliminated:', eliminatedPlayerName);
@@ -196,7 +196,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       });
     });
 
-    newSocket.on('gameEnd', ({ results }) => {
+    socket.on('gameEnd', ({ results }) => {
       if (!mountedRef.current) return;
 
       console.log('🏁 Game ended:', results);
@@ -204,7 +204,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setGameData({ results });
     });
 
-    newSocket.on('playerDisconnected', () => {
+    socket.on('playerDisconnected', () => {
       if (!mountedRef.current) return;
 
       console.log('👋 Opponent disconnected');
@@ -225,47 +225,109 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         }
       }, 3000);
     });
-
-    return newSocket;
   }, [myPlayerId, playerName, scores, health]);
 
+  const connectToServer = useCallback(() => {
+    // Prevent multiple connection attempts
+    if (connectionAttempted.current || socketRef.current?.connected) {
+      console.log('Connection already attempted or socket already connected');
+      return socketRef.current;
+    }
+
+    connectionAttempted.current = true;
+    setIsConnecting(true);
+    setConnectionError(false);
+
+    console.log('🔌 Attempting to connect to server...');
+
+    const newSocket = io('https://hintman-backend.onrender.com', {
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
+      forceNew: false,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 3,
+      autoConnect: true
+    });
+
+    socketRef.current = newSocket;
+    setupSocketListeners(newSocket);
+
+    return newSocket;
+  }, [setupSocketListeners]);
+
+  // Connect only once when component mounts
   useEffect(() => {
-    const socket = connectToServer();
+    if (gameState === 'matchmaking' && !connectionAttempted.current) {
+      connectToServer();
+    }
 
     return () => {
-      console.log('🧹 Cleaning up socket connection');
+      console.log('🧹 Component unmounting, cleaning up socket');
       if (socketRef.current) {
+        socketRef.current.removeAllListeners();
         socketRef.current.close();
         socketRef.current = null;
       }
+      connectionAttempted.current = false;
     };
-  }, [connectToServer]);
+  }, [gameState, connectToServer]);
 
   const findMatch = () => {
-    if (socketRef.current && socketRef.current.connected) {
+    if (!socketRef.current) {
+      console.log('❌ No socket connection, attempting to connect...');
+      connectToServer();
+      setTimeout(() => findMatch(), 1000); // Retry after 1 second
+      return;
+    }
+
+    if (socketRef.current.connected) {
       console.log('🔍 Finding match for:', playerName);
       socketRef.current.emit('findMatch', { playerName });
       setGameState('waiting');
     } else {
-      console.log('❌ Socket not connected, trying to reconnect...');
+      console.log('❌ Socket not connected, retrying connection...');
       setConnectionError(true);
     }
   };
 
   const submitGuess = (guess) => {
-    if (socketRef.current && socketRef.current.connected && gameState === 'playing') {
-      const myHealth = health[myPlayerId] || 0;
-      if (myHealth <= 0) return; // Can't guess if dead
-
-      console.log('📝 Submitting guess:', guess);
-      socketRef.current.emit('submitGuess', { guess });
+    if (!socketRef.current || !socketRef.current.connected) {
+      console.log('❌ Cannot submit guess - no socket connection');
+      return;
     }
+
+    if (gameState !== 'playing') {
+      console.log('❌ Cannot submit guess - not in playing state');
+      return;
+    }
+
+    const myHealth = health[myPlayerId] || 0;
+    if (myHealth <= 0) {
+      console.log('❌ Cannot submit guess - player eliminated');
+      return;
+    }
+
+    console.log('📝 Submitting guess:', guess);
+    socketRef.current.emit('submitGuess', { guess });
   };
 
   const retryConnection = () => {
+    console.log('🔄 Retrying connection...');
+    connectionAttempted.current = false;
     setConnectionError(false);
-    setGameState('matchmaking');
-    connectToServer();
+    setIsConnected(false);
+
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+
+    setTimeout(() => {
+      setGameState('matchmaking');
+      connectToServer();
+    }, 100);
   };
 
   if (connectionError && !isConnecting) {
@@ -288,12 +350,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  if (isConnecting) {
+  if (isConnecting || !isConnected) {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-md w-full text-hitman-black text-center">
           <LoadingSpinner size="lg" message="Connecting to server..." />
           <p className="mt-4 text-hitman-gray">Establishing secure connection...</p>
+          <Button onClick={retryConnection} variant="secondary" className="mt-4">
+            Cancel
+          </Button>
         </div>
       </div>
     );
@@ -316,6 +381,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           </div>
 
           <div className="text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+              <span className="text-sm text-green-600">Connected to server</span>
+            </div>
             <Button onClick={findMatch} size="lg" className="px-12 mr-4">
               🎯 FIND OPPONENT
             </Button>
@@ -381,7 +450,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           </div>
 
           <div className="flex space-x-4">
-            <Button onClick={() => setGameState('matchmaking')} variant="primary" className="flex-1">
+            <Button onClick={() => {
+              setGameState('matchmaking');
+              // Reset connection attempt flag for new match
+              connectionAttempted.current = false;
+            }} variant="primary" className="flex-1">
               🔄 NEW MATCH
             </Button>
             <Button onClick={onBackToMenu} variant="secondary" className="flex-1">
