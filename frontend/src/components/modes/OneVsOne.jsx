@@ -17,7 +17,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const [hintTimer, setHintTimer] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
-  const [maxTargets] = useState(5); // Changed from maxQuestions to maxTargets
+  const [maxTargets] = useState(5); // FIXED: Always 5 targets/rounds
   const [isProcessingNext, setIsProcessingNext] = useState(false);
   const [revealedHints, setRevealedHints] = useState([]);
   const [aiHasGuessed, setAiHasGuessed] = useState(false);
@@ -63,8 +63,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   const initializeQuestions = () => {
     const shuffled = shuffleArray(sampleQuestions);
+    // IMPORTANT: Always take exactly 5 questions for the game
     const gameQuestions = shuffled.slice(0, maxTargets);
     setShuffledQuestions(gameQuestions);
+    console.log(`Initialized ${gameQuestions.length} questions for the game from ${sampleQuestions.length} available questions`);
     return gameQuestions;
   };
 
@@ -126,6 +128,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
     const question = loadQuestion(index, questionArray);
     if (!question) return;
+
+    console.log(`Starting question ${index + 1}/${maxTargets}: ${question.correctAnswer}`);
 
     setTimeout(() => {
       if (gameStateRef.current === 'playing' && question.hints.length > 0) {
@@ -209,6 +213,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const timeElapsed = currentQuestion.getElapsedTime() / 1000;
     const isCorrect = currentQuestion.checkAnswer(guess);
 
+    console.log(`Player guessed: "${guess}" for answer: "${currentQuestion.correctAnswer}" - ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
+
     // Player loses health for time elapsed
     player.loseHealthForTime(timeElapsed);
     player.recordGuess(isCorrect, timeElapsed);
@@ -278,7 +284,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     setTimeout(() => {
       const nextIndex = questionIndex + 1;
 
-      if (nextIndex < shuffledQuestions.length && player.isAlive() && aiPlayer.isAlive()) {
+      // IMPORTANT: Check against maxTargets (5), and ensure both players are alive
+      if (nextIndex < maxTargets && player.isAlive() && aiPlayer.isAlive()) {
         setQuestionIndex(nextIndex);
         startQuestion(nextIndex, shuffledQuestions);
         setIsProcessingNext(false);
@@ -289,6 +296,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const endGame = () => {
+    console.log(`Game ended after ${questionIndex + 1} rounds`);
     clearTimers();
     setIsProcessingNext(false);
     setGameState('finished');
@@ -333,12 +341,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MISSION BRIEFING</h2>
             <p className="text-lg mb-4">Agent {playerName} vs Agent 47</p>
             <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
-              <p className="mb-2">🎯 <strong>Objective:</strong> Survive {maxTargets} targets with the most health</p>
+              <p className="mb-2">🎯 <strong>Objective:</strong> Survive exactly {maxTargets} targets with the most health</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Clues will be revealed every 15 seconds</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
               <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
+              <p className="mb-2">🔤 <strong>Answers:</strong> Type key words (e.g., "pacific ocean" or "mount everest")</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
@@ -364,6 +373,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             </h2>
             <p className="text-xl mb-6">
               {humanWon ? `Congratulations Agent ${playerName}!` : 'Agent 47 completed the mission first.'}
+            </p>
+            <p className="text-sm text-hitman-gray mb-4">
+              Completed {questionIndex + (gameResult ? 1 : 0)} out of {maxTargets} targets
             </p>
           </div>
 
@@ -415,7 +427,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         <div className="bg-hitman-black bg-opacity-90 p-4 rounded-lg mb-6 border border-hitman-red">
           <div className="flex justify-between items-center mb-4">
             <div className="text-hitman-white">
-              <h2 className="text-xl font-spy">TARGET: {questionIndex + 1} / {shuffledQuestions.length}</h2>
+              <h2 className="text-xl font-spy">TARGET: {questionIndex + 1} / {maxTargets}</h2>
               <p className="text-sm text-hitman-gray">Category: {currentQuestion.category}</p>
             </div>
             <Timer
@@ -480,7 +492,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           <GuessInput
             onSubmit={handlePlayerGuess}
             disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner || !player?.isAlive()}
-            placeholder="Enter your target identification..."
+            placeholder="Enter key words (e.g., 'pacific ocean', 'mount everest')..."
             key={`input-${questionIndex}`}
           />
         </div>

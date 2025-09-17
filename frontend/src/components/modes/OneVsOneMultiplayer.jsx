@@ -10,10 +10,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [gameState, setGameState] = useState('connecting');
   const [gameData, setGameData] = useState(null);
   const [players, setPlayers] = useState([]);
-  const [currentTarget, setCurrentTarget] = useState(null); // Changed from currentQuestion
+  const [currentTarget, setCurrentTarget] = useState(null);
   const [hints, setHints] = useState([]);
   const [gameResult, setGameResult] = useState(null);
-  const [health, setHealth] = useState({}); // Only health, no scores
+  const [health, setHealth] = useState({});
   const [connectionError, setConnectionError] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
 
@@ -122,11 +122,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
     });
 
-    // Changed from questionStart to targetStart
+    // Handle target start (updated from questionStart)
     socket.on('questionStart', ({ targetIndex, totalTargets, category, difficulty, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('🎯 Target started:', { targetIndex, category });
+      console.log('🎯 Target started:', { targetIndex, totalTargets, category });
       setCurrentTarget({ targetIndex, totalTargets, category, difficulty });
       setHints([]);
       setGameResult(null);
@@ -141,7 +141,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       if (newHealth) setHealth(newHealth);
     });
 
-    // NEW: Real-time health updates
+    // Real-time health updates
     socket.on('healthUpdate', ({ health: newHealth }) => {
       if (!mountedRef.current) return;
 
@@ -349,12 +349,13 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MULTIPLAYER MISSION</h2>
             <p className="text-lg mb-4">Agent {playerName}, ready for real competition?</p>
             <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
-              <p className="mb-2">🎯 <strong>Objective:</strong> Survive 5 targets with the most health</p>
+              <p className="mb-2">🎯 <strong>Objective:</strong> Survive exactly 5 targets with the most health</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Real-time hint reveals</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
               <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
+              <p className="mb-2">🔤 <strong>Answers:</strong> Type key words (e.g., "pacific ocean" or "mount everest")</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
@@ -396,6 +397,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const winner = results[0];
     const isWinner = winner?.name === playerName;
 
+    // Calculate total rounds completed
+    const totalRoundsCompleted = Math.min(5, Math.max(1, currentTarget?.targetIndex || 1));
+
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
@@ -405,6 +409,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </h2>
             <p className="text-xl mb-6">
               {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} survived with more health.`}
+            </p>
+            <p className="text-sm text-hitman-gray mb-4">
+              Completed {totalRoundsCompleted} out of 5 targets
             </p>
           </div>
 
@@ -530,7 +537,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <GuessInput
               onSubmit={submitGuess}
               disabled={gameResult?.winner && gameResult.winner !== 'disconnect' || myHealth <= 0}
-              placeholder={myHealth <= 0 ? "You have been eliminated..." : "Enter your target identification..."}
+              placeholder={myHealth <= 0 ? "You have been eliminated..." : "Enter key words (e.g., 'pacific ocean', 'mount everest')..."}
               key={`input-${currentTarget.targetIndex}`}
             />
           </div>
