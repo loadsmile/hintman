@@ -7,14 +7,13 @@ import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
-  const [gameState, setGameState] = useState('connecting'); // connecting, matchmaking, waiting, playing, finished
+  const [gameState, setGameState] = useState('connecting');
   const [gameData, setGameData] = useState(null);
   const [players, setPlayers] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [hints, setHints] = useState([]);
   const [gameResult, setGameResult] = useState(null);
-  const [scores, setScores] = useState({});
-  const [health, setHealth] = useState({});
+  const [health, setHealth] = useState({}); // Only health, no scores
   const [connectionError, setConnectionError] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
 
@@ -74,7 +73,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       transports: ['websocket', 'polling'],
       timeout: 20000,
       forceNew: true,
-      reconnection: false, // Disable automatic reconnection
+      reconnection: false,
       autoConnect: true
     });
 
@@ -94,7 +93,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       console.log('❌ Disconnected from server. Reason:', reason);
 
-      // Only show error if it wasn't intentional cleanup
       if (reason !== 'io client disconnect' && mountedRef.current) {
         setConnectionError(true);
         setGameState('connecting');
@@ -121,7 +119,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       console.log('🎯 Match found!', matchedPlayers);
       setPlayers(matchedPlayers);
       setGameState('playing');
-      setScores(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 0 }), {}));
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
     });
 
@@ -143,19 +140,17 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       if (newHealth) setHealth(newHealth);
     });
 
-    socket.on('questionResult', ({ winner, winnerName, correctAnswer, points, timeElapsed, scores: newScores, health: newHealth }) => {
+    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('📊 Question result:', { winner, winnerName, points });
+      console.log('📊 Question result:', { winner, winnerName });
 
-      if (newScores) setScores(newScores);
       if (newHealth) setHealth(newHealth);
 
       setGameResult({
         winner,
         winnerName,
         correctAnswer,
-        points,
         timeElapsed
       });
     });
@@ -168,7 +163,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         winner: null,
         incorrectGuess: guess,
         correctAnswer: null,
-        points: 0,
         healthLost
       });
 
@@ -214,9 +208,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           setGameState('finished');
           setGameData({
             results: [
-              { id: myPlayerId, name: playerName, score: scores[myPlayerId] || 0, health: health[myPlayerId] || 0, isAlive: true },
-              { id: 'opponent', name: 'Opponent', score: 0, health: 0, isAlive: false }
-            ].sort((a, b) => b.score - a.score)
+              { id: myPlayerId, name: playerName, health: health[myPlayerId] || 0, isAlive: true },
+              { id: 'opponent', name: 'Opponent', health: 0, isAlive: false }
+            ].sort((a, b) => b.health - a.health)
           });
         }
       }, 3000);
@@ -226,7 +220,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   useEffect(() => {
     mountedRef.current = true;
 
-    // Initialize socket only once
     if (!initializedRef.current) {
       initializeSocket();
     }
@@ -243,7 +236,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       initializedRef.current = false;
     };
-  }, []); // Empty dependency array
+  }, []);
 
   const findMatch = () => {
     if (!socketRef.current?.connected) {
@@ -304,7 +297,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     }, 100);
   };
 
-  // Connection Error Screen
   if (connectionError) {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -325,7 +317,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Connecting Screen
   if (gameState === 'connecting') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -340,7 +331,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Matchmaking Screen
   if (gameState === 'matchmaking') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -349,11 +339,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MULTIPLAYER MISSION</h2>
             <p className="text-lg mb-4">Agent {playerName}, ready for real competition?</p>
             <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
-              <p className="mb-2">🎯 <strong>Objective:</strong> Defeat another human agent</p>
+              <p className="mb-2">🎯 <strong>Objective:</strong> Survive 5 targets with the most health</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Real-time hint reveals</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
-              <p className="mb-2">⚡ <strong>Scoring:</strong> Speed and accuracy matter</p>
-              <p>🏆 <strong>Victory:</strong> Best score wins (or last agent standing)</p>
+              <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
+              <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
 
@@ -374,7 +364,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Waiting for Opponent Screen
   if (gameState === 'waiting') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -390,7 +379,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Game Finished Screen
   if (gameState === 'finished') {
     const results = gameData?.results || [];
     const winner = results[0];
@@ -404,7 +392,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               {isWinner ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
             </h2>
             <p className="text-xl mb-6">
-              {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} completed the mission first.`}
+              {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} survived with more health.`}
             </p>
           </div>
 
@@ -422,7 +410,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                   <HealthBar playerId={player.id} />
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-hitman-red">{player.score} points</p>
+                  <p className="text-2xl font-bold text-hitman-red">{player.health} health</p>
                 </div>
               </div>
             ))}
@@ -430,7 +418,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
           <div className="flex space-x-4">
             <Button onClick={() => {
-              // Reset for new match
               if (socketRef.current) {
                 socketRef.current.removeAllListeners();
                 socketRef.current.close();
@@ -451,12 +438,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Main Game Screen
   if (gameState === 'playing' && currentQuestion) {
     const opponent = players.find(p => p.name !== playerName);
-    const myScore = scores[players.find(p => p.name === playerName)?.id] || 0;
-    const opponentScore = scores[opponent?.id] || 0;
     const myHealth = health[players.find(p => p.name === playerName)?.id] || 5000;
+    const opponentHealth = health[opponent?.id] || 5000;
 
     return (
       <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
@@ -475,16 +460,16 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className={`bg-hitman-darkGray p-3 rounded ${myScore > opponentScore ? 'ring-2 ring-green-400' : ''}`}>
+              <div className={`bg-hitman-darkGray p-3 rounded ${myHealth > opponentHealth ? 'ring-2 ring-green-400' : ''}`}>
                 <h3 className="font-spy text-hitman-red mb-1">👤 {playerName} (You)</h3>
-                <p className="text-hitman-white font-bold">{myScore} points</p>
+                <p className="text-hitman-white font-bold">{myHealth} health</p>
                 <div className="mt-2">
                   <HealthBar playerId={players.find(p => p.name === playerName)?.id} />
                 </div>
               </div>
-              <div className={`bg-hitman-darkGray p-3 rounded ${opponentScore > myScore ? 'ring-2 ring-green-400' : ''}`}>
+              <div className={`bg-hitman-darkGray p-3 rounded ${opponentHealth > myHealth ? 'ring-2 ring-green-400' : ''}`}>
                 <h3 className="font-spy text-hitman-red mb-1">👤 {opponent?.name || 'Opponent'}</h3>
-                <p className="text-hitman-white font-bold">{opponentScore} points</p>
+                <p className="text-hitman-white font-bold">{opponentHealth} health</p>
                 <div className="mt-2">
                   <HealthBar playerId={opponent?.id} />
                 </div>
@@ -502,7 +487,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             }`}>
               <div className="text-center text-white">
                 {gameResult.winner === players.find(p => p.name === playerName)?.id && (
-                  <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +{gameResult.points} points • +200 Health</p>
+                  <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +200 Health</p>
                 )}
                 {gameResult.winner && gameResult.winner !== players.find(p => p.name === playerName)?.id && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' && (
                   <p className="text-lg font-bold">💀 {gameResult.winnerName} eliminated the target first!</p>
@@ -542,7 +527,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Fallback loading screen
   return (
     <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center">
       <LoadingSpinner size="lg" message="Initializing multiplayer..." />

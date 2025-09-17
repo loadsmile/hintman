@@ -17,7 +17,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const [hintTimer, setHintTimer] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
-  const [maxQuestions] = useState(5);
+  const [maxQuestions] = useState(5); // Fixed to 5 questions
   const [isProcessingNext, setIsProcessingNext] = useState(false);
   const [revealedHints, setRevealedHints] = useState([]);
   const [aiHasGuessed, setAiHasGuessed] = useState(false);
@@ -127,7 +127,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const question = loadQuestion(index, questionArray);
     if (!question) return;
 
-    // Reveal first hint after 1 second
     setTimeout(() => {
       if (gameStateRef.current === 'playing' && question.hints.length > 0) {
         const firstHint = question.hints[0];
@@ -136,7 +135,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       }
     }, 1000);
 
-    // Set up timer for subsequent hints
     const timer = setInterval(() => {
       if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) {
         clearInterval(timer);
@@ -184,16 +182,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     aiPlayer.loseHealthForTime(timeElapsed);
 
     if (isCorrect) {
-      const points = question.calculateScore(timeElapsed);
       aiPlayer.recordGuess(true, timeElapsed);
-      aiPlayer.addScore(points);
 
       setGameResult({
         winner: 'ai',
         playerGuess: null,
         aiGuess: question.correctAnswer,
-        correctAnswer: question.correctAnswer,
-        points: points
+        correctAnswer: question.correctAnswer
       });
 
       proceedToNextQuestion();
@@ -213,15 +208,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     player.recordGuess(isCorrect, timeElapsed);
 
     if (isCorrect) {
-      const points = currentQuestion.calculateScore(timeElapsed);
-      player.addScore(points);
-
       setGameResult({
         winner: 'human',
         playerGuess: guess,
         aiGuess: null,
-        correctAnswer: currentQuestion.correctAnswer,
-        points: points
+        correctAnswer: currentQuestion.correctAnswer
       });
 
       proceedToNextQuestion();
@@ -230,8 +221,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         winner: null,
         playerGuess: guess,
         aiGuess: null,
-        correctAnswer: null,
-        points: 0
+        correctAnswer: null
       });
 
       setTimeout(() => {
@@ -259,8 +249,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         winner: 'timeout',
         playerGuess: null,
         aiGuess: null,
-        correctAnswer: currentQuestion.correctAnswer,
-        points: 0
+        correctAnswer: currentQuestion.correctAnswer
       });
     }
 
@@ -331,11 +320,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MISSION BRIEFING</h2>
             <p className="text-lg mb-4">Agent {playerName} vs Agent 47</p>
             <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
-              <p className="mb-2">🎯 <strong>Objective:</strong> Identify targets faster than your opponent</p>
+              <p className="mb-2">🎯 <strong>Objective:</strong> Survive {maxQuestions} targets with the most health</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Clues will be revealed every 15 seconds</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
-              <p className="mb-2">⚡ <strong>Scoring:</strong> Speed and fewer clues = higher points</p>
-              <p>🏆 <strong>Victory:</strong> Highest score after {maxQuestions} targets wins (or last agent standing)</p>
+              <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
+              <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
 
@@ -350,7 +339,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   }
 
   if (gameState === 'finished') {
-    const humanWon = player?.score > aiPlayer.score || (player?.isAlive() && !aiPlayer.isAlive());
+    const humanWon = player?.health > aiPlayer.health || (player?.isAlive() && !aiPlayer.isAlive());
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
@@ -366,7 +355,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           <div className="grid grid-cols-2 gap-6 mb-6">
             <div className={`p-4 rounded ${humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
               <h3 className="font-spy text-lg mb-2">👤 {player?.name || 'Player'}</h3>
-              <p className="text-2xl font-bold text-hitman-red">{player?.score || 0} points</p>
+              <p className="text-2xl font-bold text-hitman-red">{player?.health || 0} health</p>
               <p className="text-sm text-hitman-gray">{player?.totalCorrect || 0}/{player?.totalQuestions || 0} correct</p>
               <div className="mt-2">
                 <HealthBar player={player} />
@@ -375,7 +364,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
             <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
               <h3 className="font-spy text-lg mb-2">🤖 Agent 47</h3>
-              <p className="text-2xl font-bold text-hitman-red">{aiPlayer.score} points</p>
+              <p className="text-2xl font-bold text-hitman-red">{aiPlayer.health} health</p>
               <p className="text-sm text-hitman-gray">{aiPlayer.totalCorrect}/{aiPlayer.totalQuestions} correct</p>
               <div className="mt-2">
                 <HealthBar player={aiPlayer} />
@@ -425,13 +414,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-hitman-darkGray p-3 rounded">
               <h3 className="font-spy text-hitman-red mb-1">👤 {player.name}</h3>
-              <p className="text-hitman-white font-bold">{player.score} points</p>
+              <p className="text-hitman-white font-bold">{player.health} health</p>
               <p className="text-xs text-hitman-gray mb-2">Streak: {player.currentStreak}</p>
               <HealthBar player={player} />
             </div>
             <div className="bg-hitman-darkGray p-3 rounded">
               <h3 className="font-spy text-hitman-red mb-1">🤖 Agent 47</h3>
-              <p className="text-hitman-white font-bold">{aiPlayer.score} points</p>
+              <p className="text-hitman-white font-bold">{aiPlayer.health} health</p>
               <p className="text-xs text-hitman-gray mb-2">Streak: {aiPlayer.currentStreak}</p>
               <HealthBar player={aiPlayer} />
             </div>
@@ -448,7 +437,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           }`}>
             <div className="text-center text-white">
               {gameResult.winner === 'human' && (
-                <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +{gameResult.points} points • +200 Health</p>
+                <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +200 Health</p>
               )}
               {gameResult.winner === 'ai' && (
                 <p className="text-lg font-bold">💀 Agent 47 eliminated the target first!</p>

@@ -10,11 +10,10 @@ class GameRoom {
     this.currentHintIndex = 0;
     this.hintTimer = null;
     this.questionTimer = null;
-    this.scores = {};
-    this.health = {}; // New: track player health
+    this.health = {}; // Only track health
     this.startTime = null;
     this.questionAnswered = false;
-    this.questionsPerGame = 5;
+    this.questionsPerGame = 5; // Fixed to 5 rounds
   }
 
   shuffleQuestions(questionsData) {
@@ -37,13 +36,11 @@ class GameRoom {
     const player = {
       id: socket.id,
       name: playerName,
-      score: 0,
       health: 5000, // Starting health
       socket: socket
     };
 
     this.players.push(player);
-    this.scores[socket.id] = 0;
     this.health[socket.id] = 5000; // Track health separately
 
     return true;
@@ -51,7 +48,6 @@ class GameRoom {
 
   removePlayer(socketId) {
     this.players = this.players.filter(p => p.id !== socketId);
-    delete this.scores[socketId];
     delete this.health[socketId];
 
     if (this.players.length === 0) {
@@ -174,22 +170,13 @@ class GameRoom {
       // Player gains health for correct answer
       this.updatePlayerHealth(socketId, 200);
 
-      // Calculate score based on time and hints used
-      const timeBonus = Math.max(0, 100 - timeElapsed);
-      const hintPenalty = this.currentHintIndex * 15;
-      const points = Math.max(10, Math.round(200 + timeBonus - hintPenalty));
-
-      this.scores[socketId] += points;
-
-      console.log(`Game ${this.id}: ${player.name} got it right! Points: ${points}, Health: ${this.health[socketId]}`);
+      console.log(`Game ${this.id}: ${player.name} got it right! Health: ${this.health[socketId]}`);
 
       this.broadcast('questionResult', {
         winner: socketId,
         winnerName: player.name,
         correctAnswer: question.answer,
-        points: points,
         timeElapsed: timeElapsed,
-        scores: this.scores,
         health: this.health
       });
 
@@ -239,9 +226,7 @@ class GameRoom {
     this.broadcast('questionResult', {
       winner: null,
       correctAnswer: question.answer,
-      points: 0,
       timeElapsed: 120,
-      scores: this.scores,
       health: this.health
     });
 
@@ -268,14 +253,13 @@ class GameRoom {
     const results = this.players.map(p => ({
       id: p.id,
       name: p.name,
-      score: this.scores[p.id] || 0,
       health: this.health[p.id] || 0,
       isAlive: this.isPlayerAlive(p.id)
     })).sort((a, b) => {
-      // Sort by alive status first, then by score
+      // Sort by alive status first, then by health
       if (a.isAlive && !b.isAlive) return -1;
       if (!a.isAlive && b.isAlive) return 1;
-      return b.score - a.score;
+      return b.health - a.health;
     });
 
     console.log(`Game ${this.id}: Game ended. Final results:`, results);

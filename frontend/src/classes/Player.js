@@ -3,8 +3,7 @@ export class Player {
     this.type = type; // 'human' or 'ai'
     this.name = name;
     this.avatar = avatar;
-    this.score = 0;
-    this.health = 5000; // Starting health
+    this.health = 5000; // Only health, no points
     this.maxHealth = 5000;
     this.totalQuestions = 0;
     this.totalCorrect = 0;
@@ -25,17 +24,13 @@ export class Player {
       if (this.currentStreak > this.bestStreak) {
         this.bestStreak = this.currentStreak;
       }
-      // Restore some health for correct answers
+      // Restore health for correct answers
       this.addHealth(200);
     } else {
       this.currentStreak = 0;
       // Lose health for wrong answers
       this.loseHealth(500);
     }
-  }
-
-  addScore(points) {
-    this.score += points;
   }
 
   addHealth(amount) {
@@ -75,7 +70,6 @@ export class Player {
   }
 
   resetForNewGame() {
-    this.score = 0;
     this.health = 5000;
     this.totalQuestions = 0;
     this.totalCorrect = 0;
@@ -87,7 +81,6 @@ export class Player {
   getStats() {
     return {
       name: this.name,
-      score: this.score,
       health: this.health,
       maxHealth: this.maxHealth,
       healthPercentage: this.getHealthPercentage(),
