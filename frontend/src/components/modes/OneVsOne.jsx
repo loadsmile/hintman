@@ -336,11 +336,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   if (gameState === 'setup') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MISSION BRIEFING</h2>
-            <p className="text-lg mb-4">Agent {playerName} vs Agent 47</p>
-            <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
+            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">MISSION BRIEFING</h2>
+            <p className="text-lg mb-4 text-gray-800">Agent {playerName} vs Agent 47</p>
+            <div className="bg-gray-800 p-4 rounded text-white text-sm">
               <p className="mb-2">🎯 <strong>Objective:</strong> Survive exactly {maxTargets} targets with the most health</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Clues will be revealed every 15 seconds</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
@@ -366,15 +366,15 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const humanWon = player?.health > aiPlayer.health || (player?.isAlive() && !aiPlayer.isAlive());
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">
+            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
               {humanWon ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
             </h2>
-            <p className="text-xl mb-6">
+            <p className="text-xl mb-6 text-gray-800">
               {humanWon ? `Congratulations Agent ${playerName}!` : 'Agent 47 completed the mission first.'}
             </p>
-            <p className="text-sm text-hitman-gray mb-4">
+            <p className="text-sm text-gray-600 mb-4">
               Completed {questionIndex + (gameResult ? 1 : 0)} out of {maxTargets} targets
             </p>
           </div>
@@ -382,8 +382,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           <div className="grid grid-cols-2 gap-6 mb-6">
             <div className={`p-4 rounded ${humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
               <h3 className="font-spy text-lg mb-2">👤 {player?.name || 'Player'}</h3>
-              <p className="text-2xl font-bold text-hitman-red">{player?.health || 0} health</p>
-              <p className="text-sm text-hitman-gray">{player?.totalCorrect || 0}/{player?.totalQuestions || 0} correct</p>
+              <p className="text-2xl font-bold text-red-600">{player?.health || 0} health</p>
+              <p className="text-sm text-gray-600">{player?.totalCorrect || 0}/{player?.totalQuestions || 0} correct</p>
               <div className="mt-2">
                 <HealthBar player={player} />
               </div>
@@ -391,8 +391,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
             <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
               <h3 className="font-spy text-lg mb-2">🤖 Agent 47</h3>
-              <p className="text-2xl font-bold text-hitman-red">{aiPlayer.health} health</p>
-              <p className="text-sm text-hitman-gray">{aiPlayer.totalCorrect}/{aiPlayer.totalQuestions} correct</p>
+              <p className="text-2xl font-bold text-red-600">{aiPlayer.health} health</p>
+              <p className="text-sm text-gray-600">{aiPlayer.totalCorrect}/{aiPlayer.totalQuestions} correct</p>
               <div className="mt-2">
                 <HealthBar player={aiPlayer} />
               </div>
@@ -424,11 +424,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="bg-hitman-black bg-opacity-90 p-4 rounded-lg mb-6 border border-hitman-red">
+        <div className="bg-black bg-opacity-90 p-4 rounded-lg mb-6 border border-red-600">
           <div className="flex justify-between items-center mb-4">
-            <div className="text-hitman-white">
+            <div className="text-white">
               <h2 className="text-xl font-spy">TARGET: {questionIndex + 1} / {maxTargets}</h2>
-              <p className="text-sm text-hitman-gray">Category: {currentQuestion.category}</p>
+              <p className="text-sm text-gray-300">Category: {currentQuestion.category}</p>
             </div>
             <Timer
               duration={120}
@@ -439,16 +439,16 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-hitman-darkGray p-3 rounded">
-              <h3 className="font-spy text-hitman-red mb-1">👤 {player.name}</h3>
-              <p className="text-hitman-white font-bold">{player.health} health</p>
-              <p className="text-xs text-hitman-gray mb-2">Streak: {player.currentStreak}</p>
+            <div className="bg-gray-800 p-3 rounded">
+              <h3 className="font-spy text-red-500 mb-1">👤 {player.name}</h3>
+              <p className="text-white font-bold">{player.health} health</p>
+              <p className="text-xs text-gray-400 mb-2">Streak: {player.currentStreak}</p>
               <HealthBar player={player} />
             </div>
-            <div className="bg-hitman-darkGray p-3 rounded">
-              <h3 className="font-spy text-hitman-red mb-1">🤖 Agent 47</h3>
-              <p className="text-hitman-white font-bold">{aiPlayer.health} health</p>
-              <p className="text-xs text-hitman-gray mb-2">Streak: {aiPlayer.currentStreak}</p>
+            <div className="bg-gray-800 p-3 rounded">
+              <h3 className="font-spy text-red-500 mb-1">🤖 Agent 47</h3>
+              <p className="text-white font-bold">{aiPlayer.health} health</p>
+              <p className="text-xs text-gray-400 mb-2">Streak: {aiPlayer.currentStreak}</p>
               <HealthBar player={aiPlayer} />
             </div>
           </div>

@@ -44,8 +44,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     return (
       <div className="w-full">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-hitman-gray">Health ({getHealthStatus()})</span>
-          <span className="text-xs text-hitman-gray">{currentHealth}/{maxHealth}</span>
+          <span className="text-xs text-gray-400">Health ({getHealthStatus()})</span>
+          <span className="text-xs text-gray-400">{currentHealth}/{maxHealth}</span>
         </div>
         <div className="w-full bg-gray-700 rounded-full h-2">
           <div
@@ -310,10 +310,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   if (connectionError) {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-md w-full text-hitman-black text-center">
-          <h2 className="text-2xl font-bold text-hitman-red mb-4 font-spy">CONNECTION ERROR</h2>
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
+          <h2 className="text-2xl font-bold text-red-600 mb-4 font-spy">CONNECTION ERROR</h2>
           <p className="mb-4">Unable to connect to game server.</p>
-          <p className="text-sm text-hitman-gray mb-6">The server might be starting up or experiencing issues.</p>
+          <p className="text-sm text-gray-600 mb-6">The server might be starting up or experiencing issues.</p>
           <div className="space-y-3">
             <Button onClick={retryConnection} variant="primary">
               🔄 Retry Connection
@@ -330,9 +330,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   if (gameState === 'connecting') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-md w-full text-hitman-black text-center">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Connecting to server..." />
-          <p className="mt-4 text-hitman-gray">Establishing secure connection...</p>
+          <p className="mt-4 text-gray-600">Establishing secure connection...</p>
           <Button onClick={handleCancel} variant="secondary" className="mt-4">
             Cancel
           </Button>
@@ -344,11 +344,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   if (gameState === 'matchmaking') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">MULTIPLAYER MISSION</h2>
-            <p className="text-lg mb-4">Agent {playerName}, ready for real competition?</p>
-            <div className="bg-hitman-darkGray p-4 rounded text-hitman-white text-sm">
+            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">MULTIPLAYER MISSION</h2>
+            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for real competition?</p>
+            <div className="bg-gray-800 p-4 rounded text-white text-sm">
               <p className="mb-2">🎯 <strong>Objective:</strong> Survive exactly 5 targets with the most health</p>
               <p className="mb-2">📋 <strong>Intel:</strong> Real-time hint reveals</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
@@ -380,10 +380,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   if (gameState === 'waiting') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-md w-full text-hitman-black text-center">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Searching for opponent..." />
-          <p className="mt-4 text-hitman-gray">Finding another agent...</p>
-          <p className="mt-2 text-xs text-hitman-gray">This may take a few moments</p>
+          <p className="mt-4 text-gray-600">Finding another agent...</p>
+          <p className="mt-2 text-xs text-gray-500">This may take a few moments</p>
           <Button onClick={() => setGameState('matchmaking')} variant="secondary" className="mt-6">
             Cancel Search
           </Button>
@@ -402,15 +402,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-hitman-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-hitman-black">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-hitman-red mb-4 font-spy">
+            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
               {isWinner ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
             </h2>
-            <p className="text-xl mb-6">
+            <p className="text-xl mb-6 text-gray-800">
               {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} survived with more health.`}
             </p>
-            <p className="text-sm text-hitman-gray mb-4">
+            <p className="text-sm text-gray-600 mb-4">
               Completed {totalRoundsCompleted} out of 5 targets
             </p>
           </div>
@@ -429,7 +429,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                   <HealthBar playerId={player.id} />
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-hitman-red">{player.health} health</p>
+                  <p className="text-2xl font-bold text-red-600">{player.health} health</p>
                 </div>
               </div>
             ))}
@@ -465,11 +465,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     return (
       <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-hitman-black bg-opacity-90 p-4 rounded-lg mb-6 border border-hitman-red">
+          <div className="bg-black bg-opacity-90 p-4 rounded-lg mb-6 border border-red-600">
             <div className="flex justify-between items-center mb-4">
-              <div className="text-hitman-white">
+              <div className="text-white">
                 <h2 className="text-xl font-spy">TARGET: {currentTarget.targetIndex} / {currentTarget.totalTargets}</h2>
-                <p className="text-sm text-hitman-gray">Category: {currentTarget.category}</p>
+                <p className="text-sm text-gray-300">Category: {currentTarget.category}</p>
               </div>
               <Timer
                 duration={120}
@@ -479,16 +479,16 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className={`bg-hitman-darkGray p-3 rounded ${myHealth > opponentHealth ? 'ring-2 ring-green-400' : ''}`}>
-                <h3 className="font-spy text-hitman-red mb-1">👤 {playerName} (You)</h3>
-                <p className="text-hitman-white font-bold">{myHealth} health</p>
+              <div className={`bg-gray-800 p-3 rounded ${myHealth > opponentHealth ? 'ring-2 ring-green-400' : ''}`}>
+                <h3 className="font-spy text-red-500 mb-1">👤 {playerName} (You)</h3>
+                <p className="text-white font-bold">{myHealth} health</p>
                 <div className="mt-2">
                   <HealthBar playerId={players.find(p => p.name === playerName)?.id} />
                 </div>
               </div>
-              <div className={`bg-hitman-darkGray p-3 rounded ${opponentHealth > myHealth ? 'ring-2 ring-green-400' : ''}`}>
-                <h3 className="font-spy text-hitman-red mb-1">👤 {opponent?.name || 'Opponent'}</h3>
-                <p className="text-hitman-white font-bold">{opponentHealth} health</p>
+              <div className={`bg-gray-800 p-3 rounded ${opponentHealth > myHealth ? 'ring-2 ring-green-400' : ''}`}>
+                <h3 className="font-spy text-red-500 mb-1">👤 {opponent?.name || 'Opponent'}</h3>
+                <p className="text-white font-bold">{opponentHealth} health</p>
                 <div className="mt-2">
                   <HealthBar playerId={opponent?.id} />
                 </div>
