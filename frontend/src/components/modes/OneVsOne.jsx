@@ -326,7 +326,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         <div className="w-full bg-gray-700 rounded-full h-2">
           <div
             className={`h-2 rounded-full transition-all duration-300 ${getHealthColor()}`}
-            style={ width: `${healthPercentage}%` }}
+            style={{ width: `${healthPercentage}%` }}
           />
         </div>
       </div>
