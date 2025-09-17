@@ -326,7 +326,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         <div className="w-full bg-gray-700 rounded-full h-2">
           <div
             className={`h-2 rounded-full transition-all duration-300 ${getHealthColor()}`}
-            style={{ width: `${healthPercentage}%` }}
+            style={ width: `${healthPercentage}%` }}
           />
         </div>
       </div>
@@ -347,7 +347,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
               <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
-              <p className="mb-2">🔤 <strong>Answers:</strong> Type key words (e.g., "pacific ocean" or "mount everest")</p>
+              <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
@@ -492,7 +492,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           <GuessInput
             onSubmit={handlePlayerGuess}
             disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner || !player?.isAlive()}
-            placeholder="Enter key words (e.g., 'pacific ocean', 'mount everest')..."
+            placeholder="Enter your target identification (be precise)..."
             key={`input-${questionIndex}`}
           />
         </div>

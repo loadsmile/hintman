@@ -355,7 +355,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
               <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
-              <p className="mb-2">🔤 <strong>Answers:</strong> Type key words (e.g., "pacific ocean" or "mount everest")</p>
+              <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
@@ -537,7 +537,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <GuessInput
               onSubmit={submitGuess}
               disabled={gameResult?.winner && gameResult.winner !== 'disconnect' || myHealth <= 0}
-              placeholder={myHealth <= 0 ? "You have been eliminated..." : "Enter key words (e.g., 'pacific ocean', 'mount everest')..."}
+              placeholder={myHealth <= 0 ? "You have been eliminated..." : "Enter your target identification (be precise)..."}
               key={`input-${currentTarget.targetIndex}`}
             />
           </div>
