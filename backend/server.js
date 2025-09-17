@@ -12,8 +12,12 @@ app.use(express.json());
 
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:5173", // Vite dev server
-    methods: ["GET", "POST"]
+    origin: [
+      "http://localhost:5173", // For local development
+      "https://hintmangame.vercel.app" // Your Vercel production URL
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -87,6 +91,71 @@ const sampleQuestions = [
       'Axis powers fought against Allied powers',
       'Ended with Germany and Japan\'s surrender'
     ]
+  },
+  {
+    id: 'q6',
+    answer: 'Albert Einstein',
+    category: 'Science',
+    difficulty: 'medium',
+    hints: [
+      'This scientist is often called the Father of Relativity',
+      'He developed the famous equation E=mc²',
+      'He won the Nobel Prize in Physics in 1921',
+      'His wild hair and mustache made him instantly recognizable',
+      'He was born in Germany but later became an American citizen'
+    ]
+  },
+  {
+    id: 'q7',
+    answer: 'The Great Wall of China',
+    category: 'Geography',
+    difficulty: 'easy',
+    hints: [
+      'This ancient structure stretches for thousands of miles',
+      'It was built to protect against invasions from the north',
+      'Construction began in the 7th century BC',
+      'It is visible from space (though this is a myth)',
+      'It winds through deserts, grasslands, and mountains in Asia'
+    ]
+  },
+  {
+    id: 'q8',
+    answer: 'William Shakespeare',
+    category: 'Literature',
+    difficulty: 'easy',
+    hints: [
+      'This English playwright is considered the greatest writer in the English language',
+      'He wrote 39 plays and 154 sonnets',
+      'His works include tragedies, comedies, and histories',
+      'He created characters like Hamlet, Romeo, and Juliet',
+      'He lived from 1564 to 1616 in Stratford-upon-Avon'
+    ]
+  },
+  {
+    id: 'q9',
+    answer: 'The Titanic',
+    category: 'History',
+    difficulty: 'easy',
+    hints: [
+      'This "unsinkable" ship sank on its maiden voyage in 1912',
+      'It hit an iceberg in the North Atlantic Ocean',
+      'Over 1,500 people died in the disaster',
+      'It was traveling from Southampton to New York City',
+      'James Cameron made a famous movie about this tragedy'
+    ]
+  },
+  {
+    id: 'q10',
+    answer: 'Jupiter',
+    category: 'Science',
+    difficulty: 'easy',
+    hints: [
+      'This is the largest planet in our solar system',
+      'It is a gas giant with no solid surface',
+      'It has a Great Red Spot that is actually a giant storm',
+      'It has over 80 known moons',
+      'Its four largest moons were discovered by Galileo'
+    ]
   }
 ];
 
@@ -96,12 +165,13 @@ class GameRoom {
     this.players = [];
     this.currentQuestion = 0;
     this.questions = this.shuffleQuestions();
-    this.gameState = 'waiting';
+    this.gameState = 'waiting'; // waiting, playing, finished
     this.currentHintIndex = 0;
     this.hintTimer = null;
     this.questionTimer = null;
     this.scores = {};
     this.startTime = null;
+    this.questionAnswered = false;
   }
 
   shuffleQuestions() {
@@ -110,7 +180,7 @@ class GameRoom {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    return shuffled.slice(0, 5);
+    return shuffled.slice(0, 5); // Take 5 questions
   }
 
   addPlayer(socket, playerName) {
@@ -141,6 +211,7 @@ class GameRoom {
   startGame() {
     if (this.players.length !== 2) return;
 
+    console.log('Starting game with players:', this.players.map(p => p.name));
     this.gameState = 'playing';
     this.currentQuestion = 0;
     this.startQuestion();
@@ -155,7 +226,11 @@ class GameRoom {
     const question = this.questions[this.currentQuestion];
     this.currentHintIndex = 0;
     this.startTime = Date.now();
+    this.questionAnswered = false;
 
+    console.log(`Starting question ${this.currentQuestion + 1}: ${question.answer}`);
+
+    // Send question start to all players
     this.broadcast('questionStart', {
       questionIndex: this.currentQuestion + 1,
       totalQuestions: this.questions.length,
@@ -163,13 +238,21 @@ class GameRoom {
       difficulty: question.difficulty
     });
 
-    this.revealHint();
+    // Start hint revealing - first hint immediately
+    setTimeout(() => {
+      this.revealHint();
+    }, 1000);
+
+    // Set up hint timer for subsequent hints
     this.hintTimer = setInterval(() => {
       this.revealHint();
     }, 15000);
 
+    // Set question timeout (2 minutes)
     this.questionTimer = setTimeout(() => {
-      this.handleQuestionTimeout();
+      if (!this.questionAnswered) {
+        this.handleQuestionTimeout();
+      }
     }, 120000);
   }
 
@@ -182,6 +265,7 @@ class GameRoom {
       text: question.hints[this.currentHintIndex]
     };
 
+    console.log(`Revealing hint ${this.currentHintIndex + 1}: ${hint.text}`);
     this.broadcast('hintRevealed', hint);
     this.currentHintIndex++;
   }
@@ -190,40 +274,54 @@ class GameRoom {
     const question = this.questions[this.currentQuestion];
     const player = this.players.find(p => p.id === socketId);
 
-    if (!player || this.gameState !== 'playing') return;
+    if (!player || this.gameState !== 'playing' || this.questionAnswered) return;
+
+    console.log(`${player.name} guessed: ${guess}`);
 
     const isCorrect = guess.toLowerCase().trim() === question.answer.toLowerCase().trim();
     const timeElapsed = (Date.now() - this.startTime) / 1000;
 
     if (isCorrect) {
+      this.questionAnswered = true;
+
+      // Calculate score based on time and hints used
       const timeBonus = Math.max(0, 100 - timeElapsed);
-      const hintPenalty = this.currentHintIndex * 20;
-      const points = Math.max(10, 200 + timeBonus - hintPenalty);
+      const hintPenalty = this.currentHintIndex * 15;
+      const points = Math.max(10, Math.round(200 + timeBonus - hintPenalty));
 
       this.scores[socketId] += points;
+
+      console.log(`${player.name} got it right! Points: ${points}`);
 
       this.broadcast('questionResult', {
         winner: socketId,
         winnerName: player.name,
         correctAnswer: question.answer,
         points: points,
-        timeElapsed: timeElapsed
+        timeElapsed: timeElapsed,
+        scores: this.scores
       });
 
       this.nextQuestion();
     } else {
+      // Wrong answer - send only to the player who guessed
+      console.log(`${player.name} got it wrong`);
       player.socket.emit('wrongAnswer', { guess });
     }
   }
 
   handleQuestionTimeout() {
+    if (this.questionAnswered) return;
+
     const question = this.questions[this.currentQuestion];
+    console.log(`Question timeout: ${question.answer}`);
 
     this.broadcast('questionResult', {
       winner: null,
       correctAnswer: question.answer,
       points: 0,
-      timeElapsed: 120
+      timeElapsed: 120,
+      scores: this.scores
     });
 
     this.nextQuestion();
@@ -239,7 +337,7 @@ class GameRoom {
       } else {
         this.endGame();
       }
-    }, 3000);
+    }, 3000); // 3 second delay before next question
   }
 
   endGame() {
@@ -249,9 +347,10 @@ class GameRoom {
     const results = this.players.map(p => ({
       id: p.id,
       name: p.name,
-      score: this.scores[p.id]
+      score: this.scores[p.id] || 0
     })).sort((a, b) => b.score - a.score);
 
+    console.log('Game ended. Final results:', results);
     this.broadcast('gameEnd', { results });
   }
 
@@ -267,55 +366,98 @@ class GameRoom {
   }
 
   cleanup() {
+    console.log(`Cleaning up game room ${this.id}`);
     this.clearTimers();
     games.delete(this.id);
   }
 
   broadcast(event, data) {
+    console.log(`Broadcasting ${event} to ${this.players.length} players`);
     this.players.forEach(player => {
       player.socket.emit(event, data);
     });
   }
 }
 
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({
+    status: 'HINTMAN Server is running!',
+    activeGames: games.size,
+    waitingPlayers: waitingPlayers.size
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    activeGames: games.size,
+    waitingPlayers: waitingPlayers.size
+  });
+});
+
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
 
   socket.on('findMatch', ({ playerName }) => {
-    console.log(`${playerName} looking for match...`);
+    console.log(`${playerName} (${socket.id}) looking for match...`);
 
-    const waitingPlayer = Array.from(waitingPlayers.values())[0];
+    // Check if there's a waiting player
+    const waitingPlayerEntries = Array.from(waitingPlayers.entries());
+    const waitingPlayerEntry = waitingPlayerEntries.find(([id]) => id !== socket.id);
 
-    if (waitingPlayer && waitingPlayer.id !== socket.id) {
-      const gameId = uuidv4();
-      const gameRoom = new GameRoom(gameId);
+    if (waitingPlayerEntry) {
+      const [waitingPlayerId, waitingPlayerName] = waitingPlayerEntry;
+      const waitingPlayerSocket = io.sockets.sockets.get(waitingPlayerId);
 
-      gameRoom.addPlayer(waitingPlayer, waitingPlayers.get(waitingPlayer.id));
-      gameRoom.addPlayer(socket, playerName);
+      if (waitingPlayerSocket) {
+        // Create new game room
+        const gameId = uuidv4();
+        const gameRoom = new GameRoom(gameId);
 
-      waitingPlayers.delete(waitingPlayer.id);
+        // Add both players
+        gameRoom.addPlayer(waitingPlayerSocket, waitingPlayerName);
+        gameRoom.addPlayer(socket, playerName);
 
-      waitingPlayer.join(gameId);
-      socket.join(gameId);
+        // Remove from waiting
+        waitingPlayers.delete(waitingPlayerId);
 
-      games.set(gameId, gameRoom);
+        // Join socket rooms
+        waitingPlayerSocket.join(gameId);
+        socket.join(gameId);
 
-      gameRoom.broadcast('matchFound', {
-        gameId: gameId,
-        players: gameRoom.players.map(p => ({ id: p.id, name: p.name }))
-      });
+        // Store game
+        games.set(gameId, gameRoom);
 
-      setTimeout(() => {
-        gameRoom.startGame();
-      }, 2000);
+        console.log(`Match found! ${waitingPlayerName} vs ${playerName}`);
 
+        // Notify players
+        gameRoom.broadcast('matchFound', {
+          gameId: gameId,
+          players: gameRoom.players.map(p => ({ id: p.id, name: p.name }))
+        });
+
+        // Start game after brief delay
+        setTimeout(() => {
+          gameRoom.startGame();
+        }, 2000);
+      } else {
+        // Waiting player socket no longer exists, clean up
+        waitingPlayers.delete(waitingPlayerId);
+        waitingPlayers.set(socket.id, playerName);
+        socket.emit('waitingForMatch');
+      }
     } else {
+      // Add to waiting list
+      console.log(`${playerName} added to waiting list`);
       waitingPlayers.set(socket.id, playerName);
       socket.emit('waitingForMatch');
     }
   });
 
   socket.on('submitGuess', ({ guess }) => {
+    // Find which game this player is in
     for (const [gameId, game] of games) {
       const player = game.players.find(p => p.id === socket.id);
       if (player) {
@@ -328,15 +470,25 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
 
+    // Remove from waiting list
     waitingPlayers.delete(socket.id);
 
+    // Remove from any active games
     for (const [gameId, game] of games) {
       const playerIndex = game.players.findIndex(p => p.id === socket.id);
       if (playerIndex !== -1) {
+        const disconnectedPlayer = game.players[playerIndex];
+        console.log(`${disconnectedPlayer.name} left game ${gameId}`);
+
         game.removePlayer(socket.id);
 
+        // Notify remaining player
         if (game.players.length === 1) {
           game.broadcast('playerDisconnected');
+          // End the game after a delay
+          setTimeout(() => {
+            game.cleanup();
+          }, 5000);
         }
         break;
       }
@@ -345,6 +497,7 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`HINTMAN Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
