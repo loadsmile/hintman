@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
-const GameManager = require('./src/services/GameManager');
+const GameManager = require('./src/services/GameManager'); // Fixed path
 
 const app = express();
 const server = http.createServer(app);
