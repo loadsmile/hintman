@@ -8,6 +8,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import ModeSelector from '../game/ModeSelector';
 import CategorySelector from '../game/CategorySelector';
 import CategoryService from '../../services/CategoryService';
+import MissionTracker from '../game/MissionTracker';
 
 const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [gameState, setGameState] = useState('mode-selection');
@@ -23,9 +24,37 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [serverStatus, setServerStatus] = useState('checking');
 
+  // New tracking states
+  const [playerStats, setPlayerStats] = useState({});
+
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
+
+  // Initialize player stats when match is found
+  const initializePlayerStats = (players) => {
+    const initialStats = {};
+    players.forEach(player => {
+      initialStats[player.id] = {
+        correctAnswers: 0,
+        mistakes: 0,
+        name: player.name
+      };
+    });
+    setPlayerStats(initialStats);
+  };
+
+  // Update player stats
+  const updatePlayerStats = (playerId, isCorrect) => {
+    setPlayerStats(prev => ({
+      ...prev,
+      [playerId]: {
+        ...prev[playerId],
+        correctAnswers: prev[playerId]?.correctAnswers + (isCorrect ? 1 : 0),
+        mistakes: prev[playerId]?.mistakes + (isCorrect ? 0 : 1)
+      }
+    }));
+  };
 
   // Health Bar Component
   const HealthBar = ({ playerId }) => {
@@ -97,7 +126,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       return;
     }
 
-    // Check server status first
     const isServerOnline = await checkServerStatus();
     if (!isServerOnline) {
       setConnectionError(true);
@@ -188,6 +216,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setPlayers(matchedPlayers);
       setGameState('playing');
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
+
+      // Initialize player stats tracking
+      initializePlayerStats(matchedPlayers);
     });
 
     socket.on('questionStart', ({ targetIndex, totalTargets, category, difficulty, health: newHealth }) => {
@@ -222,6 +253,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       if (newHealth) setHealth(newHealth);
 
+      // Update stats for the winner
+      if (winner) {
+        updatePlayerStats(winner, true);
+      }
+
       setGameResult({
         winner,
         winnerName,
@@ -235,6 +271,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       if (!mountedRef.current) return;
 
       console.log('❌ Wrong answer:', guess);
+
+      // Update stats for wrong answer
+      updatePlayerStats(myPlayerId, false);
+
       setGameResult({
         winner: null,
         incorrectGuess: guess,
@@ -344,6 +384,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     setSelectedCategory(null);
     setConnectionError(false);
     setServerStatus('checking');
+    setPlayerStats({});
     setGameState('mode-selection');
   };
 
@@ -356,11 +397,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
     console.log('🔍 Finding match for:', playerName, 'Mode:', selectedMode, 'Personal Category:', selectedCategory?.id);
 
-    // Send only the game mode for matchmaking, category is just for personal preference
     socketRef.current.emit('findMatch', {
       playerName,
-      gameMode: selectedMode, // Match by game mode only
-      personalCategory: selectedCategory?.id || 'general', // Personal preference for question display
+      gameMode: selectedMode,
+      personalCategory: selectedCategory?.id || 'general',
       personalCategoryName: selectedCategory?.name || 'General Knowledge'
     });
 
@@ -604,12 +644,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const results = gameData?.results || [];
     const winner = results[0];
     const isWinner = winner?.name === playerName;
-
     const totalRoundsCompleted = Math.min(5, Math.max(1, currentTarget?.targetIndex || 1));
+
+    // Get final stats for display
+    const myStats = playerStats[myPlayerId] || { correctAnswers: 0, mistakes: 0 };
+    const opponentStats = Object.values(playerStats).find(stat => stat.name !== playerName) || { correctAnswers: 0, mistakes: 0 };
 
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-3xl w-full text-black border border-gray-200">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
               {isWinner ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
@@ -626,6 +669,22 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               )}
               {' '}• Completed {totalRoundsCompleted} out of 5 targets
             </p>
+          </div>
+
+          {/* Mission Trackers */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <MissionTracker
+              correctAnswers={myStats.correctAnswers}
+              mistakes={myStats.mistakes}
+              playerName={playerName}
+              isMyTracker={true}
+            />
+            <MissionTracker
+              correctAnswers={opponentStats.correctAnswers}
+              mistakes={opponentStats.mistakes}
+              playerName={opponentStats.name}
+              isMyTracker={false}
+            />
           </div>
 
           <div className="space-y-4 mb-6">
@@ -674,6 +733,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const myHealth = health[players.find(p => p.name === playerName)?.id] || 5000;
     const opponentHealth = health[opponent?.id] || 5000;
 
+    // Get current stats for display
+    const myStats = playerStats[myPlayerId] || { correctAnswers: 0, mistakes: 0 };
+    const opponentStats = playerStats[opponent?.id] || { correctAnswers: 0, mistakes: 0 };
+
     return (
       <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
         <div className="max-w-6xl mx-auto">
@@ -695,7 +758,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div className={`bg-gray-800 p-3 rounded ${myHealth > opponentHealth ? 'ring-2 ring-green-400' : ''}`}>
                 <h3 className="font-spy text-red-500 mb-1">👤 {playerName} (You)</h3>
                 <p className="text-white font-bold">{myHealth} health</p>
@@ -710,6 +773,22 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                   <HealthBar playerId={opponent?.id} />
                 </div>
               </div>
+            </div>
+
+            {/* Mission Trackers During Game */}
+            <div className="grid grid-cols-2 gap-4">
+              <MissionTracker
+                correctAnswers={myStats.correctAnswers}
+                mistakes={myStats.mistakes}
+                playerName={playerName}
+                isMyTracker={true}
+              />
+              <MissionTracker
+                correctAnswers={opponentStats.correctAnswers}
+                mistakes={opponentStats.mistakes}
+                playerName={opponent?.name}
+                isMyTracker={false}
+              />
             </div>
           </div>
 
