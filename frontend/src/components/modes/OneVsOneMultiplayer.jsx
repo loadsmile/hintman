@@ -259,15 +259,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(newHealth);
     });
 
-    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, healthGained, isCorrect }) => {
+    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, healthGained }) => {
       if (!mountedRef.current) return;
 
-      console.log('📊 Target result:', { winner, winnerName, healthGained, isCorrect });
+      console.log('📊 Target result:', { winner, winnerName, healthGained });
 
       if (newHealth) setHealth(newHealth);
 
       // Update stats for the winner (correct answer)
-      if (winner && isCorrect) {
+      if (winner) {
         console.log('✅ Updating stats for correct answer:', winner);
         updatePlayerStats(winner, true);
       }
@@ -281,8 +281,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       });
     });
 
-    // Fixed wrong answer tracking
-    socket.on('wrongAnswer', ({ playerId, playerName, guess, healthLost, currentHealth, isCorrect }) => {
+    // Fixed wrong answer tracking with proper game result display
+    socket.on('wrongAnswer', ({ playerId, playerName, guess, healthLost }) => {
       if (!mountedRef.current) return;
 
       console.log('❌ Wrong answer from:', playerName, 'Guess:', guess);
@@ -293,21 +293,21 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         updatePlayerStats(playerId, false);
       }
 
-      // Only show the result to the player who made the wrong guess
-      if (playerId === myPlayerId) {
-        setGameResult({
-          winner: null,
-          incorrectGuess: guess,
-          correctAnswer: null,
-          healthLost
-        });
+      // Show the mistake result to ALL players (not just the one who made the mistake)
+      setGameResult({
+        winner: null,
+        incorrectGuess: guess,
+        incorrectPlayer: playerName,
+        correctAnswer: null,
+        healthLost,
+        isWrongAnswer: true
+      });
 
-        setTimeout(() => {
-          if (mountedRef.current) {
-            setGameResult(null);
-          }
-        }, 2000);
-      }
+      setTimeout(() => {
+        if (mountedRef.current) {
+          setGameResult(null);
+        }
+      }, 2500); // Show for slightly longer
     });
 
     socket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
@@ -824,6 +824,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               gameResult.winner && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' ? 'bg-red-900 border-red-500' :
               gameResult.winner === 'disconnect' ? 'bg-blue-900 border-blue-500' :
               gameResult.winner === 'elimination' ? 'bg-purple-900 border-purple-500' :
+              gameResult.isWrongAnswer ? 'bg-red-900 border-red-500' :
               'bg-yellow-900 border-yellow-500'
             }`}>
               <div className="text-center text-white">
@@ -839,7 +840,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                 {gameResult.winner === 'elimination' && (
                   <p className="text-lg font-bold">💀 {gameResult.message}</p>
                 )}
-                {!gameResult.winner && gameResult.incorrectGuess && (
+                {gameResult.isWrongAnswer && gameResult.incorrectGuess && (
+                  <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} MISSED: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
+                )}
+                {!gameResult.winner && gameResult.incorrectGuess && !gameResult.isWrongAnswer && (
                   <p className="text-lg font-bold">❌ Incorrect guess: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
                 )}
                 {gameResult.correctAnswer && (
