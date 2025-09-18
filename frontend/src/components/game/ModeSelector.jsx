@@ -2,9 +2,24 @@ import React from 'react';
 import Button from '../common/Button';
 
 const ModeSelector = ({ onModeSelect, onBack, playerName }) => {
-  const handleGeneralMode = () => {
-    onModeSelect('general');
-  };
+  const modes = [
+    {
+      id: 'general',
+      name: 'Quick Mission',
+      icon: '⚡',
+      description: 'Jump straight into action with mixed intelligence from all categories',
+      color: 'bg-red-600 hover:bg-red-700',
+      features: ['All Categories Mixed', 'Fastest Matchmaking', 'Recommended for New Agents']
+    },
+    {
+      id: 'category',
+      name: 'Under Cover Mission',
+      icon: '🎭',
+      description: 'Choose your cover and area of expertise for a specialized mission',
+      color: 'bg-blue-600 hover:bg-blue-700',
+      features: ['Choose Your Category', 'Specialized Questions', 'Expert-Level Challenge']
+    }
+  ];
 
   return (
     <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -16,42 +31,45 @@ const ModeSelector = ({ onModeSelect, onBack, playerName }) => {
         </div>
 
         <div className="space-y-6 mb-8">
-          <div className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all duration-300 hover:border-gray-300">
-            <div className="flex items-start space-x-4">
-              <div className="text-4xl">⚡</div>
+          {modes.map((mode) => (
+            <div
+              key={mode.id}
+              className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all duration-300 hover:border-gray-300 hover:scale-[1.02]"
+              onClick={() => onModeSelect(mode.id)}
+            >
+              <div className="flex items-start space-x-4">
+                <div className="text-4xl">{mode.icon}</div>
 
-              <div className="flex-1">
-                <h3 className="text-xl font-spy font-bold text-gray-800 mb-2">
-                  Quick Mission
-                </h3>
-                <p className="text-gray-600 mb-4 leading-relaxed">
-                  Jump straight into action with mixed intelligence from all categories
-                </p>
+                <div className="flex-1">
+                  <h3 className="text-xl font-spy font-bold text-gray-800 mb-2">
+                    {mode.name}
+                  </h3>
+                  <p className="text-gray-600 mb-4 leading-relaxed">
+                    {mode.description}
+                  </p>
 
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-green-500 text-sm">✓</span>
-                    <span className="text-sm text-gray-600">All Categories Mixed</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-green-500 text-sm">✓</span>
-                    <span className="text-sm text-gray-600">Fastest Matchmaking</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-green-500 text-sm">✓</span>
-                    <span className="text-sm text-gray-600">Recommended for All Agents</span>
+                  <div className="space-y-2">
+                    {mode.features.map((feature, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <span className="text-green-500 text-sm">✓</span>
+                        <span className="text-sm text-gray-600">{feature}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              <Button
-                onClick={handleGeneralMode}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3"
-              >
-                SELECT
-              </Button>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onModeSelect(mode.id);
+                  }}
+                  className={`${mode.color} text-white px-6 py-3 font-spy`}
+                >
+                  SELECT
+                </Button>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
 
         <div className="text-center">
@@ -62,7 +80,7 @@ const ModeSelector = ({ onModeSelect, onBack, playerName }) => {
 
         <div className="mt-4 text-center">
           <p className="text-xs text-gray-500">
-            💡 More specialized missions coming soon
+            💡 Quick Mission is recommended for fastest matchmaking
           </p>
         </div>
       </div>

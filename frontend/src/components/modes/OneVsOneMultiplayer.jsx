@@ -10,7 +10,7 @@ import CategorySelector from '../game/CategorySelector';
 import CategoryService from '../../services/CategoryService';
 
 const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
-  const [gameState, setGameState] = useState('mode-selection'); // Start with mode selection
+  const [gameState, setGameState] = useState('mode-selection');
   const [gameData, setGameData] = useState(null);
   const [players, setPlayers] = useState([]);
   const [currentTarget, setCurrentTarget] = useState(null);
@@ -21,6 +21,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [serverStatus, setServerStatus] = useState('checking'); // checking, online, offline
 
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
@@ -65,9 +66,41 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   };
 
-  const initializeSocket = () => {
+  // Check server status
+  const checkServerStatus = async () => {
+    try {
+      console.log('🔍 Checking server status...');
+      const response = await fetch('https://hintman-backend.onrender.com/health', {
+        method: 'GET',
+        timeout: 10000,
+      });
+
+      if (response.ok) {
+        setServerStatus('online');
+        console.log('✅ Server is online');
+        return true;
+      } else {
+        setServerStatus('offline');
+        console.log('❌ Server returned error:', response.status);
+        return false;
+      }
+    } catch (error) {
+      setServerStatus('offline');
+      console.log('❌ Server check failed:', error.message);
+      return false;
+    }
+  };
+
+  const initializeSocket = async () => {
     if (socketRef.current || initializedRef.current) {
       console.log('Socket already exists or already initialized, skipping...');
+      return;
+    }
+
+    // Check server status first
+    const isServerOnline = await checkServerStatus();
+    if (!isServerOnline) {
+      setConnectionError(true);
       return;
     }
 
@@ -75,12 +108,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     console.log('🔌 Initializing socket connection...', `Mode: ${selectedMode}`);
 
     const socket = io('https://hintman-backend.onrender.com', {
-      transports: ['polling', 'websocket'], // Try polling first, then websocket
-      timeout: 30000, // Increased timeout
+      transports: ['polling', 'websocket'],
+      timeout: 30000,
       forceNew: true,
-      reconnection: true, // Enable reconnection
-      reconnectionAttempts: 3,
-      reconnectionDelay: 2000,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 3000,
       autoConnect: true
     });
 
@@ -92,6 +125,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       console.log('✅ Connected to server:', socket.id);
       setMyPlayerId(socket.id);
       setConnectionError(false);
+      setServerStatus('online');
       setGameState('matchmaking');
     });
 
@@ -102,6 +136,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       if (reason !== 'io client disconnect' && mountedRef.current) {
         setConnectionError(true);
+        setServerStatus('offline');
         setGameState('connecting');
       }
     });
@@ -111,6 +146,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       console.error('🔥 Connection error:', error);
       setConnectionError(true);
+      setServerStatus('offline');
       setGameState('connecting');
     });
 
@@ -119,6 +155,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       console.log('🔄 Reconnected after', attemptNumber, 'attempts');
       setConnectionError(false);
+      setServerStatus('online');
       setGameState('matchmaking');
     });
 
@@ -127,6 +164,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       console.error('🔥 Reconnection failed:', error);
       setConnectionError(true);
+      setServerStatus('offline');
+    });
+
+    socket.on('reconnect_failed', () => {
+      if (!mountedRef.current) return;
+
+      console.error('🔥 All reconnection attempts failed');
+      setConnectionError(true);
+      setServerStatus('offline');
     });
 
     socket.on('waitingForMatch', () => {
@@ -270,13 +316,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     setSelectedMode(mode);
 
     if (mode === 'general') {
-      // For general mode, auto-select general category and proceed to connection
       const generalCategory = CategoryService.getGeneralCategory();
       setSelectedCategory(generalCategory);
       setGameState('connecting');
       initializeSocket();
     } else if (mode === 'category') {
-      // For category mode, show category selection
       setGameState('category-selection');
     }
   };
@@ -284,13 +328,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const handleCategorySelect = (category) => {
     console.log('🎨 Category selected:', category.name);
     setSelectedCategory(category);
-    // After category selection, proceed to connection
     setGameState('connecting');
     initializeSocket();
   };
 
   const handleBackToModeSelection = () => {
-    // Clean up socket if exists
     if (socketRef.current) {
       socketRef.current.removeAllListeners();
       socketRef.current.close();
@@ -301,6 +343,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     setSelectedMode(null);
     setSelectedCategory(null);
     setConnectionError(false);
+    setServerStatus('checking');
     setGameState('mode-selection');
   };
 
@@ -317,7 +360,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       playerName,
       category: selectedCategory?.id || 'general',
       categoryName: selectedCategory?.name || 'General Knowledge',
-      mode: selectedMode || 'general' // Send selected mode to server
+      mode: selectedMode || 'general'
     });
 
     setGameState('waiting');
@@ -352,7 +395,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     onBackToMenu();
   };
 
-  const retryConnection = () => {
+  const retryConnection = async () => {
     console.log('🔄 Retrying connection...');
 
     if (socketRef.current) {
@@ -363,6 +406,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
     initializedRef.current = false;
     setConnectionError(false);
+    setServerStatus('checking');
     setGameState('connecting');
 
     setTimeout(() => {
@@ -370,7 +414,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     }, 1000);
   };
 
-  // Get mode display name for UI
   const getModeDisplayName = () => {
     if (!selectedMode) return 'Unknown';
 
@@ -378,7 +421,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       case 'general':
         return 'Quick Mission';
       case 'category':
-        return 'Specialized Mission';
+        return 'Under Cover Mission';
       default:
         return selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1);
     }
@@ -406,17 +449,23 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  if (connectionError) {
+  if (connectionError || serverStatus === 'offline') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
-          <h2 className="text-2xl font-bold text-red-600 mb-4 font-spy">CONNECTION ERROR</h2>
-          <p className="mb-4">Unable to connect to game server.</p>
-          <p className="text-sm text-gray-600 mb-6">
-            The server might be starting up or experiencing connectivity issues.
-            <br />
-            <span className="font-bold">Render free tier</span> servers can take up to 50 seconds to wake up.
-          </p>
+          <h2 className="text-2xl font-bold text-red-600 mb-4 font-spy">SERVER UNAVAILABLE</h2>
+          <p className="mb-4">The multiplayer server is currently offline or experiencing issues.</p>
+          <div className="bg-yellow-100 border border-yellow-300 rounded p-3 mb-6">
+            <p className="text-sm text-yellow-800">
+              <strong>🚨 Known Issue:</strong><br />
+              The backend server on Render's free tier may be sleeping or experiencing a cold start.
+              <br /><br />
+              <strong>Solutions:</strong><br />
+              • Wait 50-90 seconds for the server to wake up<br />
+              • Try the Single Player mode instead<br />
+              • Check back in a few minutes
+            </p>
+          </div>
           {selectedMode && (
             <div className="mb-4 p-3 bg-gray-100 rounded-lg">
               <p className="text-sm text-gray-700">
@@ -431,18 +480,23 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <Button onClick={handleBackToModeSelection} variant="secondary">
               🏠 Back to Mode Selection
             </Button>
+            <Button onClick={onBackToMenu} variant="secondary">
+              🎮 Try Single Player
+            </Button>
           </div>
         </div>
       </div>
     );
   }
 
-  if (gameState === 'connecting') {
+  if (gameState === 'connecting' || serverStatus === 'checking') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
-          <LoadingSpinner size="lg" message="Connecting to server..." />
-          <p className="mt-4 text-gray-600">Establishing secure connection...</p>
+          <LoadingSpinner size="lg" message={serverStatus === 'checking' ? 'Checking server status...' : 'Connecting to server...'} />
+          <p className="mt-4 text-gray-600">
+            {serverStatus === 'checking' ? 'Verifying server availability...' : 'Establishing secure connection...'}
+          </p>
           {selectedMode && (
             <div className="mt-4 p-3 bg-gray-100 rounded-lg">
               <p className="text-sm text-gray-700">
@@ -458,7 +512,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </div>
           )}
           <p className="mt-2 text-xs text-gray-500">
-            ⏱️ Server may take up to 50 seconds to wake up on first connection
+            ⏱️ Free tier servers may take up to 90 seconds to wake up
           </p>
           <Button onClick={handleBackToModeSelection} variant="secondary" className="mt-4">
             Cancel
@@ -468,6 +522,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
+  // Rest of the component remains the same...
   if (gameState === 'matchmaking') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
