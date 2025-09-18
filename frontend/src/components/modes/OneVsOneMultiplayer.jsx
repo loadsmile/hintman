@@ -209,13 +209,18 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setGameState('waiting');
     });
 
-    socket.on('matchFound', ({ players: matchedPlayers, gameMode }) => {
+    socket.on('matchFound', ({ players: matchedPlayers, gameMode, categoryInfo }) => {
       if (!mountedRef.current) return;
 
-      console.log('🎯 Match found!', matchedPlayers, 'Game Mode:', gameMode);
+      console.log('🎯 Match found!', matchedPlayers, 'Game Mode:', gameMode, 'Category Info:', categoryInfo);
       setPlayers(matchedPlayers);
       setGameState('playing');
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
+
+      // Store category info for display
+      if (categoryInfo) {
+        setCurrentTarget(prev => ({ ...prev, categoryInfo }));
+      }
 
       // Initialize player stats tracking
       initializePlayerStats(matchedPlayers);
@@ -569,30 +574,35 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  if (gameState === 'matchmaking') {
-    return (
-      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
-              🎯 {getModeDisplayName().toUpperCase()}
-            </h2>
-            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for combat?</p>
-            <div className="bg-gray-800 p-4 rounded text-white text-sm">
-              <p className="mb-2">🎯 <strong>Mission Type:</strong> {getModeDisplayName()}</p>
-              {selectedMode === 'category' && selectedCategory && (
-                <p className="mb-2">🎭 <strong>Your Cover:</strong> {selectedCategory.name} specialist</p>
-              )}
-              <p className="mb-2">📋 <strong>Questions:</strong> {selectedMode === 'general' ? 'Mixed from all categories' : 'Mixed categories (your preference noted)'}</p>
-              <p className="mb-2">🤝 <strong>Matchmaking:</strong> Against other {getModeDisplayName()} players</p>
-              <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
-              <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
-              <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
-              <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
-              <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
-              <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
-            </div>
+if (gameState === 'matchmaking') {
+  const roundsInfo = selectedMode === 'category' ? '10 mixed questions' : '5 mixed questions';
+
+  return (
+    <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
+            🎯 {getModeDisplayName().toUpperCase()}
+          </h2>
+          <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for combat?</p>
+          <div className="bg-gray-800 p-4 rounded text-white text-sm">
+            <p className="mb-2">🎯 <strong>Mission Type:</strong> {getModeDisplayName()}</p>
+            {selectedMode === 'category' && selectedCategory && (
+              <p className="mb-2">🎭 <strong>Your Specialty:</strong> {selectedCategory.name}</p>
+            )}
+            <p className="mb-2">📋 <strong>Questions:</strong> {roundsInfo}</p>
+            {selectedMode === 'category' && (
+              <p className="mb-2">🔄 <strong>Mix Strategy:</strong> 5 from your specialty + 5 from opponent's specialty</p>
+            )}
+            <p className="mb-2">🤝 <strong>Matchmaking:</strong> Against other {getModeDisplayName()} players</p>
+            <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
+            <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
+            <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
+            <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
+            <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
+            <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
           </div>
+        </div>
 
           <div className="text-center">
             <div className="flex items-center justify-center mb-4">

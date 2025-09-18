@@ -5,9 +5,10 @@ class GameRoom {
     this.id = id;
     this.players = [];
     this.currentQuestion = 0;
-    this.questionCategory = questionCategory; // Always 'general' for mixed questions
-    this.gameMode = gameMode; // 'general' or 'category' for matchmaking
-    this.questions = this.shuffleQuestions(questionsData, questionCategory);
+    this.questionCategory = questionCategory;
+    this.gameMode = gameMode;
+    this.playerCategories = []; // Store both players' categories
+    this.questions = [];
     this.gameState = 'waiting';
     this.currentHintIndex = 0;
     this.hintTimer = null;
@@ -15,19 +16,117 @@ class GameRoom {
     this.health = {};
     this.startTime = null;
     this.questionAnswered = false;
-    this.questionsPerGame = 5;
-    this.createdAt = Date.now(); // Add creation timestamp for cleanup
+    this.questionsPerGame = gameMode === 'category' ? 10 : 5; // 10 for Under Cover, 5 for Quick
+    this.createdAt = Date.now();
+    this.questionsData = questionsData; // Store for later use
+  }
+
+  addPlayer(socket, playerName, gameMode = 'general', personalCategory = 'general') {
+    if (this.players.length >= 2) return false;
+
+    const player = {
+      id: socket.id,
+      name: playerName,
+      health: 5000,
+      gameMode: gameMode,
+      personalCategory: personalCategory,
+      socket: socket
+    };
+
+    this.players.push(player);
+    this.health[socket.id] = 5000;
+
+    // Store player categories for question mixing
+    this.playerCategories.push(personalCategory);
+
+    // If this is the second player and it's category mode, prepare mixed questions
+    if (this.players.length === 2 && gameMode === 'category') {
+      this.questions = this.createMixedQuestions();
+    } else if (gameMode === 'general') {
+      // For general mode, shuffle all questions
+      this.questions = this.shuffleQuestions(this.questionsData, 'general');
+    }
+
+    return true;
+  }
+
+  createMixedQuestions() {
+    console.log(`Game ${this.id}: Creating mixed questions for categories:`, this.playerCategories);
+
+    const [category1, category2] = this.playerCategories;
+    const questionsPerCategory = 5; // 5 questions from each category
+
+    // Filter questions by each category
+    const category1Questions = this.filterQuestionsByCategory(this.questionsData, category1);
+    const category2Questions = this.filterQuestionsByCategory(this.questionsData, category2);
+
+    console.log(`Game ${this.id}: Found ${category1Questions.length} questions for ${category1}`);
+    console.log(`Game ${this.id}: Found ${category2Questions.length} questions for ${category2}`);
+
+    // Get 5 random questions from each category
+    const selectedCategory1 = this.getRandomQuestions(category1Questions, questionsPerCategory);
+    const selectedCategory2 = this.getRandomQuestions(category2Questions, questionsPerCategory);
+
+    // Combine and shuffle the questions
+    const combinedQuestions = [...selectedCategory1, ...selectedCategory2];
+    const shuffledQuestions = this.shuffleArray(combinedQuestions);
+
+    console.log(`Game ${this.id}: Created ${shuffledQuestions.length} mixed questions`);
+
+    return shuffledQuestions.map(q =>
+      new Question(q.id, q.answer, q.category, q.difficulty, q.hints)
+    );
+  }
+
+  filterQuestionsByCategory(questionsData, category) {
+    if (category === 'general') {
+      return questionsData;
+    }
+
+    return questionsData.filter(q => {
+      const questionCategory = q.category.toLowerCase();
+      const targetCategory = category.toLowerCase();
+
+      // Flexible matching for categories
+      return questionCategory.includes(targetCategory) ||
+             targetCategory.includes(questionCategory) ||
+             this.getCategoryMatches(questionCategory, targetCategory);
+    });
+  }
+
+  getCategoryMatches(questionCategory, targetCategory) {
+    const categoryMappings = {
+      'history': ['history', 'ancient', 'war', 'historical'],
+      'science': ['science', 'physics', 'chemistry', 'biology', 'astronomy'],
+      'art': ['art', 'painting', 'sculpture', 'artist'],
+      'literature': ['literature', 'book', 'novel', 'author', 'writer'],
+      'geography': ['geography', 'country', 'city', 'mountain', 'river', 'ocean'],
+      'sports': ['sport', 'game', 'athlete', 'olympic'],
+      'music': ['music', 'song', 'composer', 'instrument'],
+      'entertainment': ['entertainment', 'movie', 'film', 'tv', 'celebrity'],
+      'food': ['food', 'cooking', 'cuisine', 'recipe'],
+      'technology': ['technology', 'computer', 'internet', 'digital']
+    };
+
+    const targetMappings = categoryMappings[targetCategory] || [targetCategory];
+    return targetMappings.some(mapping => questionCategory.includes(mapping));
+  }
+
+  getRandomQuestions(questions, count) {
+    if (questions.length <= count) {
+      return questions;
+    }
+
+    const shuffled = this.shuffleArray([...questions]);
+    return shuffled.slice(0, count);
   }
 
   shuffleQuestions(questionsData, questionCategory) {
     let filteredQuestions = questionsData;
 
-    // For mixed questions, use all questions
+    // For general mode, use all questions
     if (questionCategory && questionCategory !== 'general') {
-      filteredQuestions = questionsData.filter(q =>
-        q.category.toLowerCase() === questionCategory.toLowerCase() ||
-        q.category.toLowerCase().includes(questionCategory.toLowerCase())
-      );
+      filteredQuestions = this.filterQuestionsByCategory(questionsData, questionCategory);
 
       console.log(`Filtered ${filteredQuestions.length} questions for category: ${questionCategory}`);
     }
@@ -42,32 +141,17 @@ class GameRoom {
       new Question(q.id, q.answer, q.category, q.difficulty, q.hints)
     );
 
-    // Fisher-Yates shuffle algorithm
-    const shuffled = [...allQuestions];
+    const shuffled = this.shuffleArray(allQuestions);
+    return shuffled.slice(0, this.questionsPerGame);
+  }
+
+  shuffleArray(array) {
+    const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-
-    return shuffled.slice(0, this.questionsPerGame);
-  }
-
-  addPlayer(socket, playerName, gameMode = 'general', personalCategory = 'general') {
-    if (this.players.length >= 2) return false;
-
-    const player = {
-      id: socket.id,
-      name: playerName,
-      health: 5000,
-      gameMode: gameMode, // For tracking purposes
-      personalCategory: personalCategory, // Personal preference
-      socket: socket
-    };
-
-    this.players.push(player);
-    this.health[socket.id] = 5000;
-
-    return true;
+    return shuffled;
   }
 
   removePlayer(socketId) {
@@ -83,7 +167,6 @@ class GameRoom {
     if (this.health[socketId] !== undefined) {
       this.health[socketId] = Math.max(0, Math.min(5000, this.health[socketId] + healthChange));
 
-      // Update player object as well
       const player = this.players.find(p => p.id === socketId);
       if (player) {
         player.health = this.health[socketId];
@@ -99,7 +182,6 @@ class GameRoom {
     return this.players.filter(p => this.isPlayerAlive(p.id)).length;
   }
 
-  // Broadcast health update to all players immediately
   broadcastHealthUpdate() {
     this.broadcast('healthUpdate', {
       health: this.health
@@ -109,15 +191,27 @@ class GameRoom {
   startGame() {
     if (this.players.length !== 2) return;
 
-    console.log(`Game ${this.id}: Starting game with players:`, this.players.map(p => p.name));
-    console.log(`Game ${this.id}: Playing ${this.questions.length} rounds from ${this.questions.length} available questions`);
+    console.log(`Game ${this.id}: Starting ${this.gameMode} game with players:`, this.players.map(p => `${p.name} (${p.personalCategory})`));
+    console.log(`Game ${this.id}: Playing ${this.questions.length} questions`);
+
+    if (this.gameMode === 'category') {
+      console.log(`Game ${this.id}: Category breakdown:`, this.getQuestionCategoryBreakdown());
+    }
+
     this.gameState = 'playing';
     this.currentQuestion = 0;
     this.startQuestion();
   }
 
+  getQuestionCategoryBreakdown() {
+    const breakdown = {};
+    this.questions.forEach(q => {
+      breakdown[q.category] = (breakdown[q.category] || 0) + 1;
+    });
+    return breakdown;
+  }
+
   startQuestion() {
-    // Check if we've completed all 5 rounds
     if (this.currentQuestion >= this.questionsPerGame || this.getAlivePlayersCount() < 2) {
       this.endGame();
       return;
@@ -128,7 +222,7 @@ class GameRoom {
     this.startTime = Date.now();
     this.questionAnswered = false;
 
-    console.log(`Game ${this.id}: Starting target ${this.currentQuestion + 1}/${this.questionsPerGame}: ${question.answer}`);
+    console.log(`Game ${this.id}: Starting question ${this.currentQuestion + 1}/${this.questionsPerGame}: ${question.answer} (${question.category})`);
 
     this.broadcast('questionStart', {
       targetIndex: this.currentQuestion + 1,
@@ -165,7 +259,6 @@ class GameRoom {
 
     console.log(`Game ${this.id}: Revealing hint ${this.currentHintIndex + 1}: ${hintText}`);
 
-    // All players lose health for each hint revealed (100 per hint)
     this.players.forEach(player => {
       if (this.isPlayerAlive(player.id)) {
         this.updatePlayerHealth(player.id, -100);
@@ -195,14 +288,11 @@ class GameRoom {
 
     console.log(`Game ${this.id}: Guess "${guess}" is ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
 
-    // Player loses health based on time elapsed (1 per second)
     const timePenalty = Math.floor(timeElapsed);
     this.updatePlayerHealth(socketId, -timePenalty);
 
     if (isCorrect) {
       this.questionAnswered = true;
-
-      // Player gains significant health for correct answer (1000)
       this.updatePlayerHealth(socketId, 1000);
 
       console.log(`Game ${this.id}: ${player.name} got it right! Health: ${this.health[socketId]}`);
@@ -218,22 +308,18 @@ class GameRoom {
 
       this.nextQuestion();
     } else {
-      // Wrong answer - player loses additional health IMMEDIATELY
       this.updatePlayerHealth(socketId, -500);
 
       console.log(`Game ${this.id}: ${player.name} got it wrong. Health: ${this.health[socketId]}`);
 
-      // Send wrong answer response to the player who guessed
       player.socket.emit('wrongAnswer', {
         guess,
         healthLost: 500,
         currentHealth: this.health[socketId]
       });
 
-      // Immediately broadcast health update to all players
       this.broadcastHealthUpdate();
 
-      // Check if player died from wrong answer
       if (!this.isPlayerAlive(socketId)) {
         this.broadcast('playerEliminated', {
           eliminatedPlayer: socketId,
@@ -241,7 +327,6 @@ class GameRoom {
           health: this.health
         });
 
-        // If only one player left, end the game
         if (this.getAlivePlayersCount() <= 1) {
           this.questionAnswered = true;
           this.endGame();
@@ -254,9 +339,8 @@ class GameRoom {
     if (this.questionAnswered) return;
 
     const question = this.questions[this.currentQuestion];
-    console.log(`Game ${this.id}: Target timeout: ${question.answer}`);
+    console.log(`Game ${this.id}: Question timeout: ${question.answer}`);
 
-    // All alive players lose health for timeout (full 120 seconds)
     this.players.forEach(player => {
       if (this.isPlayerAlive(player.id)) {
         this.updatePlayerHealth(player.id, -120);
@@ -294,15 +378,15 @@ class GameRoom {
       id: p.id,
       name: p.name,
       health: this.health[p.id] || 0,
-      isAlive: this.isPlayerAlive(p.id)
+      isAlive: this.isPlayerAlive(p.id),
+      category: p.personalCategory
     })).sort((a, b) => {
-      // Sort by alive status first, then by health
       if (a.isAlive && !b.isAlive) return -1;
       if (!a.isAlive && b.isAlive) return 1;
       return b.health - a.health;
     });
 
-    console.log(`Game ${this.id}: Game ended after ${this.currentQuestion} rounds. Final results:`, results);
+    console.log(`Game ${this.id}: Game ended after ${this.currentQuestion} questions. Final results:`, results);
     this.broadcast('gameEnd', { results });
   }
 
@@ -320,8 +404,6 @@ class GameRoom {
   cleanup() {
     console.log(`Game ${this.id}: Cleaning up game room`);
     this.clearTimers();
-    this.players = [];
-    this.health = {};
   }
 
   broadcast(event, data) {
@@ -338,6 +420,7 @@ class GameRoom {
       id: this.id,
       gameMode: this.gameMode,
       questionCategory: this.questionCategory,
+      playerCategories: this.playerCategories,
       playerCount: this.players.length,
       gameState: this.gameState,
       currentTarget: this.currentQuestion + 1,
@@ -345,7 +428,8 @@ class GameRoom {
       questionsInDatabase: this.questions.length,
       playersHealth: this.health,
       alivePlayersCount: this.getAlivePlayersCount(),
-      createdAt: this.createdAt
+      createdAt: this.createdAt,
+      questionBreakdown: this.gameMode === 'category' ? this.getQuestionCategoryBreakdown() : null
     };
   }
 }

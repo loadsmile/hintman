@@ -8,7 +8,6 @@ class GameManager {
     this.connectedPlayers = new Map();
   }
 
-  // Handle player connection
   handleConnection(socket) {
     this.connectedPlayers.set(socket.id, {
       socket,
@@ -29,7 +28,6 @@ class GameManager {
     });
   }
 
-  // Handle disconnection
   handleDisconnection(socket) {
     console.log('Player disconnected:', socket.id);
 
@@ -54,17 +52,18 @@ class GameManager {
     this.connectedPlayers.delete(socket.id);
   }
 
-  // Find match - Updated for new structure
   findMatch(socket, playerData) {
     const {
       playerName,
       gameMode = 'general',
-      personalCategory = 'general'
+      personalCategory = 'general',
+      personalCategoryName = 'General Knowledge'
     } = playerData;
 
-    console.log(`${playerName} (${socket.id}) looking for ${gameMode} match...`);
+    console.log(`${playerName} (${socket.id}) looking for ${gameMode} match with category: ${personalCategory}`);
 
-    // Look for existing room with same game mode
+    // For Under Cover Mission, match only by game mode (not category)
+    // This allows players with different categories to match
     let availableRoom = null;
     for (const room of this.gameRooms.values()) {
       if (room.gameState === 'waiting' &&
@@ -76,10 +75,9 @@ class GameManager {
     }
 
     if (availableRoom) {
-      // Join existing room
       const success = availableRoom.addPlayer(socket, playerName, gameMode, personalCategory);
       if (success) {
-        console.log(`Match found! ${playerName} joined room ${availableRoom.id}`);
+        console.log(`Match found! ${playerName} (${personalCategory}) joined room ${availableRoom.id}`);
 
         const playerInfo = this.connectedPlayers.get(socket.id);
         if (playerInfo) {
@@ -93,13 +91,19 @@ class GameManager {
           personalCategory: p.personalCategory
         }));
 
-        // Use the room's broadcast method
+        // Show the category mix to both players
+        const categoryInfo = gameMode === 'category' ? {
+          player1Category: availableRoom.players[0].personalCategory,
+          player2Category: availableRoom.players[1].personalCategory,
+          questionsPerGame: 10
+        } : { questionsPerGame: 5 };
+
         availableRoom.broadcast('matchFound', {
           players,
-          gameMode
+          gameMode,
+          categoryInfo
         });
 
-        // Start game after delay
         setTimeout(() => {
           if (availableRoom.players.length === 2 && availableRoom.gameState === 'waiting') {
             availableRoom.startGame();
@@ -112,7 +116,7 @@ class GameManager {
 
     // Create new room
     const roomId = uuidv4().split('-')[0].toUpperCase();
-    const gameRoom = new GameRoom(roomId, this.questionsData, 'general', gameMode);
+    const gameRoom = new GameRoom(roomId, this.questionsData, personalCategory, gameMode);
 
     const success = gameRoom.addPlayer(socket, playerName, gameMode, personalCategory);
     if (success) {
@@ -123,14 +127,15 @@ class GameManager {
         playerInfo.currentRoom = roomId;
       }
 
-      console.log(`${playerName} added to waiting list (${this.getWaitingPlayersCount()} total waiting)`);
+      console.log(`${playerName} added to waiting list for ${gameMode} match (${personalCategory} category)`);
 
       socket.emit('waitingForMatch', {
         roomId,
-        gameMode
+        gameMode,
+        personalCategory,
+        personalCategoryName
       });
 
-      // Timeout for solo players
       setTimeout(() => {
         if (gameRoom.players.length === 1 && gameRoom.gameState === 'waiting') {
           if (gameRoom.players[0] && gameRoom.players[0].socket.connected) {
@@ -142,7 +147,6 @@ class GameManager {
     }
   }
 
-  // Handle guess
   handleGuess(socket, guess) {
     const playerInfo = this.connectedPlayers.get(socket.id);
     if (!playerInfo || !playerInfo.currentRoom) {
@@ -157,7 +161,6 @@ class GameManager {
     room.handleGuess(socket.id, guess);
   }
 
-  // Get waiting players count
   getWaitingPlayersCount() {
     let count = 0;
     for (const room of this.gameRooms.values()) {
@@ -168,7 +171,6 @@ class GameManager {
     return count;
   }
 
-  // Get stats
   getStats() {
     const totalRooms = this.gameRooms.size;
     const totalPlayers = this.connectedPlayers.size;
@@ -176,11 +178,14 @@ class GameManager {
     const roomStats = {
       waiting: 0,
       playing: 0,
-      finished: 0
+      finished: 0,
+      general: 0,
+      category: 0
     };
 
     for (const room of this.gameRooms.values()) {
       roomStats[room.gameState] = (roomStats[room.gameState] || 0) + 1;
+      roomStats[room.gameMode] = (roomStats[room.gameMode] || 0) + 1;
     }
 
     return {
@@ -191,7 +196,6 @@ class GameManager {
     };
   }
 
-  // Cleanup method
   cleanupAbandonedRooms() {
     const roomsToDelete = [];
 
@@ -206,7 +210,6 @@ class GameManager {
     });
   }
 
-  // Shutdown
   shutdown() {
     console.log('GameManager shutting down...');
 
