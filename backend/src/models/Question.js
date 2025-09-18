@@ -4,163 +4,206 @@ class Question {
     this.answer = answer;
     this.category = category;
     this.difficulty = difficulty;
-    this.hints = hints;
-  }
-
-  checkAnswer(guess) {
-    // Normalize both the guess and the correct answer
-    const normalizedGuess = this.normalizeAnswer(guess);
-    const normalizedAnswer = this.normalizeAnswer(this.answer);
-
-    // Check for exact match first
-    if (normalizedGuess === normalizedAnswer) {
-      return true;
-    }
-
-    // Get key words from both
-    const answerWords = this.getKeyWords(normalizedAnswer);
-    const guessWords = this.getKeyWords(normalizedGuess);
-
-    console.log(`Checking answer: "${guess}" vs "${this.answer}"`);
-    console.log(`Answer words: [${answerWords.join(', ')}]`);
-    console.log(`Guess words: [${guessWords.join(', ')}]`);
-
-    // Must have at least the same number of key words
-    if (guessWords.length < answerWords.length) {
-      console.log('Not enough words in guess');
-      return false;
-    }
-
-    // Check if all key words from the answer are matched in the guess
-    let matchedWords = 0;
-    for (const answerWord of answerWords) {
-      let wordMatched = false;
-
-      for (const guessWord of guessWords) {
-        // Check for exact match or very high similarity
-        if (guessWord === answerWord) {
-          wordMatched = true;
-          break;
-        }
-
-        // Check for partial matches (one word contains the other, minimum 4 characters)
-        if (answerWord.length >= 4 && guessWord.length >= 4) {
-          if (guessWord.includes(answerWord) || answerWord.includes(guessWord)) {
-            wordMatched = true;
-            break;
-          }
-        }
-
-        // Check for high similarity (85% or higher) for longer words only
-        if (answerWord.length >= 5 && guessWord.length >= 5) {
-          const similarity = this.calculateSimilarity(answerWord, guessWord);
-          if (similarity >= 0.85) {
-            console.log(`High similarity match: ${answerWord} ≈ ${guessWord} (${Math.round(similarity * 100)}%)`);
-            wordMatched = true;
-            break;
-          }
-        }
-      }
-
-      if (wordMatched) {
-        matchedWords++;
-      } else {
-        console.log(`Failed to match word: "${answerWord}"`);
-      }
-    }
-
-    // All key words from answer must be matched
-    const isCorrect = matchedWords === answerWords.length;
-    console.log(`Match result: ${matchedWords}/${answerWords.length} words matched = ${isCorrect}`);
-
-    return isCorrect;
-  }
-
-  normalizeAnswer(text) {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()'"]/g, '') // Remove punctuation
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .replace(/^(the|a|an)\s+/i, '') // Remove leading articles
-      .replace(/\s+(the|a|an)\s+/gi, ' ') // Remove middle articles
-      .replace(/\s+(of|in|on|at|by|for|with)\s+/gi, ' ') // Remove some prepositions
-      .trim();
-  }
-
-  getKeyWords(text) {
-    const commonWords = new Set([
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-      'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have',
-      'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
-      'it', 'its', 'this', 'that', 'these', 'those', 'from', 'up', 'out',
-      'so', 'as', 'if', 'no', 'not', 'only', 'own', 'same', 'such', 'than',
-      'too', 'very', 'can', 'just', 'his', 'her', 'him', 'she', 'he'
-    ]);
-
-    return text
-      .split(' ')
-      .filter(word => word.length >= 3) // Minimum 3 characters
-      .filter(word => !commonWords.has(word))
-      .filter(word => !/^\d+$/.test(word)) // Remove pure numbers
-      .filter(word => word.length > 0);
-  }
-
-  calculateSimilarity(str1, str2) {
-    // Levenshtein distance based similarity
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
-
-    if (longer.length === 0) return 1.0;
-
-    const editDistance = this.levenshteinDistance(longer, shorter);
-    return (longer.length - editDistance) / longer.length;
-  }
-
-  levenshteinDistance(str1, str2) {
-    const matrix = [];
-
-    for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = [i];
-    }
-
-    for (let j = 0; j <= str1.length; j++) {
-      matrix[0][j] = j;
-    }
-
-    for (let i = 1; i <= str2.length; i++) {
-      for (let j = 1; j <= str1.length; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
-      }
-    }
-
-    return matrix[str2.length][str1.length];
+    this.hints = hints || [];
   }
 
   getHint(index) {
-    return this.hints[index] || null;
+    if (index >= 0 && index < this.hints.length) {
+      return this.hints[index];
+    }
+    return null;
   }
 
   getTotalHints() {
     return this.hints.length;
   }
 
-  toJSON() {
-    return {
-      id: this.id,
-      answer: this.answer,
-      category: this.category,
-      difficulty: this.difficulty,
-      hints: this.hints
+  checkAnswer(guess) {
+    if (!guess || typeof guess !== 'string') {
+      return false;
+    }
+
+    // Normalize both the correct answer and the guess
+    const normalizedAnswer = this.normalizeAnswer(this.answer);
+    const normalizedGuess = this.normalizeAnswer(guess);
+
+    console.log(`Question ${this.id}: Checking "${guess}" against "${this.answer}"`);
+    console.log(`Question ${this.id}: Normalized guess: "${normalizedGuess}" vs normalized answer: "${normalizedAnswer}"`);
+
+    // Direct match after normalization
+    if (normalizedGuess === normalizedAnswer) {
+      console.log(`Question ${this.id}: EXACT MATCH`);
+      return true;
+    }
+
+    // Check if guess matches any alternative forms
+    const alternativeForms = this.generateAlternativeForms(this.answer);
+    console.log(`Question ${this.id}: Checking alternatives:`, alternativeForms);
+
+    for (const alternative of alternativeForms) {
+      const normalizedAlternative = this.normalizeAnswer(alternative);
+      if (normalizedGuess === normalizedAlternative) {
+        console.log(`Question ${this.id}: ALTERNATIVE MATCH: "${alternative}"`);
+        return true;
+      }
+    }
+
+    // Check for acceptable word-level matches (strict spelling required)
+    if (this.checkWordLevelMatch(normalizedGuess, normalizedAnswer)) {
+      console.log(`Question ${this.id}: WORD-LEVEL MATCH`);
+      return true;
+    }
+
+    console.log(`Question ${this.id}: NO MATCH`);
+    return false;
+  }
+
+  normalizeAnswer(text) {
+    return text
+      .toLowerCase()
+      .trim()
+      // Remove extra spaces
+      .replace(/\s+/g, ' ')
+      // Remove common punctuation but keep letters and spaces
+      .replace(/['".,!?;:()[\]{}]/g, '')
+      // Keep hyphens and apostrophes in words
+      .replace(/\s*-\s*/g, '-')
+      .replace(/\s*'\s*/g, "'");
+  }
+
+  generateAlternativeForms(answer) {
+    const alternatives = [];
+    const normalized = this.normalizeAnswer(answer);
+
+    // Add the original normalized form
+    alternatives.push(normalized);
+
+    // Remove common articles and prepositions
+    const articlesAndPrepositions = ['the', 'a', 'an', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'to'];
+
+    for (const word of articlesAndPrepositions) {
+      // Remove word at the beginning
+      if (normalized.startsWith(word + ' ')) {
+        alternatives.push(normalized.substring(word.length + 1));
+      }
+
+      // Remove word at the end
+      if (normalized.endsWith(' ' + word)) {
+        alternatives.push(normalized.substring(0, normalized.length - word.length - 1));
+      }
+
+      // Remove word in the middle
+      const withoutMiddle = normalized.replace(new RegExp(`\\s+${word}\\s+`, 'g'), ' ');
+      if (withoutMiddle !== normalized) {
+        alternatives.push(withoutMiddle);
+      }
+    }
+
+    // Add specific variations for common answers
+    if (normalized.includes('first law')) {
+      alternatives.push(normalized.replace('first law', 'law of inertia'));
+      alternatives.push(normalized.replace('first law', 'inertia'));
+    }
+
+    if (normalized.includes('leonardo da vinci')) {
+      alternatives.push('leonardo');
+      alternatives.push('da vinci');
+    }
+
+    if (normalized.includes('william shakespeare')) {
+      alternatives.push('shakespeare');
+      alternatives.push('william shakespeare');
+    }
+
+    if (normalized.includes('albert einstein')) {
+      alternatives.push('einstein');
+    }
+
+    if (normalized.includes('marie curie')) {
+      alternatives.push('curie');
+    }
+
+    if (normalized.includes('charles darwin')) {
+      alternatives.push('darwin');
+    }
+
+    if (normalized.includes('vincent van gogh')) {
+      alternatives.push('van gogh');
+      alternatives.push('vincent van gogh');
+    }
+
+    // Remove duplicates and return
+    return [...new Set(alternatives)];
+  }
+
+  checkWordLevelMatch(guess, answer) {
+    const guessWords = guess.split(/\s+/).filter(word => word.length > 0);
+    const answerWords = answer.split(/\s+/).filter(word => word.length > 0);
+
+    // If the guess has the same number of significant words, check each word exactly
+    const significantGuessWords = guessWords.filter(word =>
+      !['the', 'a', 'an', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'to'].includes(word)
+    );
+
+    const significantAnswerWords = answerWords.filter(word =>
+      !['the', 'a', 'an', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'to'].includes(word)
+    );
+
+    // Must have the same number of significant words
+    if (significantGuessWords.length !== significantAnswerWords.length) {
+      return false;
+    }
+
+    // Each word must match exactly (no typos allowed)
+    for (let i = 0; i < significantAnswerWords.length; i++) {
+      const answerWord = significantAnswerWords[i];
+
+      // Check if any guess word matches this answer word exactly
+      const hasExactMatch = significantGuessWords.some(guessWord =>
+        guessWord === answerWord || this.isAcceptableVariation(guessWord, answerWord)
+      );
+
+      if (!hasExactMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  isAcceptableVariation(guessWord, answerWord) {
+    // Only allow very specific acceptable variations, NO typos
+
+    // Plural/singular forms
+    if (guessWord === answerWord + 's' || answerWord === guessWord + 's') {
+      return true;
+    }
+
+    if (guessWord === answerWord + 'es' || answerWord === guessWord + 'es') {
+      return true;
+    }
+
+    // Common abbreviations (but spelled correctly)
+    const abbreviations = {
+      'united states': ['us', 'usa', 'america'],
+      'united kingdom': ['uk', 'britain'],
+      'dna': ['deoxyribonucleic acid'],
+      'cpu': ['central processing unit'],
+      'cpr': ['cardiopulmonary resuscitation'],
+      'mri': ['magnetic resonance imaging'],
+      'aids': ['acquired immune deficiency syndrome'],
+      'laser': ['light amplification by stimulated emission of radiation']
     };
+
+    for (const [full, abbrevs] of Object.entries(abbreviations)) {
+      if ((guessWord === full && abbrevs.includes(answerWord)) ||
+          (answerWord === full && abbrevs.includes(guessWord))) {
+        return true;
+      }
+    }
+
+    // No other variations allowed - must be exact spelling
+    return false;
   }
 }
 
