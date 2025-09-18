@@ -2,7 +2,12 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const path = require('path');
+
+// Load questions data from the correct path
 const questionsData = require('./data/questions.json');
+
+// Import GameManager
 const GameManager = require('./src/services/GameManager');
 
 const app = express();
@@ -48,6 +53,19 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Admin stats endpoint (optional)
+app.get('/admin/stats', (req, res) => {
+  res.json({
+    server: {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'production'
+    },
+    game: gameManager.getStats()
+  });
+});
+
 // Socket connection handling
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
@@ -57,39 +75,65 @@ io.on('connection', (socket) => {
     gameManager.handleConnection(socket);
   } catch (error) {
     console.error('Error in GameManager.handleConnection:', error);
-    socket.emit('error', { message: 'Failed to initialize connection' });
-  }
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-
-  try {
-    gameManager.shutdown();
-  } catch (error) {
-    console.error('Error during GameManager shutdown:', error);
+    socket.emit('connectionError', { message: 'Failed to initialize connection' });
   }
 
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
+  // Additional socket events for debugging/admin
+  socket.on('ping', () => {
+    socket.emit('pong', { timestamp: Date.now() });
+  });
+
+  socket.on('getServerStats', () => {
+    socket.emit('serverStats', gameManager.getStats());
   });
 });
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
+// Error handling for socket.io
+io.engine.on('connection_error', (err) => {
+  console.log('Socket.IO connection error:', err.req);
+  console.log('Error code:', err.code);
+  console.log('Error message:', err.message);
+  console.log('Error context:', err.context);
+});
+
+// Graceful shutdown handlers
+function gracefulShutdown(signal) {
+  console.log(`\n🔄 Received ${signal}, starting graceful shutdown...`);
 
   try {
     gameManager.shutdown();
+    console.log('✅ GameManager shutdown complete');
   } catch (error) {
-    console.error('Error during GameManager shutdown:', error);
+    console.error('❌ Error during GameManager shutdown:', error);
   }
 
   server.close(() => {
-    console.log('Server closed');
+    console.log('🔒 HTTP server closed');
     process.exit(0);
   });
+
+  // Force close after 30 seconds
+  setTimeout(() => {
+    console.log('⏰ Forcing shutdown after timeout');
+    process.exit(1);
+  }, 30000);
+}
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception:', err);
+  console.error('Stack:', err.stack);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+  gracefulShutdown('unhandledRejection');
 });
 
 // Start server
@@ -101,5 +145,17 @@ server.listen(PORT, () => {
   console.log('🌍 Environment:', process.env.NODE_ENV || 'production');
   console.log('📊 Questions loaded:', questionsData.length);
   console.log('💾 Memory usage:', `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+  console.log('📁 Working directory:', __dirname);
   console.log('🎯 Server ready to accept connections!');
+
+  // Log first few questions for verification
+  if (questionsData.length > 0) {
+    console.log('📝 Sample questions loaded:');
+    questionsData.slice(0, 3).forEach((q, i) => {
+      console.log(`   ${i + 1}. ${q.answer} (${q.category})`);
+    });
+  }
 });
+
+// Export for testing if needed
+module.exports = { app, server, io, gameManager };
