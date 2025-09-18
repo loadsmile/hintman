@@ -6,51 +6,30 @@ class GameManager {
     this.gameRooms = new Map();
     this.questionsData = questionsData;
     this.connectedPlayers = new Map();
-
-    // Cleanup interval for abandoned rooms
-    setInterval(() => {
-      this.cleanupAbandonedRooms();
-    }, 60000); // Every minute
-
-    console.log('GameManager initialized with', questionsData.length, 'questions');
-  }
-
-  generateRoomId() {
-    return uuidv4().split('-')[0].toUpperCase();
   }
 
   // Handle player connection
   handleConnection(socket) {
-    console.log('New player connected:', socket.id);
-
     this.connectedPlayers.set(socket.id, {
       socket,
       connectedAt: Date.now(),
       currentRoom: null
     });
 
-    // Handle player disconnection
     socket.on('disconnect', () => {
       this.handleDisconnection(socket);
     });
 
-    // Handle match finding
     socket.on('findMatch', (playerData) => {
       this.findMatch(socket, playerData);
     });
 
-    // Handle guess submission
     socket.on('submitGuess', ({ guess }) => {
       this.handleGuess(socket, guess);
     });
-
-    // Handle player leaving room
-    socket.on('leaveRoom', () => {
-      this.handleLeaveRoom(socket);
-    });
   }
 
-  // Handle player disconnection
+  // Handle disconnection
   handleDisconnection(socket) {
     console.log('Player disconnected:', socket.id);
 
@@ -60,17 +39,14 @@ class GameManager {
       if (room) {
         room.removePlayer(socket.id);
 
-        // Notify other players
         if (room.players.length > 0) {
           room.broadcast('playerDisconnected', {
             disconnectedPlayer: socket.id
           });
         }
 
-        // Remove room if empty
         if (room.players.length === 0) {
           this.gameRooms.delete(playerInfo.currentRoom);
-          console.log(`Removed empty room: ${playerInfo.currentRoom}`);
         }
       }
     }
@@ -78,23 +54,22 @@ class GameManager {
     this.connectedPlayers.delete(socket.id);
   }
 
-  // Find match for player - Updated to match by game mode only
+  // Find match - Updated for new structure
   findMatch(socket, playerData) {
     const {
       playerName,
       gameMode = 'general',
-      personalCategory = 'general',
-      personalCategoryName = 'General Knowledge'
+      personalCategory = 'general'
     } = playerData;
 
-    console.log(`Player ${playerName} looking for ${gameMode} match (personal preference: ${personalCategory})`);
+    console.log(`${playerName} (${socket.id}) looking for ${gameMode} match...`);
 
-    // Look for existing room with same GAME MODE (not category)
+    // Look for existing room with same game mode
     let availableRoom = null;
     for (const room of this.gameRooms.values()) {
       if (room.gameState === 'waiting' &&
           room.players.length === 1 &&
-          room.gameMode === gameMode) { // Match by game mode only
+          room.gameMode === gameMode) {
         availableRoom = room;
         break;
       }
@@ -104,9 +79,8 @@ class GameManager {
       // Join existing room
       const success = availableRoom.addPlayer(socket, playerName, gameMode, personalCategory);
       if (success) {
-        console.log(`Player ${playerName} joined existing ${gameMode} room: ${availableRoom.id}`);
+        console.log(`Match found! ${playerName} joined room ${availableRoom.id}`);
 
-        // Update player info
         const playerInfo = this.connectedPlayers.get(socket.id);
         if (playerInfo) {
           playerInfo.currentRoom = availableRoom.id;
@@ -119,13 +93,13 @@ class GameManager {
           personalCategory: p.personalCategory
         }));
 
+        // Use the room's broadcast method
         availableRoom.broadcast('matchFound', {
           players,
-          gameMode,
-          roomId: availableRoom.id
+          gameMode
         });
 
-        // Start game after brief delay
+        // Start game after delay
         setTimeout(() => {
           if (availableRoom.players.length === 2 && availableRoom.gameState === 'waiting') {
             availableRoom.startGame();
@@ -136,154 +110,65 @@ class GameManager {
       }
     }
 
-    // Create new room - Always use 'general' for questions (mixed), gameMode for matching
-    const roomId = this.generateRoomId();
+    // Create new room
+    const roomId = uuidv4().split('-')[0].toUpperCase();
     const gameRoom = new GameRoom(roomId, this.questionsData, 'general', gameMode);
 
     const success = gameRoom.addPlayer(socket, playerName, gameMode, personalCategory);
     if (success) {
       this.gameRooms.set(roomId, gameRoom);
 
-      // Update player info
       const playerInfo = this.connectedPlayers.get(socket.id);
       if (playerInfo) {
         playerInfo.currentRoom = roomId;
       }
 
-      console.log(`Created new ${gameMode} room: ${roomId} for player: ${playerName}`);
+      console.log(`${playerName} added to waiting list (${this.getWaitingPlayersCount()} total waiting)`);
 
       socket.emit('waitingForMatch', {
         roomId,
-        gameMode,
-        personalCategory,
-        personalCategoryName
+        gameMode
       });
 
-      // Set timeout for solo players
+      // Timeout for solo players
       setTimeout(() => {
         if (gameRoom.players.length === 1 && gameRoom.gameState === 'waiting') {
-          console.log(`Room ${roomId} timeout - removing solo player`);
-
-          // Notify player
           if (gameRoom.players[0] && gameRoom.players[0].socket.connected) {
-            gameRoom.players[0].socket.emit('matchTimeout', {
-              reason: 'No opponent found within time limit'
-            });
+            gameRoom.players[0].socket.emit('matchTimeout');
           }
-
-          // Clean up
           this.gameRooms.delete(roomId);
-          const playerInfo = this.connectedPlayers.get(socket.id);
-          if (playerInfo) {
-            playerInfo.currentRoom = null;
-          }
         }
-      }, 120000); // 2 minutes timeout
-    } else {
-      socket.emit('matchError', {
-        error: 'Failed to create or join game room'
-      });
+      }, 120000);
     }
   }
 
-  // Handle guess submission
+  // Handle guess
   handleGuess(socket, guess) {
     const playerInfo = this.connectedPlayers.get(socket.id);
     if (!playerInfo || !playerInfo.currentRoom) {
-      socket.emit('guessError', { error: 'Not in a game room' });
       return;
     }
 
     const room = this.gameRooms.get(playerInfo.currentRoom);
-    if (!room) {
-      socket.emit('guessError', { error: 'Game room not found' });
-      return;
-    }
-
-    if (room.gameState !== 'playing') {
-      socket.emit('guessError', { error: 'Game is not in playing state' });
+    if (!room || room.gameState !== 'playing') {
       return;
     }
 
     room.handleGuess(socket.id, guess);
   }
 
-  // Handle player leaving room
-  handleLeaveRoom(socket) {
-    const playerInfo = this.connectedPlayers.get(socket.id);
-    if (!playerInfo || !playerInfo.currentRoom) {
-      return;
-    }
-
-    const room = this.gameRooms.get(playerInfo.currentRoom);
-    if (room) {
-      room.removePlayer(socket.id);
-
-      // Notify other players
-      if (room.players.length > 0) {
-        room.broadcast('playerLeft', {
-          leftPlayer: socket.id
-        });
-      }
-
-      // Remove room if empty
-      if (room.players.length === 0) {
-        this.gameRooms.delete(playerInfo.currentRoom);
-        console.log(`Removed empty room: ${playerInfo.currentRoom}`);
+  // Get waiting players count
+  getWaitingPlayersCount() {
+    let count = 0;
+    for (const room of this.gameRooms.values()) {
+      if (room.gameState === 'waiting') {
+        count += room.players.length;
       }
     }
-
-    playerInfo.currentRoom = null;
-    socket.emit('leftRoom');
+    return count;
   }
 
-  // Clean up abandoned rooms
-  cleanupAbandonedRooms() {
-    const now = Date.now();
-    const roomsToDelete = [];
-
-    for (const [roomId, room] of this.gameRooms.entries()) {
-      // Remove rooms that have been empty for more than 5 minutes
-      if (room.players.length === 0) {
-        roomsToDelete.push(roomId);
-        continue;
-      }
-
-      // Remove rooms where all players have disconnected
-      const hasConnectedPlayers = room.players.some(player =>
-        player.socket && player.socket.connected
-      );
-
-      if (!hasConnectedPlayers) {
-        roomsToDelete.push(roomId);
-        continue;
-      }
-
-      // Remove waiting rooms that have been waiting for too long (10 minutes)
-      if (room.gameState === 'waiting' && room.players.length === 1) {
-        const waitTime = now - room.createdAt;
-        if (waitTime > 600000) { // 10 minutes
-          roomsToDelete.push(roomId);
-        }
-      }
-    }
-
-    // Clean up identified rooms
-    roomsToDelete.forEach(roomId => {
-      const room = this.gameRooms.get(roomId);
-      if (room) {
-        console.log(`Cleaning up abandoned room: ${roomId}`);
-        room.cleanup();
-        this.gameRooms.delete(roomId);
-      }
-    });
-
-    if (roomsToDelete.length > 0) {
-      console.log(`Cleaned up ${roomsToDelete.length} abandoned rooms`);
-    }
-  }
-
-  // Get game statistics
+  // Get stats
   getStats() {
     const totalRooms = this.gameRooms.size;
     const totalPlayers = this.connectedPlayers.size;
@@ -291,114 +176,51 @@ class GameManager {
     const roomStats = {
       waiting: 0,
       playing: 0,
-      finished: 0,
-      general: 0,
-      category: 0
+      finished: 0
     };
 
-    const playerStats = {
-      inGame: 0,
-      waiting: 0,
-      connected: 0
-    };
-
-    // Count rooms by state and mode
     for (const room of this.gameRooms.values()) {
       roomStats[room.gameState] = (roomStats[room.gameState] || 0) + 1;
-      roomStats[room.gameMode] = (roomStats[room.gameMode] || 0) + 1;
-    }
-
-    // Count players by status
-    for (const playerInfo of this.connectedPlayers.values()) {
-      playerStats.connected++;
-      if (playerInfo.currentRoom) {
-        const room = this.gameRooms.get(playerInfo.currentRoom);
-        if (room) {
-          if (room.gameState === 'playing') {
-            playerStats.inGame++;
-          } else if (room.gameState === 'waiting') {
-            playerStats.waiting++;
-          }
-        }
-      }
     }
 
     return {
-      timestamp: new Date().toISOString(),
       totalRooms,
       totalPlayers,
       roomStats,
-      playerStats,
       questionsAvailable: this.questionsData.length
     };
   }
 
-  // Get room details
-  getRoomDetails(roomId) {
-    const room = this.gameRooms.get(roomId);
-    if (!room) {
-      return null;
-    }
+  // Cleanup method
+  cleanupAbandonedRooms() {
+    const roomsToDelete = [];
 
-    return room.getStats();
-  }
-
-  // Get all active rooms (admin function)
-  getAllRooms() {
-    const rooms = [];
     for (const [roomId, room] of this.gameRooms.entries()) {
-      rooms.push({
-        id: roomId,
-        ...room.getStats()
-      });
-    }
-    return rooms;
-  }
-
-  // Force close room (admin function)
-  forceCloseRoom(roomId) {
-    const room = this.gameRooms.get(roomId);
-    if (!room) {
-      return false;
-    }
-
-    // Notify all players
-    room.broadcast('roomClosed', {
-      reason: 'Room closed by administrator'
-    });
-
-    // Clean up
-    room.cleanup();
-    this.gameRooms.delete(roomId);
-
-    // Update player info
-    for (const [playerId, playerInfo] of this.connectedPlayers.entries()) {
-      if (playerInfo.currentRoom === roomId) {
-        playerInfo.currentRoom = null;
+      if (room.players.length === 0) {
+        roomsToDelete.push(roomId);
       }
     }
 
-    console.log(`Force closed room: ${roomId}`);
-    return true;
+    roomsToDelete.forEach(roomId => {
+      this.gameRooms.delete(roomId);
+    });
   }
 
-  // Shutdown manager
+  // Shutdown
   shutdown() {
-    console.log('Shutting down GameManager...');
+    console.log('GameManager shutting down...');
 
-    // Notify all players
     for (const room of this.gameRooms.values()) {
-      room.broadcast('serverShutdown', {
-        reason: 'Server is shutting down'
-      });
-      room.cleanup();
+      if (room.broadcast) {
+        room.broadcast('serverShutdown', { reason: 'Server maintenance' });
+      }
+      if (room.cleanup) {
+        room.cleanup();
+      }
     }
 
-    // Clear all data
     this.gameRooms.clear();
     this.connectedPlayers.clear();
-
-    console.log('GameManager shutdown complete');
   }
 }
 

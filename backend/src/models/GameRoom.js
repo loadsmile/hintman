@@ -320,6 +320,8 @@ class GameRoom {
   cleanup() {
     console.log(`Game ${this.id}: Cleaning up game room`);
     this.clearTimers();
+    this.players = [];
+    this.health = {};
   }
 
   broadcast(event, data) {
