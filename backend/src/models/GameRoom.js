@@ -7,7 +7,6 @@ class GameRoom {
     this.currentQuestion = 0;
     this.questionCategory = questionCategory;
     this.gameMode = gameMode;
-    this.playerCategories = []; // Store both players' categories
     this.questions = [];
     this.gameState = 'waiting';
     this.currentHintIndex = 0;
@@ -16,9 +15,10 @@ class GameRoom {
     this.health = {};
     this.startTime = null;
     this.questionAnswered = false;
-    this.questionsPerGame = gameMode === 'category' ? 10 : 5; // 10 for Under Cover, 5 for Quick
+    this.questionsPerGame = gameMode === 'category' ? 10 : 5;
     this.createdAt = Date.now();
-    this.questionsData = questionsData; // Store for later use
+    this.questionsData = questionsData;
+    this.playerCategories = [];
   }
 
   addPlayer(socket, playerName, gameMode = 'general', personalCategory = 'general') {
@@ -35,123 +35,109 @@ class GameRoom {
 
     this.players.push(player);
     this.health[socket.id] = 5000;
-
-    // Store player categories for question mixing
     this.playerCategories.push(personalCategory);
 
-    // If this is the second player and it's category mode, prepare mixed questions
-    if (this.players.length === 2 && gameMode === 'category') {
-      this.questions = this.createMixedQuestions();
-    } else if (gameMode === 'general') {
-      // For general mode, shuffle all questions
-      this.questions = this.shuffleQuestions(this.questionsData, 'general');
+    // Prepare questions when we have 2 players
+    if (this.players.length === 2) {
+      try {
+        this.questions = this.prepareGameQuestions();
+      } catch (error) {
+        console.error(`Game ${this.id}: Error preparing questions:`, error);
+        // Fallback to simple question selection
+        this.questions = this.getSimpleQuestions();
+      }
     }
 
     return true;
   }
 
-  createMixedQuestions() {
-    console.log(`Game ${this.id}: Creating mixed questions for categories:`, this.playerCategories);
-
-    const [category1, category2] = this.playerCategories;
-    const questionsPerCategory = 5; // 5 questions from each category
-
-    // Filter questions by each category
-    const category1Questions = this.filterQuestionsByCategory(this.questionsData, category1);
-    const category2Questions = this.filterQuestionsByCategory(this.questionsData, category2);
-
-    console.log(`Game ${this.id}: Found ${category1Questions.length} questions for ${category1}`);
-    console.log(`Game ${this.id}: Found ${category2Questions.length} questions for ${category2}`);
-
-    // Get 5 random questions from each category
-    const selectedCategory1 = this.getRandomQuestions(category1Questions, questionsPerCategory);
-    const selectedCategory2 = this.getRandomQuestions(category2Questions, questionsPerCategory);
-
-    // Combine and shuffle the questions
-    const combinedQuestions = [...selectedCategory1, ...selectedCategory2];
-    const shuffledQuestions = this.shuffleArray(combinedQuestions);
-
-    console.log(`Game ${this.id}: Created ${shuffledQuestions.length} mixed questions`);
-
-    return shuffledQuestions.map(q =>
-      new Question(q.id, q.answer, q.category, q.difficulty, q.hints)
-    );
-  }
-
-  filterQuestionsByCategory(questionsData, category) {
-    if (category === 'general') {
-      return questionsData;
+  prepareGameQuestions() {
+    if (this.gameMode === 'general') {
+      return this.getSimpleQuestions();
     }
 
-    return questionsData.filter(q => {
-      const questionCategory = q.category.toLowerCase();
-      const targetCategory = category.toLowerCase();
-
-      // Flexible matching for categories
-      return questionCategory.includes(targetCategory) ||
-             targetCategory.includes(questionCategory) ||
-             this.getCategoryMatches(questionCategory, targetCategory);
-    });
+    // For category mode, try to mix categories
+    try {
+      return this.getMixedCategoryQuestions();
+    } catch (error) {
+      console.error(`Game ${this.id}: Error creating mixed questions:`, error);
+      return this.getSimpleQuestions();
+    }
   }
 
-  getCategoryMatches(questionCategory, targetCategory) {
-    const categoryMappings = {
-      'history': ['history', 'ancient', 'war', 'historical'],
-      'science': ['science', 'physics', 'chemistry', 'biology', 'astronomy'],
-      'art': ['art', 'painting', 'sculpture', 'artist'],
-      'literature': ['literature', 'book', 'novel', 'author', 'writer'],
-      'geography': ['geography', 'country', 'city', 'mountain', 'river', 'ocean'],
-      'sports': ['sport', 'game', 'athlete', 'olympic'],
-      'music': ['music', 'song', 'composer', 'instrument'],
-      'entertainment': ['entertainment', 'movie', 'film', 'tv', 'celebrity'],
-      'food': ['food', 'cooking', 'cuisine', 'recipe'],
-      'technology': ['technology', 'computer', 'internet', 'digital']
+  getMixedCategoryQuestions() {
+    const [category1, category2] = this.playerCategories;
+
+    console.log(`Game ${this.id}: Creating questions for ${category1} vs ${category2}`);
+
+    // Get questions for each category
+    const cat1Questions = this.getQuestionsForCategory(category1);
+    const cat2Questions = this.getQuestionsForCategory(category2);
+
+    console.log(`Game ${this.id}: Found ${cat1Questions.length} for ${category1}, ${cat2Questions.length} for ${category2}`);
+
+    // Take 5 from each category
+    const selected1 = this.shuffleArray(cat1Questions).slice(0, 5);
+    const selected2 = this.shuffleArray(cat2Questions).slice(0, 5);
+
+    // Combine and shuffle
+    const combined = [...selected1, ...selected2];
+    const shuffled = this.shuffleArray(combined);
+
+    return shuffled.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
+  }
+
+  getQuestionsForCategory(category) {
+    if (!category || category === 'general') {
+      return this.questionsData;
+    }
+
+    // Simple category matching
+    const categoryLower = category.toLowerCase();
+    const filtered = this.questionsData.filter(q => {
+      const qCategoryLower = q.category.toLowerCase();
+
+      // Direct match or partial match
+      return qCategoryLower.includes(categoryLower) ||
+             categoryLower.includes(qCategoryLower) ||
+             this.isRelatedCategory(qCategoryLower, categoryLower);
+    });
+
+    // If we have enough questions, return filtered. Otherwise return all.
+    return filtered.length >= 5 ? filtered : this.questionsData;
+  }
+
+  isRelatedCategory(questionCategory, targetCategory) {
+    const relations = {
+      'science': ['physics', 'chemistry', 'biology', 'astronomy'],
+      'history': ['war', 'ancient', 'historical'],
+      'art': ['painting', 'artist', 'sculpture'],
+      'entertainment': ['movie', 'film', 'tv', 'music'],
+      'geography': ['country', 'city', 'ocean', 'mountain']
     };
 
-    const targetMappings = categoryMappings[targetCategory] || [targetCategory];
-    return targetMappings.some(mapping => questionCategory.includes(mapping));
+    for (const [mainCategory, related] of Object.entries(relations)) {
+      if (targetCategory.includes(mainCategory)) {
+        return related.some(rel => questionCategory.includes(rel));
+      }
+    }
+
+    return false;
   }
 
-  getRandomQuestions(questions, count) {
-    if (questions.length <= count) {
-      return questions;
-    }
-
-    const shuffled = this.shuffleArray([...questions]);
-    return shuffled.slice(0, count);
-  }
-
-  shuffleQuestions(questionsData, questionCategory) {
-    let filteredQuestions = questionsData;
-
-    // For general mode, use all questions
-    if (questionCategory && questionCategory !== 'general') {
-      filteredQuestions = this.filterQuestionsByCategory(questionsData, questionCategory);
-
-      console.log(`Filtered ${filteredQuestions.length} questions for category: ${questionCategory}`);
-    }
-
-    // If filtered results are too few, fall back to all questions
-    if (filteredQuestions.length < this.questionsPerGame) {
-      console.log(`Not enough ${questionCategory} questions (${filteredQuestions.length}), using all questions`);
-      filteredQuestions = questionsData;
-    }
-
-    const allQuestions = filteredQuestions.map(q =>
-      new Question(q.id, q.answer, q.category, q.difficulty, q.hints)
-    );
-
-    const shuffled = this.shuffleArray(allQuestions);
-    return shuffled.slice(0, this.questionsPerGame);
+  getSimpleQuestions() {
+    const shuffled = this.shuffleArray([...this.questionsData]);
+    const selected = shuffled.slice(0, this.questionsPerGame);
+    return selected.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
   }
 
   shuffleArray(array) {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
+    const result = [...array];
+    for (let i = result.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      [result[i], result[j]] = [result[j], result[i]];
     }
-    return shuffled;
+    return result;
   }
 
   removePlayer(socketId) {
@@ -175,7 +161,7 @@ class GameRoom {
   }
 
   isPlayerAlive(socketId) {
-    return this.health[socketId] > 0;
+    return (this.health[socketId] || 0) > 0;
   }
 
   getAlivePlayersCount() {
@@ -189,26 +175,17 @@ class GameRoom {
   }
 
   startGame() {
-    if (this.players.length !== 2) return;
-
-    console.log(`Game ${this.id}: Starting ${this.gameMode} game with players:`, this.players.map(p => `${p.name} (${p.personalCategory})`));
-    console.log(`Game ${this.id}: Playing ${this.questions.length} questions`);
-
-    if (this.gameMode === 'category') {
-      console.log(`Game ${this.id}: Category breakdown:`, this.getQuestionCategoryBreakdown());
+    if (this.players.length !== 2 || this.questions.length === 0) {
+      console.error(`Game ${this.id}: Cannot start game - players: ${this.players.length}, questions: ${this.questions.length}`);
+      return;
     }
+
+    console.log(`Game ${this.id}: Starting ${this.gameMode} game with ${this.questions.length} questions`);
+    console.log(`Game ${this.id}: Players: ${this.players.map(p => `${p.name} (${p.personalCategory})`).join(' vs ')}`);
 
     this.gameState = 'playing';
     this.currentQuestion = 0;
     this.startQuestion();
-  }
-
-  getQuestionCategoryBreakdown() {
-    const breakdown = {};
-    this.questions.forEach(q => {
-      breakdown[q.category] = (breakdown[q.category] || 0) + 1;
-    });
-    return breakdown;
   }
 
   startQuestion() {
@@ -218,11 +195,17 @@ class GameRoom {
     }
 
     const question = this.questions[this.currentQuestion];
+    if (!question) {
+      console.error(`Game ${this.id}: No question found at index ${this.currentQuestion}`);
+      this.endGame();
+      return;
+    }
+
     this.currentHintIndex = 0;
     this.startTime = Date.now();
     this.questionAnswered = false;
 
-    console.log(`Game ${this.id}: Starting question ${this.currentQuestion + 1}/${this.questionsPerGame}: ${question.answer} (${question.category})`);
+    console.log(`Game ${this.id}: Question ${this.currentQuestion + 1}/${this.questionsPerGame}: ${question.answer} (${question.category})`);
 
     this.broadcast('questionStart', {
       targetIndex: this.currentQuestion + 1,
@@ -233,15 +216,19 @@ class GameRoom {
     });
 
     setTimeout(() => {
-      this.revealHint();
+      if (this.gameState === 'playing' && !this.questionAnswered) {
+        this.revealHint();
+      }
     }, 1000);
 
     this.hintTimer = setInterval(() => {
-      this.revealHint();
+      if (this.gameState === 'playing' && !this.questionAnswered) {
+        this.revealHint();
+      }
     }, 15000);
 
     this.questionTimer = setTimeout(() => {
-      if (!this.questionAnswered) {
+      if (this.gameState === 'playing' && !this.questionAnswered) {
         this.handleQuestionTimeout();
       }
     }, 120000);
@@ -249,16 +236,15 @@ class GameRoom {
 
   revealHint() {
     const question = this.questions[this.currentQuestion];
-    if (this.currentHintIndex >= question.getTotalHints()) return;
+    if (!question || this.currentHintIndex >= question.getTotalHints()) {
+      return;
+    }
 
     const hintText = question.getHint(this.currentHintIndex);
-    const hint = {
-      index: this.currentHintIndex,
-      text: hintText
-    };
 
     console.log(`Game ${this.id}: Revealing hint ${this.currentHintIndex + 1}: ${hintText}`);
 
+    // Deduct health for hint
     this.players.forEach(player => {
       if (this.isPlayerAlive(player.id)) {
         this.updatePlayerHealth(player.id, -100);
@@ -266,7 +252,8 @@ class GameRoom {
     });
 
     this.broadcast('hintRevealed', {
-      ...hint,
+      index: this.currentHintIndex,
+      text: hintText,
       health: this.health
     });
 
@@ -277,17 +264,16 @@ class GameRoom {
     const question = this.questions[this.currentQuestion];
     const player = this.players.find(p => p.id === socketId);
 
-    if (!player || this.gameState !== 'playing' || this.questionAnswered || !this.isPlayerAlive(socketId)) {
+    if (!player || !question || this.gameState !== 'playing' || this.questionAnswered || !this.isPlayerAlive(socketId)) {
       return;
     }
 
-    console.log(`Game ${this.id}: ${player.name} guessed: "${guess}" (Answer: "${question.answer}")`);
+    console.log(`Game ${this.id}: ${player.name} guessed: "${guess}"`);
 
     const isCorrect = question.checkAnswer(guess);
     const timeElapsed = (Date.now() - this.startTime) / 1000;
 
-    console.log(`Game ${this.id}: Guess "${guess}" is ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
-
+    // Time penalty
     const timePenalty = Math.floor(timeElapsed);
     this.updatePlayerHealth(socketId, -timePenalty);
 
@@ -295,7 +281,7 @@ class GameRoom {
       this.questionAnswered = true;
       this.updatePlayerHealth(socketId, 1000);
 
-      console.log(`Game ${this.id}: ${player.name} got it right! Health: ${this.health[socketId]}`);
+      console.log(`Game ${this.id}: ${player.name} correct! Health: ${this.health[socketId]}`);
 
       this.broadcast('questionResult', {
         winner: socketId,
@@ -310,7 +296,7 @@ class GameRoom {
     } else {
       this.updatePlayerHealth(socketId, -500);
 
-      console.log(`Game ${this.id}: ${player.name} got it wrong. Health: ${this.health[socketId]}`);
+      console.log(`Game ${this.id}: ${player.name} wrong. Health: ${this.health[socketId]}`);
 
       player.socket.emit('wrongAnswer', {
         guess,
@@ -339,7 +325,7 @@ class GameRoom {
     if (this.questionAnswered) return;
 
     const question = this.questions[this.currentQuestion];
-    console.log(`Game ${this.id}: Question timeout: ${question.answer}`);
+    console.log(`Game ${this.id}: Timeout: ${question.answer}`);
 
     this.players.forEach(player => {
       if (this.isPlayerAlive(player.id)) {
@@ -386,7 +372,7 @@ class GameRoom {
       return b.health - a.health;
     });
 
-    console.log(`Game ${this.id}: Game ended after ${this.currentQuestion} questions. Final results:`, results);
+    console.log(`Game ${this.id}: Game ended. Results:`, results);
     this.broadcast('gameEnd', { results });
   }
 
@@ -402,15 +388,18 @@ class GameRoom {
   }
 
   cleanup() {
-    console.log(`Game ${this.id}: Cleaning up game room`);
+    console.log(`Game ${this.id}: Cleaning up`);
     this.clearTimers();
   }
 
   broadcast(event, data) {
-    console.log(`Game ${this.id}: Broadcasting ${event} to ${this.players.length} players`);
     this.players.forEach(player => {
       if (player.socket && player.socket.connected) {
-        player.socket.emit(event, data);
+        try {
+          player.socket.emit(event, data);
+        } catch (error) {
+          console.error(`Game ${this.id}: Error broadcasting to ${player.name}:`, error);
+        }
       }
     });
   }
@@ -419,7 +408,6 @@ class GameRoom {
     return {
       id: this.id,
       gameMode: this.gameMode,
-      questionCategory: this.questionCategory,
       playerCategories: this.playerCategories,
       playerCount: this.players.length,
       gameState: this.gameState,
@@ -428,8 +416,7 @@ class GameRoom {
       questionsInDatabase: this.questions.length,
       playersHealth: this.health,
       alivePlayersCount: this.getAlivePlayersCount(),
-      createdAt: this.createdAt,
-      questionBreakdown: this.gameMode === 'category' ? this.getQuestionCategoryBreakdown() : null
+      createdAt: this.createdAt
     };
   }
 }
