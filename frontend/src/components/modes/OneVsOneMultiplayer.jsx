@@ -24,7 +24,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [serverStatus, setServerStatus] = useState('checking');
 
-  // New tracking states
+  // Enhanced tracking states
   const [playerStats, setPlayerStats] = useState({});
 
   const socketRef = useRef(null);
@@ -42,18 +42,26 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       };
     });
     setPlayerStats(initialStats);
+    console.log('🎯 Initialized player stats:', initialStats);
   };
 
-  // Update player stats
+  // Update player stats with better tracking
   const updatePlayerStats = (playerId, isCorrect) => {
-    setPlayerStats(prev => ({
-      ...prev,
-      [playerId]: {
-        ...prev[playerId],
-        correctAnswers: prev[playerId]?.correctAnswers + (isCorrect ? 1 : 0),
-        mistakes: prev[playerId]?.mistakes + (isCorrect ? 0 : 1)
-      }
-    }));
+    console.log(`📊 Updating stats for ${playerId}: ${isCorrect ? 'CORRECT' : 'MISTAKE'}`);
+
+    setPlayerStats(prev => {
+      const updated = {
+        ...prev,
+        [playerId]: {
+          ...prev[playerId],
+          correctAnswers: prev[playerId]?.correctAnswers + (isCorrect ? 1 : 0),
+          mistakes: prev[playerId]?.mistakes + (isCorrect ? 0 : 1)
+        }
+      };
+
+      console.log('📊 Updated player stats:', updated);
+      return updated;
+    });
   };
 
   // Health Bar Component
@@ -251,15 +259,16 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(newHealth);
     });
 
-    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, healthGained }) => {
+    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, healthGained, isCorrect }) => {
       if (!mountedRef.current) return;
 
-      console.log('📊 Target result:', { winner, winnerName, healthGained });
+      console.log('📊 Target result:', { winner, winnerName, healthGained, isCorrect });
 
       if (newHealth) setHealth(newHealth);
 
-      // Update stats for the winner
-      if (winner) {
+      // Update stats for the winner (correct answer)
+      if (winner && isCorrect) {
+        console.log('✅ Updating stats for correct answer:', winner);
         updatePlayerStats(winner, true);
       }
 
@@ -272,26 +281,33 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       });
     });
 
-    socket.on('wrongAnswer', ({ guess, healthLost }) => {
+    // Fixed wrong answer tracking
+    socket.on('wrongAnswer', ({ playerId, playerName, guess, healthLost, currentHealth, isCorrect }) => {
       if (!mountedRef.current) return;
 
-      console.log('❌ Wrong answer:', guess);
+      console.log('❌ Wrong answer from:', playerName, 'Guess:', guess);
 
-      // Update stats for wrong answer
-      updatePlayerStats(myPlayerId, false);
+      // Update stats for wrong answer - key fix here!
+      if (playerId) {
+        console.log('❌ Updating stats for wrong answer:', playerId);
+        updatePlayerStats(playerId, false);
+      }
 
-      setGameResult({
-        winner: null,
-        incorrectGuess: guess,
-        correctAnswer: null,
-        healthLost
-      });
+      // Only show the result to the player who made the wrong guess
+      if (playerId === myPlayerId) {
+        setGameResult({
+          winner: null,
+          incorrectGuess: guess,
+          correctAnswer: null,
+          healthLost
+        });
 
-      setTimeout(() => {
-        if (mountedRef.current) {
-          setGameResult(null);
-        }
-      }, 2000);
+        setTimeout(() => {
+          if (mountedRef.current) {
+            setGameResult(null);
+          }
+        }, 2000);
+      }
     });
 
     socket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
@@ -574,35 +590,35 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-if (gameState === 'matchmaking') {
-  const roundsInfo = selectedMode === 'category' ? '10 mixed questions' : '5 mixed questions';
+  if (gameState === 'matchmaking') {
+    const roundsInfo = selectedMode === 'category' ? '10 mixed questions (5 from each specialty)' : '5 mixed questions';
 
-  return (
-    <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
-            🎯 {getModeDisplayName().toUpperCase()}
-          </h2>
-          <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for combat?</p>
-          <div className="bg-gray-800 p-4 rounded text-white text-sm">
-            <p className="mb-2">🎯 <strong>Mission Type:</strong> {getModeDisplayName()}</p>
-            {selectedMode === 'category' && selectedCategory && (
-              <p className="mb-2">🎭 <strong>Your Specialty:</strong> {selectedCategory.name}</p>
-            )}
-            <p className="mb-2">📋 <strong>Questions:</strong> {roundsInfo}</p>
-            {selectedMode === 'category' && (
-              <p className="mb-2">🔄 <strong>Mix Strategy:</strong> 5 from your specialty + 5 from opponent's specialty</p>
-            )}
-            <p className="mb-2">🤝 <strong>Matchmaking:</strong> Against other {getModeDisplayName()} players</p>
-            <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
-            <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
-            <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
-            <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
-            <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
-            <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
+    return (
+      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
+              🎯 {getModeDisplayName().toUpperCase()}
+            </h2>
+            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for combat?</p>
+            <div className="bg-gray-800 p-4 rounded text-white text-sm">
+              <p className="mb-2">🎯 <strong>Mission Type:</strong> {getModeDisplayName()}</p>
+              {selectedMode === 'category' && selectedCategory && (
+                <p className="mb-2">🎭 <strong>Your Specialty:</strong> {selectedCategory.name}</p>
+              )}
+              <p className="mb-2">📋 <strong>Questions:</strong> {roundsInfo}</p>
+              {selectedMode === 'category' && (
+                <p className="mb-2">🔄 <strong>Mix Strategy:</strong> Questions from both players' specialties</p>
+              )}
+              <p className="mb-2">🤝 <strong>Matchmaking:</strong> Against other {getModeDisplayName()} players</p>
+              <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
+              <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
+              <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
+              <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
+              <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
+              <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
+            </div>
           </div>
-        </div>
 
           <div className="text-center">
             <div className="flex items-center justify-center mb-4">
@@ -635,7 +651,7 @@ if (gameState === 'matchmaking') {
                   <>
                     <br />
                     <span className="mr-2">{selectedCategory.icon}</span>
-                    Your cover: {selectedCategory.name}
+                    Your specialty: {selectedCategory.name}
                   </>
                 )}
               </p>
@@ -654,11 +670,11 @@ if (gameState === 'matchmaking') {
     const results = gameData?.results || [];
     const winner = results[0];
     const isWinner = winner?.name === playerName;
-    const totalRoundsCompleted = Math.min(5, Math.max(1, currentTarget?.targetIndex || 1));
+    const totalRoundsCompleted = Math.min(10, Math.max(1, currentTarget?.targetIndex || 1));
 
     // Get final stats for display
     const myStats = playerStats[myPlayerId] || { correctAnswers: 0, mistakes: 0 };
-    const opponentStats = Object.values(playerStats).find(stat => stat.name !== playerName) || { correctAnswers: 0, mistakes: 0 };
+    const opponentStats = Object.values(playerStats).find(stats => stats.name !== playerName) || { correctAnswers: 0, mistakes: 0 };
 
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -674,10 +690,10 @@ if (gameState === 'matchmaking') {
               <strong>{getModeDisplayName()}</strong>
               {selectedCategory && selectedMode === 'category' && (
                 <>
-                  {' '}• Your cover: {selectedCategory.icon} {selectedCategory.name}
+                  {' '}• Your specialty: {selectedCategory.icon} {selectedCategory.name}
                 </>
               )}
-              {' '}• Completed {totalRoundsCompleted} out of 5 targets
+              {' '}• Completed {totalRoundsCompleted} out of {selectedMode === 'category' ? 10 : 5} targets
             </p>
           </div>
 
@@ -757,7 +773,7 @@ if (gameState === 'matchmaking') {
                 <p className="text-sm text-gray-300">
                   {currentTarget.category} • {getModeDisplayName()}
                   {selectedCategory && selectedMode === 'category' && (
-                    <> • Your cover: {selectedCategory.icon} {selectedCategory.name}</>
+                    <> • Your specialty: {selectedCategory.icon} {selectedCategory.name}</>
                   )}
                 </p>
               </div>

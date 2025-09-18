@@ -41,9 +41,10 @@ class GameRoom {
     if (this.players.length === 2) {
       try {
         this.questions = this.prepareGameQuestions();
+        console.log(`Game ${this.id}: Prepared ${this.questions.length} questions`);
+        console.log(`Game ${this.id}: Question categories:`, this.questions.map(q => q.category));
       } catch (error) {
         console.error(`Game ${this.id}: Error preparing questions:`, error);
-        // Fallback to simple question selection
         this.questions = this.getSimpleQuestions();
       }
     }
@@ -56,7 +57,7 @@ class GameRoom {
       return this.getSimpleQuestions();
     }
 
-    // For category mode, try to mix categories
+    // For category mode, create proper category mix
     try {
       return this.getMixedCategoryQuestions();
     } catch (error) {
@@ -68,17 +69,31 @@ class GameRoom {
   getMixedCategoryQuestions() {
     const [category1, category2] = this.playerCategories;
 
-    console.log(`Game ${this.id}: Creating questions for ${category1} vs ${category2}`);
+    console.log(`Game ${this.id}: Creating questions for "${category1}" vs "${category2}"`);
 
-    // Get questions for each category
+    // Get questions for each category with improved matching
     const cat1Questions = this.getQuestionsForCategory(category1);
     const cat2Questions = this.getQuestionsForCategory(category2);
 
-    console.log(`Game ${this.id}: Found ${cat1Questions.length} for ${category1}, ${cat2Questions.length} for ${category2}`);
+    console.log(`Game ${this.id}: Found ${cat1Questions.length} questions for "${category1}"`);
+    console.log(`Game ${this.id}: Found ${cat2Questions.length} questions for "${category2}"`);
+
+    // If we don't have enough questions for either category, log the issue
+    if (cat1Questions.length < 5) {
+      console.warn(`Game ${this.id}: Only ${cat1Questions.length} questions found for ${category1}`);
+    }
+    if (cat2Questions.length < 5) {
+      console.warn(`Game ${this.id}: Only ${cat2Questions.length} questions found for ${category2}`);
+    }
 
     // Take 5 from each category
     const selected1 = this.shuffleArray(cat1Questions).slice(0, 5);
     const selected2 = this.shuffleArray(cat2Questions).slice(0, 5);
+
+    console.log(`Game ${this.id}: Selected questions:`, {
+      category1: selected1.map(q => `${q.answer} (${q.category})`),
+      category2: selected2.map(q => `${q.answer} (${q.category})`)
+    });
 
     // Combine and shuffle
     const combined = [...selected1, ...selected2];
@@ -92,37 +107,68 @@ class GameRoom {
       return this.questionsData;
     }
 
-    // Simple category matching
-    const categoryLower = category.toLowerCase();
-    const filtered = this.questionsData.filter(q => {
-      const qCategoryLower = q.category.toLowerCase();
+    console.log(`Game ${this.id}: Filtering questions for category "${category}"`);
 
-      // Direct match or partial match
-      return qCategoryLower.includes(categoryLower) ||
-             categoryLower.includes(qCategoryLower) ||
-             this.isRelatedCategory(qCategoryLower, categoryLower);
-    });
-
-    // If we have enough questions, return filtered. Otherwise return all.
-    return filtered.length >= 5 ? filtered : this.questionsData;
-  }
-
-  isRelatedCategory(questionCategory, targetCategory) {
-    const relations = {
-      'science': ['physics', 'chemistry', 'biology', 'astronomy'],
-      'history': ['war', 'ancient', 'historical'],
-      'art': ['painting', 'artist', 'sculpture'],
-      'entertainment': ['movie', 'film', 'tv', 'music'],
-      'geography': ['country', 'city', 'ocean', 'mountain']
+    // Improved category mapping
+    const categoryMappings = {
+      'food': ['food', 'cooking', 'cuisine', 'recipe', 'chef', 'restaurant'],
+      'science': ['science', 'physics', 'chemistry', 'biology', 'astronomy', 'scientific', 'scientist'],
+      'technology': ['technology', 'computer', 'internet', 'digital', 'tech', 'software'],
+      'history': ['history', 'historical', 'ancient', 'war', 'civilization', 'empire'],
+      'art': ['art', 'artist', 'painting', 'sculpture', 'artwork', 'painter'],
+      'literature': ['literature', 'book', 'novel', 'author', 'writer', 'poet'],
+      'geography': ['geography', 'country', 'city', 'mountain', 'river', 'ocean', 'continent'],
+      'sports': ['sport', 'athlete', 'olympic', 'game', 'team', 'championship'],
+      'music': ['music', 'composer', 'song', 'instrument', 'orchestra', 'symphony'],
+      'entertainment': ['entertainment', 'movie', 'film', 'tv', 'celebrity', 'actor'],
+      'medicine': ['medicine', 'medical', 'doctor', 'disease', 'health', 'hospital']
     };
 
-    for (const [mainCategory, related] of Object.entries(relations)) {
-      if (targetCategory.includes(mainCategory)) {
-        return related.some(rel => questionCategory.includes(rel));
+    // Extract key terms from the category name
+    const categoryLower = category.toLowerCase();
+    const keyTerms = [];
+
+    // Check for compound categories like "Food & Culture" or "Science & Technology"
+    if (categoryLower.includes('&')) {
+      const parts = categoryLower.split('&').map(part => part.trim());
+      parts.forEach(part => {
+        for (const [key, terms] of Object.entries(categoryMappings)) {
+          if (part.includes(key) || key.includes(part)) {
+            keyTerms.push(...terms);
+          }
+        }
+      });
+    } else {
+      // Single category
+      for (const [key, terms] of Object.entries(categoryMappings)) {
+        if (categoryLower.includes(key) || key.includes(categoryLower)) {
+          keyTerms.push(...terms);
+        }
       }
     }
 
-    return false;
+    console.log(`Game ${this.id}: Key terms for "${category}":`, keyTerms);
+
+    // Filter questions based on key terms
+    const filtered = this.questionsData.filter(q => {
+      const qCategoryLower = q.category.toLowerCase();
+
+      // Check if any key term matches the question category
+      return keyTerms.some(term =>
+        qCategoryLower.includes(term) || term.includes(qCategoryLower)
+      );
+    });
+
+    console.log(`Game ${this.id}: Filtered ${filtered.length} questions for "${category}"`);
+    console.log(`Game ${this.id}: Sample filtered questions:`, filtered.slice(0, 3).map(q => `${q.answer} (${q.category})`));
+
+    // If we have enough questions, return filtered. Otherwise, return all questions.
+    if (filtered.length >= 5) {
+      return filtered;
+    } else {
+      console.warn(`Game ${this.id}: Not enough questions for "${category}", using all questions`);
+      return this.questionsData;
+    }
   }
 
   getSimpleQuestions() {
@@ -268,7 +314,7 @@ class GameRoom {
       return;
     }
 
-    console.log(`Game ${this.id}: ${player.name} guessed: "${guess}"`);
+    console.log(`Game ${this.id}: ${player.name} guessed: "${guess}" for "${question.answer}"`);
 
     const isCorrect = question.checkAnswer(guess);
     const timeElapsed = (Date.now() - this.startTime) / 1000;
@@ -281,7 +327,7 @@ class GameRoom {
       this.questionAnswered = true;
       this.updatePlayerHealth(socketId, 1000);
 
-      console.log(`Game ${this.id}: ${player.name} correct! Health: ${this.health[socketId]}`);
+      console.log(`Game ${this.id}: ${player.name} CORRECT! Health: ${this.health[socketId]}`);
 
       this.broadcast('questionResult', {
         winner: socketId,
@@ -289,19 +335,24 @@ class GameRoom {
         correctAnswer: question.answer,
         timeElapsed: timeElapsed,
         health: this.health,
-        healthGained: 1000
+        healthGained: 1000,
+        isCorrect: true // Add this flag
       });
 
       this.nextQuestion();
     } else {
       this.updatePlayerHealth(socketId, -500);
 
-      console.log(`Game ${this.id}: ${player.name} wrong. Health: ${this.health[socketId]}`);
+      console.log(`Game ${this.id}: ${player.name} WRONG. Health: ${this.health[socketId]}`);
 
-      player.socket.emit('wrongAnswer', {
+      // Send wrong answer notification with player ID for tracking
+      this.broadcast('wrongAnswer', {
+        playerId: socketId,
+        playerName: player.name,
         guess,
         healthLost: 500,
-        currentHealth: this.health[socketId]
+        currentHealth: this.health[socketId],
+        isCorrect: false // Add this flag
       });
 
       this.broadcastHealthUpdate();
