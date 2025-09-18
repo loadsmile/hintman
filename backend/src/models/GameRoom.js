@@ -42,7 +42,8 @@ class GameRoom {
       try {
         this.questions = this.prepareGameQuestions();
         console.log(`Game ${this.id}: Prepared ${this.questions.length} questions`);
-        console.log(`Game ${this.id}: Question categories:`, this.questions.map(q => `${q.answer} (${q.category})`));
+        console.log(`Game ${this.id}: Player categories:`, this.playerCategories);
+        console.log(`Game ${this.id}: Question breakdown:`, this.questions.map(q => `${q.answer} (${q.category})`));
       } catch (error) {
         console.error(`Game ${this.id}: Error preparing questions:`, error);
         this.questions = this.getSimpleQuestions();
@@ -71,24 +72,32 @@ class GameRoom {
 
     console.log(`Game ${this.id}: Creating questions for "${category1}" vs "${category2}"`);
 
-    // Get questions for each category with strict matching
-    const cat1Questions = this.getStrictCategoryQuestions(category1);
-    const cat2Questions = this.getStrictCategoryQuestions(category2);
+    // Get questions for each category
+    const cat1Questions = this.getQuestionsForPlayerCategory(category1);
+    const cat2Questions = this.getQuestionsForPlayerCategory(category2);
 
     console.log(`Game ${this.id}: Found ${cat1Questions.length} questions for "${category1}"`);
     console.log(`Game ${this.id}: Found ${cat2Questions.length} questions for "${category2}"`);
 
-    // If we don't have enough questions for either category, fall back to broader matching
+    // Debug: Show sample questions found
+    if (cat1Questions.length > 0) {
+      console.log(`Game ${this.id}: Sample "${category1}" questions:`, cat1Questions.slice(0, 3).map(q => `${q.answer} (${q.category})`));
+    }
+    if (cat2Questions.length > 0) {
+      console.log(`Game ${this.id}: Sample "${category2}" questions:`, cat2Questions.slice(0, 3).map(q => `${q.answer} (${q.category})`));
+    }
+
+    // If we don't have enough questions, try fallback
     if (cat1Questions.length < 5 || cat2Questions.length < 5) {
-      console.warn(`Game ${this.id}: Not enough strict matches, trying broader matching...`);
-      return this.getBroaderCategoryQuestions(category1, category2);
+      console.warn(`Game ${this.id}: Not enough questions - Category1: ${cat1Questions.length}, Category2: ${cat2Questions.length}`);
+      return this.getFallbackQuestions(cat1Questions, cat2Questions);
     }
 
     // Take 5 from each category
     const selected1 = this.shuffleArray(cat1Questions).slice(0, 5);
     const selected2 = this.shuffleArray(cat2Questions).slice(0, 5);
 
-    console.log(`Game ${this.id}: Selected questions:`, {
+    console.log(`Game ${this.id}: Final selection:`, {
       category1: selected1.map(q => `${q.answer} (${q.category})`),
       category2: selected2.map(q => `${q.answer} (${q.category})`)
     });
@@ -100,172 +109,127 @@ class GameRoom {
     return shuffled.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
   }
 
-  getStrictCategoryQuestions(playerCategory) {
-    console.log(`Game ${this.id}: Strict filtering for "${playerCategory}"`);
+  getQuestionsForPlayerCategory(playerCategory) {
+    console.log(`Game ${this.id}: Finding questions for player category "${playerCategory}"`);
 
-    // Map player category selections to exact question categories
-    const categoryMap = {
-      // Player selections -> Question categories
-      'food': ['Food', 'food', 'cooking', 'cuisine'],
-      'science': ['Science', 'Physics', 'Chemistry', 'Biology', 'Astronomy'],
-      'technology': ['Technology', 'Computer', 'Internet', 'Digital'],
-      'history': ['History', 'Historical', 'Ancient', 'War'],
-      'art': ['Art', 'Artist', 'Painting', 'Sculpture'],
-      'literature': ['Literature', 'Book', 'Novel', 'Author'],
-      'geography': ['Geography', 'Country', 'City', 'Mountain', 'River', 'Ocean'],
-      'sports': ['Sport', 'Sports', 'Athletic', 'Olympic'],
-      'music': ['Music', 'Composer', 'Song', 'Instrument'],
-      'entertainment': ['Entertainment', 'Movie', 'Film', 'TV', 'Celebrity'],
-      'medicine': ['Medicine', 'Medical', 'Doctor', 'Health'],
-      'culture': ['Culture', 'Cultural', 'Tradition', 'Society']
+    // First, let's see what question categories we actually have
+    const uniqueCategories = [...new Set(this.questionsData.map(q => q.category))];
+    console.log(`Game ${this.id}: Available question categories:`, uniqueCategories);
+
+    // Map player category selections to actual question categories in our JSON
+    const categoryMapping = {
+      // History & Politics
+      'history': ['History'],
+      'politics': ['History'],
+
+      // Science & Technology
+      'science': ['Science', 'Physics', 'Biology', 'Chemistry'],
+      'technology': ['Technology'],
+
+      // Literature & Arts
+      'literature': ['Literature'],
+      'art': ['Art'],
+
+      // Geography & Nature
+      'geography': ['Geography'],
+
+      // Entertainment & Media
+      'entertainment': ['Entertainment', 'Music'],
+      'media': ['Entertainment'],
+      'music': ['Music'],
+
+      // Sports & Games
+      'sports': ['Sports'],
+      'games': ['Sports'],
+
+      // Food & Culture
+      'food': ['Food'],
+      'culture': ['Culture'],
+
+      // Medicine
+      'medicine': ['Medicine']
     };
 
-    // Extract main keywords from player category
+    // Extract keywords from the player category selection
     const categoryLower = playerCategory.toLowerCase();
-    let matchingTerms = [];
+    let matchingQuestionCategories = [];
 
     // Handle compound categories like "Food & Culture"
     if (categoryLower.includes('&')) {
       const parts = categoryLower.split('&').map(part => part.trim());
+      console.log(`Game ${this.id}: Processing compound category parts:`, parts);
+
       parts.forEach(part => {
-        for (const [key, terms] of Object.entries(categoryMap)) {
+        for (const [key, questionCats] of Object.entries(categoryMapping)) {
           if (part.includes(key) || key.includes(part)) {
-            matchingTerms.push(...terms);
+            matchingQuestionCategories.push(...questionCats);
+            console.log(`Game ${this.id}: "${part}" matched key "${key}" -> categories:`, questionCats);
           }
         }
       });
     } else {
       // Single category
-      for (const [key, terms] of Object.entries(categoryMap)) {
+      for (const [key, questionCats] of Object.entries(categoryMapping)) {
         if (categoryLower.includes(key) || key.includes(categoryLower)) {
-          matchingTerms.push(...terms);
+          matchingQuestionCategories.push(...questionCats);
+          console.log(`Game ${this.id}: "${categoryLower}" matched key "${key}" -> categories:`, questionCats);
         }
       }
     }
 
-    console.log(`Game ${this.id}: Matching terms for "${playerCategory}":`, matchingTerms);
+    // Remove duplicates
+    matchingQuestionCategories = [...new Set(matchingQuestionCategories)];
+    console.log(`Game ${this.id}: Final matching categories for "${playerCategory}":`, matchingQuestionCategories);
 
-    // Filter questions with exact category matches
+    // Filter questions based on matching categories
     const filtered = this.questionsData.filter(q => {
       const qCategory = q.category;
-      return matchingTerms.some(term =>
-        qCategory.toLowerCase() === term.toLowerCase() ||
-        qCategory.toLowerCase().includes(term.toLowerCase()) ||
-        term.toLowerCase().includes(qCategory.toLowerCase())
+      const matches = matchingQuestionCategories.some(cat =>
+        qCategory.toLowerCase() === cat.toLowerCase() ||
+        qCategory.toLowerCase().includes(cat.toLowerCase()) ||
+        cat.toLowerCase().includes(qCategory.toLowerCase())
       );
+
+      if (matches) {
+        console.log(`Game ${this.id}: Question "${q.answer}" (${q.category}) matches "${playerCategory}"`);
+      }
+
+      return matches;
     });
 
-    console.log(`Game ${this.id}: Strict filtered ${filtered.length} questions for "${playerCategory}"`);
-    if (filtered.length > 0) {
-      console.log(`Game ${this.id}: Sample strict questions:`, filtered.slice(0, 3).map(q => `${q.answer} (${q.category})`));
-    }
-
+    console.log(`Game ${this.id}: Found ${filtered.length} questions for "${playerCategory}"`);
     return filtered;
   }
 
-  getBroaderCategoryQuestions(category1, category2) {
-    console.log(`Game ${this.id}: Using broader matching for "${category1}" and "${category2}"`);
+  getFallbackQuestions(cat1Questions, cat2Questions) {
+    console.log(`Game ${this.id}: Using fallback question selection`);
 
-    // If strict matching fails, use broader keyword matching
-    const cat1Questions = this.getQuestionsForCategory(category1);
-    const cat2Questions = this.getQuestionsForCategory(category2);
+    // Combine all available questions from both categories
+    const combined = [...cat1Questions, ...cat2Questions];
 
-    console.log(`Game ${this.id}: Broader search found ${cat1Questions.length} for "${category1}", ${cat2Questions.length} for "${category2}"`);
+    // Remove duplicates based on question ID
+    const uniqueQuestions = combined.filter((question, index, self) =>
+      index === self.findIndex(q => q.id === question.id)
+    );
 
-    // Ensure we have enough questions
-    if (cat1Questions.length < 5 && cat2Questions.length < 5) {
-      console.warn(`Game ${this.id}: Still not enough questions, using all available`);
-      return this.getSimpleQuestions();
+    console.log(`Game ${this.id}: Combined unique questions: ${uniqueQuestions.length}`);
+
+    // If we still don't have 10 questions, fill with random general questions
+    if (uniqueQuestions.length < 10) {
+      const usedIds = new Set(uniqueQuestions.map(q => q.id));
+      const remainingQuestions = this.questionsData.filter(q => !usedIds.has(q.id));
+      const needed = 10 - uniqueQuestions.length;
+      const randomQuestions = this.shuffleArray(remainingQuestions).slice(0, needed);
+      uniqueQuestions.push(...randomQuestions);
+
+      console.log(`Game ${this.id}: Added ${randomQuestions.length} random questions to reach 10 total`);
     }
 
-    // Take what we can from each category
-    const take1 = Math.min(5, cat1Questions.length);
-    const take2 = Math.min(5, cat2Questions.length);
-    const remaining = 10 - take1 - take2;
+    // Shuffle and take 10
+    const shuffled = this.shuffleArray(uniqueQuestions).slice(0, 10);
+    console.log(`Game ${this.id}: Fallback final selection:`, shuffled.map(q => `${q.answer} (${q.category})`));
 
-    const selected1 = this.shuffleArray(cat1Questions).slice(0, take1);
-    const selected2 = this.shuffleArray(cat2Questions).slice(0, take2);
-
-    let combined = [...selected1, ...selected2];
-
-    // Fill remaining slots with general questions if needed
-    if (remaining > 0) {
-      const usedIds = new Set(combined.map(q => q.id));
-      const remaining_questions = this.questionsData
-        .filter(q => !usedIds.has(q.id))
-        .slice(0, remaining);
-      combined = [...combined, ...remaining_questions];
-    }
-
-    console.log(`Game ${this.id}: Final broader selection:`, combined.map(q => `${q.answer} (${q.category})`));
-
-    const shuffled = this.shuffleArray(combined);
     return shuffled.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
-  }
-
-  getQuestionsForCategory(category) {
-    if (!category || category === 'general') {
-      return this.questionsData;
-    }
-
-    console.log(`Game ${this.id}: Broader filtering for category "${category}"`);
-
-    // Broader category matching (fallback)
-    const categoryMappings = {
-      'food': ['food', 'cooking', 'cuisine', 'recipe', 'chef', 'restaurant', 'drink'],
-      'science': ['science', 'physics', 'chemistry', 'biology', 'astronomy', 'scientific', 'scientist', 'dna', 'atom'],
-      'technology': ['technology', 'computer', 'internet', 'digital', 'tech', 'software', 'web'],
-      'history': ['history', 'historical', 'ancient', 'war', 'civilization', 'empire', 'revolution'],
-      'art': ['art', 'artist', 'painting', 'sculpture', 'artwork', 'painter', 'draw'],
-      'literature': ['literature', 'book', 'novel', 'author', 'writer', 'poet', 'play'],
-      'geography': ['geography', 'country', 'city', 'mountain', 'river', 'ocean', 'continent', 'capital'],
-      'sports': ['sport', 'athlete', 'olympic', 'game', 'team', 'championship', 'football'],
-      'music': ['music', 'composer', 'song', 'instrument', 'orchestra', 'symphony', 'band'],
-      'entertainment': ['entertainment', 'movie', 'film', 'tv', 'celebrity', 'actor', 'show'],
-      'medicine': ['medicine', 'medical', 'doctor', 'disease', 'health', 'hospital', 'drug'],
-      'culture': ['culture', 'cultural', 'tradition', 'society', 'custom', 'heritage']
-    };
-
-    const categoryLower = category.toLowerCase();
-    const keyTerms = [];
-
-    // Check for compound categories like "Food & Culture"
-    if (categoryLower.includes('&')) {
-      const parts = categoryLower.split('&').map(part => part.trim());
-      parts.forEach(part => {
-        for (const [key, terms] of Object.entries(categoryMappings)) {
-          if (part.includes(key) || key.includes(part)) {
-            keyTerms.push(...terms);
-          }
-        }
-      });
-    } else {
-      // Single category
-      for (const [key, terms] of Object.entries(categoryMappings)) {
-        if (categoryLower.includes(key) || key.includes(categoryLower)) {
-          keyTerms.push(...terms);
-        }
-      }
-    }
-
-    console.log(`Game ${this.id}: Broader key terms for "${category}":`, keyTerms);
-
-    // Filter questions based on key terms
-    const filtered = this.questionsData.filter(q => {
-      const qCategoryLower = q.category.toLowerCase();
-      const qAnswerLower = q.answer.toLowerCase();
-
-      // Check if any key term matches the question category or answer
-      return keyTerms.some(term =>
-        qCategoryLower.includes(term) ||
-        term.includes(qCategoryLower) ||
-        qAnswerLower.includes(term)
-      );
-    });
-
-    console.log(`Game ${this.id}: Broader filtered ${filtered.length} questions for "${category}"`);
-
-    return filtered.length >= 5 ? filtered : this.questionsData;
   }
 
   getSimpleQuestions() {

@@ -15,7 +15,7 @@
   {
     "id": "q2",
     "answer": "Leonardo da Vinci",
-    "category": "Art & History",
+    "category": "Art",
     "difficulty": "easy",
     "hints": [
       "This Renaissance master created some of the world's most famous paintings",
@@ -223,7 +223,7 @@
   {
     "id": "q18",
     "answer": "Penicillin",
-    "category": "Science",
+    "category": "Medicine",
     "difficulty": "medium",
     "hints": [
       "This antibiotic was discovered accidentally in 1928",
@@ -483,7 +483,7 @@
   {
     "id": "q38",
     "answer": "The Moon",
-    "category": "Astronomy",
+    "category": "Science",
     "difficulty": "easy",
     "hints": [
       "This celestial body causes tides on Earth",
@@ -587,7 +587,7 @@
   {
     "id": "q46",
     "answer": "Dinosaurs",
-    "category": "Paleontology",
+    "category": "Science",
     "difficulty": "easy",
     "hints": [
       "These prehistoric reptiles dominated Earth for millions of years",
@@ -639,7 +639,7 @@
   {
     "id": "q50",
     "answer": "The Periodic Table",
-    "category": "Chemistry",
+    "category": "Science",
     "difficulty": "medium",
     "hints": [
       "This chart organizes all known chemical elements",
@@ -651,67 +651,652 @@
   },
   {
     "id": "q51",
-    "answer": "Photosynthesis",
-    "category": "Biology",
+    "answer": "Pasta Carbonara",
+    "category": "Food",
     "difficulty": "medium",
     "hints": [
-      "This process allows plants to make food from sunlight",
-      "It converts carbon dioxide and water into glucose",
-      "Chlorophyll captures light energy for this process",
-      "Oxygen is released as a byproduct",
-      "It mainly occurs in plant leaves"
+      "This Italian pasta dish originated in Rome",
+      "Made with eggs, cheese, pancetta, and black pepper",
+      "The name means \"charcoal burner's pasta\"",
+      "No cream is used in the authentic recipe",
+      "Traditionally made with Pecorino Romano cheese"
     ]
   },
   {
     "id": "q52",
-    "answer": "The Renaissance",
-    "category": "History",
-    "difficulty": "medium",
+    "answer": "Sushi",
+    "category": "Food",
+    "difficulty": "easy",
     "hints": [
-      "This cultural rebirth began in 14th century Italy",
-      "It marked the end of the Middle Ages",
-      "Leonardo da Vinci and Michelangelo were key figures",
-      "It emphasized humanism and classical learning",
-      "The printing press helped spread its ideas"
+      "This Japanese dish features vinegared rice",
+      "Often served with raw fish or seafood",
+      "Wasabi and pickled ginger are common accompaniments",
+      "Chopsticks are traditionally used to eat this",
+      "Popular varieties include maki, nigiri, and sashimi"
     ]
   },
   {
     "id": "q53",
-    "answer": "Vaccines",
-    "category": "Medicine",
-    "difficulty": "medium",
+    "answer": "Croissant",
+    "category": "Food",
+    "difficulty": "easy",
     "hints": [
-      "These medical preparations prevent infectious diseases",
-      "Edward Jenner developed the first one for smallpox",
-      "They work by training the immune system",
-      "They contain weakened or dead pathogens",
-      "They have eliminated or reduced many deadly diseases"
+      "This buttery, flaky pastry originated in France",
+      "Has a distinctive crescent shape",
+      "Made with laminated dough containing butter layers",
+      "Often eaten for breakfast with coffee",
+      "Can be filled with chocolate, almonds, or ham and cheese"
     ]
   },
   {
     "id": "q54",
-    "answer": "The Big Bang",
-    "category": "Astronomy",
-    "difficulty": "hard",
+    "answer": "Paella",
+    "category": "Food",
+    "difficulty": "medium",
     "hints": [
-      "This theory explains the origin of the universe",
-      "It suggests the universe began as a singularity",
-      "The universe has been expanding ever since",
-      "Cosmic microwave background radiation supports this theory",
-      "It occurred approximately 13.8 billion years ago"
+      "This rice dish originated in Valencia, Spain",
+      "Traditionally cooked in a wide, shallow pan",
+      "Contains saffron which gives it a yellow color",
+      "Classic version includes rabbit, chicken, and beans",
+      "Seafood versions are popular in coastal areas"
     ]
   },
   {
     "id": "q55",
-    "answer": "Jazz",
-    "category": "Music",
+    "answer": "Tacos",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This Mexican dish consists of a folded tortilla",
+      "Can be filled with meat, vegetables, or beans",
+      "Often topped with salsa, onions, and cilantro",
+      "Corn tortillas are traditional, flour tortillas are also used",
+      "Street vendors are famous for serving these"
+    ]
+  },
+  {
+    "id": "q56",
+    "answer": "Curry",
+    "category": "Food",
     "difficulty": "medium",
     "hints": [
-      "This musical genre originated in New Orleans",
-      "It features improvisation and complex rhythms",
-      "Louis Armstrong was one of its pioneers",
-      "The Harlem Renaissance helped popularize it",
-      "It influenced many other musical styles"
+      "This spiced dish originated in South Asian cuisine",
+      "Made with a variety of spices like turmeric and cumin",
+      "Can be made with meat, vegetables, or legumes",
+      "Often served with rice or bread like naan",
+      "Different regions have their own unique versions"
+    ]
+  },
+  {
+    "id": "q57",
+    "answer": "Chocolate",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This sweet treat comes from cacao beans",
+      "The Aztecs and Mayans first cultivated the cacao plant",
+      "Can be dark, milk, or white varieties",
+      "Contains compounds that can improve mood",
+      "Belgium and Switzerland are famous for producing high-quality versions"
+    ]
+  },
+  {
+    "id": "q58",
+    "answer": "Coffee",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This caffeinated beverage is made from roasted beans",
+      "Ethiopia is considered the birthplace of this drink",
+      "Can be served as espresso, cappuccino, or americano",
+      "The beans grow in tropical regions around the world",
+      "Many people rely on this to start their day"
+    ]
+  },
+  {
+    "id": "q59",
+    "answer": "Pizza",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This Italian dish consists of a flatbread base",
+      "Traditionally topped with tomato sauce and mozzarella",
+      "Naples is considered the birthplace of the modern version",
+      "Popular toppings include pepperoni, mushrooms, and peppers",
+      "Often baked in a wood-fired oven for the best results"
+    ]
+  },
+  {
+    "id": "q60",
+    "answer": "Dim Sum",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This Cantonese cuisine consists of small plates",
+      "Traditionally served with Chinese tea",
+      "Popular items include dumplings and buns",
+      "Often served from rolling carts in restaurants",
+      "The name means \"touch the heart\" in Chinese"
+    ]
+  },
+  {
+    "id": "q61",
+    "answer": "Oktoberfest",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This German beer festival takes place annually in Munich",
+      "Originally celebrated the marriage of Crown Prince Ludwig",
+      "Features traditional Bavarian music, food, and clothing",
+      "Visitors wear lederhosen and dirndls",
+      "Despite its name, it actually begins in September"
+    ]
+  },
+  {
+    "id": "q62",
+    "answer": "Carnival",
+    "category": "Culture",
+    "difficulty": "easy",
+    "hints": [
+      "This festive celebration occurs before Lent",
+      "Famous for elaborate costumes, parades, and dancing",
+      "Rio de Janeiro hosts one of the most famous versions",
+      "Venice is known for its elegant masked balls",
+      "New Orleans calls their version Mardi Gras"
+    ]
+  },
+  {
+    "id": "q63",
+    "answer": "Dia de los Muertos",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Mexican holiday honors deceased family members",
+      "Takes place on November 1st and 2nd",
+      "Families create colorful altars called ofrendas",
+      "Sugar skulls and marigolds are traditional decorations",
+      "The name means \"Day of the Dead\" in English"
+    ]
+  },
+  {
+    "id": "q64",
+    "answer": "Chinese New Year",
+    "category": "Culture",
+    "difficulty": "easy",
+    "hints": [
+      "This celebration marks the beginning of the lunar calendar",
+      "Also known as the Spring Festival",
+      "Features dragon and lion dances",
+      "Red envelopes with money are given as gifts",
+      "Each year is associated with one of twelve zodiac animals"
+    ]
+  },
+  {
+    "id": "q65",
+    "answer": "Holi",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Hindu festival is known as the Festival of Colors",
+      "Celebrates the arrival of spring and victory of good over evil",
+      "People throw colored powder and water at each other",
+      "Traditionally associated with the love story of Krishna and Radha",
+      "Celebrated primarily in India and Nepal"
+    ]
+  },
+  {
+    "id": "q66",
+    "answer": "Diwali",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Hindu festival is known as the Festival of Lights",
+      "Celebrates the victory of light over darkness",
+      "People light oil lamps called diyas",
+      "Families exchange sweets and gifts",
+      "Fireworks displays are common during this celebration"
+    ]
+  },
+  {
+    "id": "q67",
+    "answer": "Flamenco",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This passionate art form originated in Andalusia, Spain",
+      "Combines singing, guitar playing, dancing, and handclaps",
+      "Dancers often wear colorful ruffled dresses",
+      "The guitar style is characterized by complex fingerpicking",
+      "UNESCO recognized it as a Masterpiece of Oral and Intangible Heritage"
+    ]
+  },
+  {
+    "id": "q68",
+    "answer": "Kabuki",
+    "category": "Culture",
+    "difficulty": "hard",
+    "hints": [
+      "This traditional Japanese theater art form began in the early 17th century",
+      "Features elaborate makeup, costumes, and stylized movements",
+      "Originally performed by women, now performed only by men",
+      "Stories often involve historical events or moral conflicts",
+      "The name comes from a verb meaning \"to lean\" or \"to be out of the ordinary\""
+    ]
+  },
+  {
+    "id": "q69",
+    "answer": "Bollywood",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This film industry is based in Mumbai, India",
+      "Known for colorful musicals with elaborate dance sequences",
+      "Produces more films annually than Hollywood",
+      "Movies often feature themes of family, love, and tradition",
+      "The name is a combination of Bombay and Hollywood"
+    ]
+  },
+  {
+    "id": "q70",
+    "answer": "Netflix",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This streaming service started as a DVD-by-mail company",
+      "Now produces original content like \"Stranger Things\" and \"The Crown\"",
+      "Available in over 190 countries worldwide",
+      "Uses algorithms to recommend content to users",
+      "Headquarters are located in Los Gatos, California"
+    ]
+  },
+  {
+    "id": "q71",
+    "answer": "Marvel Cinematic Universe",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "This franchise features interconnected superhero movies",
+      "Started with \"Iron Man\" in 2008",
+      "Characters include Spider-Man, Thor, and Black Widow",
+      "\"Avengers: Endgame\" was one of its highest-grossing films",
+      "Owned by The Walt Disney Company"
+    ]
+  },
+  {
+    "id": "q72",
+    "answer": "TikTok",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This social media app is known for short-form videos",
+      "Owned by the Chinese company ByteDance",
+      "Popular among younger users for dancing and comedy content",
+      "Videos are typically 15 seconds to 3 minutes long",
+      "Has faced scrutiny over data privacy concerns"
+    ]
+  },
+  {
+    "id": "q73",
+    "answer": "YouTube",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This video-sharing platform was founded in 2005",
+      "Users can upload, watch, and share videos",
+      "Owned by Google since 2006",
+      "Content creators can monetize their channels",
+      "The first video uploaded was titled \"Me at the zoo\""
+    ]
+  },
+  {
+    "id": "q74",
+    "answer": "Spotify",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This music streaming service was founded in Sweden",
+      "Offers both free and premium subscription tiers",
+      "Users can create and share playlists",
+      "Provides personalized recommendations like \"Discover Weekly\"",
+      "Has over 400 million monthly active users worldwide"
+    ]
+  },
+  {
+    "id": "q75",
+    "answer": "Instagram",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This photo and video-sharing app was launched in 2010",
+      "Owned by Meta (formerly Facebook)",
+      "Features include Stories, Reels, and IGTV",
+      "Popular among influencers and businesses for marketing",
+      "Uses hashtags to categorize and discover content"
+    ]
+  },
+  {
+    "id": "q76",
+    "answer": "Smartphone",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This mobile device combines phone and computer functions",
+      "Features a touchscreen interface",
+      "Can run various applications or \"apps\"",
+      "Includes features like camera, GPS, and internet access",
+      "The iPhone revolutionized this device category in 2007"
+    ]
+  },
+  {
+    "id": "q77",
+    "answer": "Artificial Intelligence",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology simulates human intelligence in machines",
+      "Applications include machine learning and natural language processing",
+      "Used in virtual assistants like Siri and Alexa",
+      "Can analyze large amounts of data to find patterns",
+      "Raises ethical questions about automation and employment"
+    ]
+  },
+  {
+    "id": "q78",
+    "answer": "Bitcoin",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This digital currency was created by the mysterious Satoshi Nakamoto",
+      "Uses blockchain technology for secure transactions",
+      "Not controlled by any government or central authority",
+      "Can be \"mined\" using powerful computer hardware",
+      "Value is highly volatile and speculative"
+    ]
+  },
+  {
+    "id": "q79",
+    "answer": "Cloud Computing",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology delivers computing services over the internet",
+      "Allows users to access data and applications from anywhere",
+      "Services include storage, databases, and software",
+      "Major providers include Amazon AWS, Microsoft Azure, and Google Cloud",
+      "Reduces the need for local hardware and maintenance"
+    ]
+  },
+  {
+    "id": "q80",
+    "answer": "Virtual Reality",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology creates immersive, computer-generated environments",
+      "Users typically wear special headsets to experience it",
+      "Applications include gaming, education, and training",
+      "Can simulate presence in real or imagined worlds",
+      "Often abbreviated as VR"
+    ]
+  },
+  {
+    "id": "q81",
+    "answer": "Electric Car",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This vehicle uses electric motors instead of gasoline engines",
+      "Powered by rechargeable battery packs",
+      "Tesla is a well-known manufacturer of these vehicles",
+      "Produces zero direct emissions",
+      "Charging stations are becoming more common worldwide"
+    ]
+  },
+  {
+    "id": "q82",
+    "answer": "Social Media",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "These online platforms allow users to share content and interact",
+      "Examples include Facebook, Twitter, and Instagram",
+      "Has changed how people communicate and get news",
+      "Can be used for marketing and building communities",
+      "Raises concerns about privacy and misinformation"
+    ]
+  },
+  {
+    "id": "q83",
+    "answer": "E-commerce",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This refers to buying and selling goods online",
+      "Amazon is the largest platform for this activity",
+      "Allows businesses to reach customers worldwide",
+      "Includes online payments and digital transactions",
+      "Has grown significantly, especially during the COVID-19 pandemic"
+    ]
+  },
+  {
+    "id": "q84",
+    "answer": "Cybersecurity",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This field focuses on protecting digital systems from attacks",
+      "Includes measures like firewalls, encryption, and antivirus software",
+      "Professionals in this field are called cybersecurity analysts",
+      "Threats include malware, phishing, and data breaches",
+      "Becoming increasingly important as more activities move online"
+    ]
+  },
+  {
+    "id": "q85",
+    "answer": "Machine Learning",
+    "category": "Technology",
+    "difficulty": "hard",
+    "hints": [
+      "This subset of AI enables computers to learn from data",
+      "Algorithms improve automatically through experience",
+      "Used in recommendation systems and image recognition",
+      "Does not require explicit programming for every task",
+      "Popular frameworks include TensorFlow and PyTorch"
+    ]
+  },
+  {
+    "id": "q86",
+    "answer": "Insulin",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This hormone regulates blood sugar levels",
+      "Produced by the pancreas in healthy individuals",
+      "People with diabetes may need injections of this",
+      "Its discovery won the Nobel Prize in Physiology",
+      "Type 1 diabetics cannot produce this naturally"
+    ]
+  },
+  {
+    "id": "q87",
+    "answer": "X-Ray",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This medical imaging technique uses electromagnetic radiation",
+      "Can see through soft tissue to reveal bones",
+      "Discovered by Wilhelm Röntgen in 1895",
+      "Common use is diagnosing broken bones",
+      "Radiation exposure is kept to safe levels"
+    ]
+  },
+  {
+    "id": "q88",
+    "answer": "Aspirin",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This common painkiller also reduces inflammation",
+      "Originally derived from willow bark",
+      "Can help prevent heart attacks and strokes",
+      "One of the most widely used medications in the world",
+      "Generic name is acetylsalicylic acid"
+    ]
+  },
+  {
+    "id": "q89",
+    "answer": "MRI",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This imaging technique uses magnetic fields and radio waves",
+      "Provides detailed images of soft tissues",
+      "Patients must remain very still during the procedure",
+      "The machine makes loud knocking sounds",
+      "Stands for Magnetic Resonance Imaging"
+    ]
+  },
+  {
+    "id": "q90",
+    "answer": "Chemotherapy",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This cancer treatment uses powerful drugs",
+      "Can cause side effects like hair loss and nausea",
+      "Often given in cycles over several months",
+      "May be combined with radiation or surgery",
+      "Works by targeting rapidly dividing cells"
+    ]
+  },
+  {
+    "id": "q91",
+    "answer": "Anesthesia",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This medical technique prevents pain during surgery",
+      "Can be local, regional, or general",
+      "Revolutionized modern surgery",
+      "Administered by specialized doctors called anesthesiologists",
+      "Early forms included ether and chloroform"
+    ]
+  },
+  {
+    "id": "q92",
+    "answer": "CPR",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This emergency procedure helps restart the heart",
+      "Involves chest compressions and rescue breathing",
+      "Can be performed by trained bystanders",
+      "Should be started immediately during cardiac arrest",
+      "Stands for Cardiopulmonary Resuscitation"
+    ]
+  },
+  {
+    "id": "q93",
+    "answer": "Blood Pressure",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This measurement indicates the force of blood against artery walls",
+      "Recorded as two numbers, like 120 over 80",
+      "High levels increase risk of heart disease and stroke",
+      "Measured using a device called a sphygmomanometer",
+      "Can be affected by diet, exercise, and stress"
+    ]
+  },
+  {
+    "id": "q94",
+    "answer": "Organ Transplant",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This procedure replaces a failing organ with a healthy one",
+      "Requires careful matching between donor and recipient",
+      "Recipients must take immunosuppressive drugs for life",
+      "Common types include heart, liver, and kidney",
+      "First successful one was performed in 1954"
+    ]
+  },
+  {
+    "id": "q95",
+    "answer": "Antibiotic Resistance",
+    "category": "Medicine",
+    "difficulty": "hard",
+    "hints": [
+      "This occurs when bacteria evolve to survive antibiotic treatment",
+      "Caused by overuse and misuse of antibiotics",
+      "Creates \"superbugs\" that are hard to treat",
+      "A major global health concern",
+      "Can be prevented by completing full antibiotic courses"
+    ]
+  },
+  {
+    "id": "q96",
+    "answer": "Quantum Computing",
+    "category": "Technology",
+    "difficulty": "hard",
+    "hints": [
+      "This computing method uses quantum mechanical phenomena",
+      "Uses quantum bits or \"qubits\" instead of regular bits",
+      "Could solve certain problems exponentially faster",
+      "Still largely experimental and theoretical",
+      "Companies like IBM and Google are developing these systems"
+    ]
+  },
+  {
+    "id": "q97",
+    "answer": "Renewable Energy",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This type of energy comes from naturally replenishing sources",
+      "Includes solar, wind, and hydroelectric power",
+      "Considered more environmentally friendly than fossil fuels",
+      "Costs have decreased significantly in recent years",
+      "Key to addressing climate change"
+    ]
+  },
+  {
+    "id": "q98",
+    "answer": "Gene Therapy",
+    "category": "Medicine",
+    "difficulty": "hard",
+    "hints": [
+      "This treatment involves inserting genetic material into cells",
+      "Aims to treat or prevent disease at the genetic level",
+      "Still largely experimental but showing promise",
+      "Could potentially cure inherited disorders",
+      "Raises ethical questions about genetic modification"
+    ]
+  },
+  {
+    "id": "q99",
+    "answer": "Blockchain",
+    "category": "Technology",
+    "difficulty": "hard",
+    "hints": [
+      "This technology creates tamper-resistant digital records",
+      "Uses cryptographic hashing to link blocks of data",
+      "The foundation technology behind cryptocurrencies",
+      "Can provide transparency and security for transactions",
+      "Applications extend beyond digital currency"
+    ]
+  },
+  {
+    "id": "q100",
+    "answer": "CRISPR",
+    "category": "Science",
+    "difficulty": "hard",
+    "hints": [
+      "This gene-editing technology can precisely modify DNA",
+      "Stands for Clustered Regularly Interspaced Short Palindromic Repeats",
+      "Originally discovered as part of bacterial immune systems",
+      "Could potentially cure genetic diseases",
+      "Raises ethical concerns about genetic modification"
     ]
   }
 ]

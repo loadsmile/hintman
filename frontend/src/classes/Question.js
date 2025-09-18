@@ -106,7 +106,7 @@ export class Question {
     return text
       .toLowerCase()
       .trim()
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()'"]/g, '') // Remove punctuation
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()'"]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
       .replace(/^(the|a|an)\s+/i, '') // Remove leading articles
       .replace(/\s+(the|a|an)\s+/gi, ' ') // Remove middle articles
