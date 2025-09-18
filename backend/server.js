@@ -4,10 +4,10 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 
-// Load questions data from the correct path
-const questionsData = require('./data/questions.json');
+// Fix the path to questions.json - it's in src/data/questions.json
+const questionsData = require('./src/data/questions.json');
 
-// Import GameManager
+// Import GameManager with correct path
 const GameManager = require('./src/services/GameManager');
 
 const app = express();
