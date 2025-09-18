@@ -5,9 +5,12 @@ import GuessInput from '../game/GuessInput';
 import Timer from '../common/Timer';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
+import ModeSelector from '../game/ModeSelector';
+import CategorySelector from '../game/CategorySelector';
+import CategoryService from '../../services/CategoryService';
 
 const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
-  const [gameState, setGameState] = useState('connecting');
+  const [gameState, setGameState] = useState('mode-selection'); // Start with mode selection
   const [gameData, setGameData] = useState(null);
   const [players, setPlayers] = useState([]);
   const [currentTarget, setCurrentTarget] = useState(null);
@@ -16,6 +19,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [health, setHealth] = useState({});
   const [connectionError, setConnectionError] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
+  const [_selectedMode, setSelectedMode] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
@@ -122,7 +127,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
     });
 
-    // Handle target start (updated from questionStart)
     socket.on('questionStart', ({ targetIndex, totalTargets, category, difficulty, health: newHealth }) => {
       if (!mountedRef.current) return;
 
@@ -141,7 +145,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       if (newHealth) setHealth(newHealth);
     });
 
-    // Real-time health updates
     socket.on('healthUpdate', ({ health: newHealth }) => {
       if (!mountedRef.current) return;
 
@@ -230,10 +233,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   useEffect(() => {
     mountedRef.current = true;
 
-    if (!initializedRef.current) {
-      initializeSocket();
-    }
-
     return () => {
       console.log('🧹 Component unmounting, cleaning up...');
       mountedRef.current = false;
@@ -248,6 +247,35 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     };
   }, []);
 
+  // Mode selection handlers
+  const handleModeSelect = (mode) => {
+    setSelectedMode(mode);
+
+    if (mode === 'general') {
+      // For general mode, auto-select general category and proceed to connection
+      const generalCategory = CategoryService.getGeneralCategory();
+      setSelectedCategory(generalCategory);
+      setGameState('connecting');
+      initializeSocket();
+    } else if (mode === 'category') {
+      // For category mode, show category selection
+      setGameState('category-selection');
+    }
+  };
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    // After category selection, proceed to connection
+    setGameState('connecting');
+    initializeSocket();
+  };
+
+  const handleBackToModeSelection = () => {
+    setSelectedMode(null);
+    setSelectedCategory(null);
+    setGameState('mode-selection');
+  };
+
   const findMatch = () => {
     if (!socketRef.current?.connected) {
       console.log('❌ No socket connection available');
@@ -255,8 +283,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       return;
     }
 
-    console.log('🔍 Finding match for:', playerName);
-    socketRef.current.emit('findMatch', { playerName });
+    console.log('🔍 Finding match for:', playerName, 'Category:', selectedCategory?.id);
+
+    // Send category info to server for matchmaking
+    socketRef.current.emit('findMatch', {
+      playerName,
+      category: selectedCategory?.id || 'general',
+      categoryName: selectedCategory?.name || 'General Knowledge'
+    });
+
     setGameState('waiting');
   };
 
@@ -307,6 +342,28 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     }, 100);
   };
 
+  // Mode Selection Screen
+  if (gameState === 'mode-selection') {
+    return (
+      <ModeSelector
+        onModeSelect={handleModeSelect}
+        onBack={onBackToMenu}
+        playerName={playerName}
+      />
+    );
+  }
+
+  // Category Selection Screen
+  if (gameState === 'category-selection') {
+    return (
+      <CategorySelector
+        onCategorySelect={handleCategorySelect}
+        onBack={handleBackToModeSelection}
+        selectedCategory={selectedCategory}
+      />
+    );
+  }
+
   if (connectionError) {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -318,8 +375,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <Button onClick={retryConnection} variant="primary">
               🔄 Retry Connection
             </Button>
-            <Button onClick={handleCancel} variant="secondary">
-              🏠 Back to Menu
+            <Button onClick={handleBackToModeSelection} variant="secondary">
+              🏠 Back to Mode Selection
             </Button>
           </div>
         </div>
@@ -333,7 +390,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Connecting to server..." />
           <p className="mt-4 text-gray-600">Establishing secure connection...</p>
-          <Button onClick={handleCancel} variant="secondary" className="mt-4">
+          {selectedCategory && (
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <span className="mr-2">{selectedCategory.icon}</span>
+                {selectedCategory.name} Mission
+              </p>
+            </div>
+          )}
+          <Button onClick={handleBackToModeSelection} variant="secondary" className="mt-4">
             Cancel
           </Button>
         </div>
@@ -346,11 +411,13 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">MULTIPLAYER MISSION</h2>
-            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for real competition?</p>
+            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
+              {selectedCategory?.icon} {selectedCategory?.name.toUpperCase()} MISSION
+            </h2>
+            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for specialized combat?</p>
             <div className="bg-gray-800 p-4 rounded text-white text-sm">
-              <p className="mb-2">🎯 <strong>Objective:</strong> Survive exactly 5 targets with the most health</p>
-              <p className="mb-2">📋 <strong>Intel:</strong> Real-time hint reveals</p>
+              <p className="mb-2">🎯 <strong>Mission Type:</strong> {selectedCategory?.name}</p>
+              <p className="mb-2">📋 <strong>Intelligence:</strong> {selectedCategory?.description}</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
@@ -368,8 +435,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <Button onClick={findMatch} size="lg" className="px-12 mr-4">
               🎯 FIND OPPONENT
             </Button>
-            <Button onClick={handleCancel} variant="secondary" size="lg" className="px-12">
-              🏠 Back to Menu
+            <Button onClick={handleBackToModeSelection} variant="secondary" size="lg" className="px-12">
+              🏠 Change Mission Type
             </Button>
           </div>
         </div>
@@ -382,7 +449,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Searching for opponent..." />
-          <p className="mt-4 text-gray-600">Finding another agent...</p>
+          <p className="mt-4 text-gray-600">Finding another {selectedCategory?.name} specialist...</p>
+          {selectedCategory && (
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <span className="mr-2">{selectedCategory.icon}</span>
+                {selectedCategory.name} Mission
+              </p>
+            </div>
+          )}
           <p className="mt-2 text-xs text-gray-500">This may take a few moments</p>
           <Button onClick={() => setGameState('matchmaking')} variant="secondary" className="mt-6">
             Cancel Search
@@ -397,7 +472,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const winner = results[0];
     const isWinner = winner?.name === playerName;
 
-    // Calculate total rounds completed
     const totalRoundsCompleted = Math.min(5, Math.max(1, currentTarget?.targetIndex || 1));
 
     return (
@@ -407,12 +481,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
               {isWinner ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
             </h2>
-            <p className="text-xl mb-6 text-gray-800">
-              {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} survived with more health.`}
+            <p className="text-xl mb-2 text-gray-800">
+              {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} survived the ${selectedCategory?.name} mission.`}
             </p>
-            <p className="text-sm text-gray-600 mb-4">
-              Completed {totalRoundsCompleted} out of 5 targets
-            </p>
+            {selectedCategory && (
+              <p className="text-sm text-gray-600 mb-4">
+                <span className="mr-2">{selectedCategory.icon}</span>
+                {selectedCategory.name} Mission • Completed {totalRoundsCompleted} out of 5 targets
+              </p>
+            )}
           </div>
 
           <div className="space-y-4 mb-6">
@@ -443,8 +520,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                 socketRef.current = null;
               }
               initializedRef.current = false;
-              setGameState('connecting');
-              setTimeout(() => initializeSocket(), 100);
+              handleBackToModeSelection();
             }} variant="primary" className="flex-1">
               🔄 NEW MATCH
             </Button>
@@ -469,7 +545,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <div className="flex justify-between items-center mb-4">
               <div className="text-white">
                 <h2 className="text-xl font-spy">TARGET: {currentTarget.targetIndex} / {currentTarget.totalTargets}</h2>
-                <p className="text-sm text-gray-300">Category: {currentTarget.category}</p>
+                <p className="text-sm text-gray-300">
+                  {selectedCategory?.icon} {currentTarget.category} • {selectedCategory?.name} Mission
+                </p>
               </div>
               <Timer
                 duration={120}
