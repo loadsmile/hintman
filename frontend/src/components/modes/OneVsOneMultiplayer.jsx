@@ -21,7 +21,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [serverStatus, setServerStatus] = useState('checking'); // checking, online, offline
+  const [serverStatus, setServerStatus] = useState('checking');
 
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
@@ -181,10 +181,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setGameState('waiting');
     });
 
-    socket.on('matchFound', ({ players: matchedPlayers }) => {
+    socket.on('matchFound', ({ players: matchedPlayers, gameMode }) => {
       if (!mountedRef.current) return;
 
-      console.log('🎯 Match found!', matchedPlayers);
+      console.log('🎯 Match found!', matchedPlayers, 'Game Mode:', gameMode);
       setPlayers(matchedPlayers);
       setGameState('playing');
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
@@ -326,7 +326,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   };
 
   const handleCategorySelect = (category) => {
-    console.log('🎨 Category selected:', category.name);
+    console.log('🎨 Category selected for personal preference:', category.name);
     setSelectedCategory(category);
     setGameState('connecting');
     initializeSocket();
@@ -354,13 +354,14 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       return;
     }
 
-    console.log('🔍 Finding match for:', playerName, 'Mode:', selectedMode, 'Category:', selectedCategory?.id);
+    console.log('🔍 Finding match for:', playerName, 'Mode:', selectedMode, 'Personal Category:', selectedCategory?.id);
 
+    // Send only the game mode for matchmaking, category is just for personal preference
     socketRef.current.emit('findMatch', {
       playerName,
-      category: selectedCategory?.id || 'general',
-      categoryName: selectedCategory?.name || 'General Knowledge',
-      mode: selectedMode || 'general'
+      gameMode: selectedMode, // Match by game mode only
+      personalCategory: selectedCategory?.id || 'general', // Personal preference for question display
+      personalCategoryName: selectedCategory?.name || 'General Knowledge'
     });
 
     setGameState('waiting');
@@ -470,6 +471,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <div className="mb-4 p-3 bg-gray-100 rounded-lg">
               <p className="text-sm text-gray-700">
                 Selected Mode: <strong>{getModeDisplayName()}</strong>
+                {selectedCategory && selectedMode === 'category' && (
+                  <>
+                    <br />
+                    Personal Preference: <strong>{selectedCategory.name}</strong>
+                  </>
+                )}
               </p>
             </div>
           )}
@@ -501,11 +508,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <div className="mt-4 p-3 bg-gray-100 rounded-lg">
               <p className="text-sm text-gray-700">
                 <strong>{getModeDisplayName()}</strong>
-                {selectedCategory && (
+                {selectedCategory && selectedMode === 'category' && (
                   <>
                     <br />
                     <span className="mr-2">{selectedCategory.icon}</span>
-                    {selectedCategory.name}
+                    Personal preference: {selectedCategory.name}
                   </>
                 )}
               </p>
@@ -522,20 +529,22 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Rest of the component remains the same...
   if (gameState === 'matchmaking') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
-              {selectedCategory?.icon} {selectedCategory?.name?.toUpperCase()} MISSION
+              🎯 {getModeDisplayName().toUpperCase()}
             </h2>
-            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for specialized combat?</p>
+            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for combat?</p>
             <div className="bg-gray-800 p-4 rounded text-white text-sm">
               <p className="mb-2">🎯 <strong>Mission Type:</strong> {getModeDisplayName()}</p>
-              <p className="mb-2">📋 <strong>Category:</strong> {selectedCategory?.name}</p>
-              <p className="mb-2">🔧 <strong>Intelligence:</strong> {selectedCategory?.description}</p>
+              {selectedMode === 'category' && selectedCategory && (
+                <p className="mb-2">🎭 <strong>Your Cover:</strong> {selectedCategory.name} specialist</p>
+              )}
+              <p className="mb-2">📋 <strong>Questions:</strong> {selectedMode === 'general' ? 'Mixed from all categories' : 'Mixed categories (your preference noted)'}</p>
+              <p className="mb-2">🤝 <strong>Matchmaking:</strong> Against other {getModeDisplayName()} players</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
@@ -567,18 +576,22 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Searching for opponent..." />
-          <p className="mt-4 text-gray-600">Finding another {selectedCategory?.name} specialist...</p>
-          {selectedMode && selectedCategory && (
+          <p className="mt-4 text-gray-600">Finding another {getModeDisplayName()} player...</p>
+          {selectedMode && (
             <div className="mt-4 p-3 bg-gray-100 rounded-lg">
               <p className="text-sm text-gray-700">
                 <strong>{getModeDisplayName()}</strong>
-                <br />
-                <span className="mr-2">{selectedCategory.icon}</span>
-                {selectedCategory.name}
+                {selectedCategory && selectedMode === 'category' && (
+                  <>
+                    <br />
+                    <span className="mr-2">{selectedCategory.icon}</span>
+                    Your cover: {selectedCategory.name}
+                  </>
+                )}
               </p>
             </div>
           )}
-          <p className="mt-2 text-xs text-gray-500">This may take a few moments</p>
+          <p className="mt-2 text-xs text-gray-500">Matching by game mode for faster results</p>
           <Button onClick={() => setGameState('matchmaking')} variant="secondary" className="mt-6">
             Cancel Search
           </Button>
@@ -602,15 +615,17 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               {isWinner ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
             </h2>
             <p className="text-xl mb-2 text-gray-800">
-              {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} survived the ${selectedCategory?.name} mission.`}
+              {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} completed the mission.`}
             </p>
-            {selectedMode && selectedCategory && (
-              <p className="text-sm text-gray-600 mb-4">
-                <strong>{getModeDisplayName()}</strong> •
-                <span className="ml-2 mr-2">{selectedCategory.icon}</span>
-                {selectedCategory.name} Mission • Completed {totalRoundsCompleted} out of 5 targets
-              </p>
-            )}
+            <p className="text-sm text-gray-600 mb-4">
+              <strong>{getModeDisplayName()}</strong>
+              {selectedCategory && selectedMode === 'category' && (
+                <>
+                  {' '}• Your cover: {selectedCategory.icon} {selectedCategory.name}
+                </>
+              )}
+              {' '}• Completed {totalRoundsCompleted} out of 5 targets
+            </p>
           </div>
 
           <div className="space-y-4 mb-6">
@@ -667,7 +682,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               <div className="text-white">
                 <h2 className="text-xl font-spy">TARGET: {currentTarget.targetIndex} / {currentTarget.totalTargets}</h2>
                 <p className="text-sm text-gray-300">
-                  {selectedCategory?.icon} {currentTarget.category} • {getModeDisplayName()} • {selectedCategory?.name} Mission
+                  {currentTarget.category} • {getModeDisplayName()}
+                  {selectedCategory && selectedMode === 'category' && (
+                    <> • Your cover: {selectedCategory.icon} {selectedCategory.name}</>
+                  )}
                 </p>
               </div>
               <Timer

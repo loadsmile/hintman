@@ -1,279 +1,404 @@
 const GameRoom = require('../models/GameRoom');
-const questionsData = require('../data/questions');
 const { v4: uuidv4 } = require('uuid');
 
 class GameManager {
-  constructor() {
-    this.games = new Map();
-    this.waitingPlayers = new Map();
-    console.log(`GameManager initialized with ${questionsData.length} questions`);
+  constructor(questionsData) {
+    this.gameRooms = new Map();
+    this.questionsData = questionsData;
+    this.connectedPlayers = new Map();
+
+    // Cleanup interval for abandoned rooms
+    setInterval(() => {
+      this.cleanupAbandonedRooms();
+    }, 60000); // Every minute
+
+    console.log('GameManager initialized with', questionsData.length, 'questions');
   }
 
-  findMatch(socket, playerName) {
-    console.log(`${playerName} (${socket.id}) looking for match...`);
-
-    // Check if there's a waiting player
-    const waitingPlayerEntries = Array.from(this.waitingPlayers.entries());
-    const waitingPlayerEntry = waitingPlayerEntries.find(([id]) => id !== socket.id);
-
-    if (waitingPlayerEntry) {
-      const [waitingPlayerId, waitingPlayerName] = waitingPlayerEntry;
-      const waitingPlayerSocket = socket.nsp.sockets.get(waitingPlayerId);
-
-      if (waitingPlayerSocket) {
-        // Create new game room
-        const gameId = uuidv4();
-        const gameRoom = new GameRoom(gameId, questionsData);
-
-        // Add both players
-        const player1Added = gameRoom.addPlayer(waitingPlayerSocket, waitingPlayerName);
-        const player2Added = gameRoom.addPlayer(socket, playerName);
-
-        if (player1Added && player2Added) {
-          // Remove from waiting
-          this.waitingPlayers.delete(waitingPlayerId);
-
-          // Join socket rooms
-          waitingPlayerSocket.join(gameId);
-          socket.join(gameId);
-
-          // Store game
-          this.games.set(gameId, gameRoom);
-
-          console.log(`Match created! Game ${gameId}: ${waitingPlayerName} vs ${playerName}`);
-
-          // Notify players
-          gameRoom.broadcast('matchFound', {
-            gameId: gameId,
-            players: gameRoom.players.map(p => ({ id: p.id, name: p.name }))
-          });
-
-          // Start game after brief delay
-          setTimeout(() => {
-            gameRoom.startGame();
-          }, 2000);
-
-          return true;
-        } else {
-          console.error('Failed to add players to game room');
-          this.waitingPlayers.set(socket.id, playerName);
-          socket.emit('waitingForMatch');
-          return false;
-        }
-      } else {
-        // Waiting player socket no longer exists, clean up
-        console.log(`Waiting player ${waitingPlayerId} socket no longer exists, cleaning up`);
-        this.waitingPlayers.delete(waitingPlayerId);
-        this.waitingPlayers.set(socket.id, playerName);
-        socket.emit('waitingForMatch');
-        return false;
-      }
-    } else {
-      // Add to waiting list
-      console.log(`${playerName} added to waiting list (${this.waitingPlayers.size + 1} total waiting)`);
-      this.waitingPlayers.set(socket.id, playerName);
-      socket.emit('waitingForMatch');
-      return false;
-    }
+  generateRoomId() {
+    return uuidv4().split('-')[0].toUpperCase();
   }
 
-  handleGuess(socket, guess) {
-    // Find which game this player is in
-    for (const [gameId, game] of this.games) {
-      const player = game.players.find(p => p.id === socket.id);
-      if (player) {
-        console.log(`Processing guess from ${player.name} in game ${gameId}: "${guess}"`);
-        game.handleGuess(socket.id, guess);
-        return;
-      }
-    }
+  // Handle player connection
+  handleConnection(socket) {
+    console.log('New player connected:', socket.id);
 
-    console.log(`No active game found for player ${socket.id} when submitting guess: "${guess}"`);
+    this.connectedPlayers.set(socket.id, {
+      socket,
+      connectedAt: Date.now(),
+      currentRoom: null
+    });
+
+    // Handle player disconnection
+    socket.on('disconnect', () => {
+      this.handleDisconnection(socket);
+    });
+
+    // Handle match finding
+    socket.on('findMatch', (playerData) => {
+      this.findMatch(socket, playerData);
+    });
+
+    // Handle guess submission
+    socket.on('submitGuess', ({ guess }) => {
+      this.handleGuess(socket, guess);
+    });
+
+    // Handle player leaving room
+    socket.on('leaveRoom', () => {
+      this.handleLeaveRoom(socket);
+    });
   }
 
+  // Handle player disconnection
   handleDisconnection(socket) {
     console.log('Player disconnected:', socket.id);
 
-    // Remove from waiting list
-    const wasWaiting = this.waitingPlayers.has(socket.id);
-    if (wasWaiting) {
-      this.waitingPlayers.delete(socket.id);
-      console.log(`Removed ${socket.id} from waiting list (${this.waitingPlayers.size} remaining)`);
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    if (playerInfo && playerInfo.currentRoom) {
+      const room = this.gameRooms.get(playerInfo.currentRoom);
+      if (room) {
+        room.removePlayer(socket.id);
+
+        // Notify other players
+        if (room.players.length > 0) {
+          room.broadcast('playerDisconnected', {
+            disconnectedPlayer: socket.id
+          });
+        }
+
+        // Remove room if empty
+        if (room.players.length === 0) {
+          this.gameRooms.delete(playerInfo.currentRoom);
+          console.log(`Removed empty room: ${playerInfo.currentRoom}`);
+        }
+      }
     }
 
-    // Remove from any active games
-    for (const [gameId, game] of this.games) {
-      const playerIndex = game.players.findIndex(p => p.id === socket.id);
-      if (playerIndex !== -1) {
-        const disconnectedPlayer = game.players[playerIndex];
-        console.log(`${disconnectedPlayer.name} left game ${gameId} (${game.players.length} players before removal)`);
+    this.connectedPlayers.delete(socket.id);
+  }
 
-        // Remove player from game
-        game.removePlayer(socket.id);
+  // Find match for player - Updated to match by game mode only
+  findMatch(socket, playerData) {
+    const {
+      playerName,
+      gameMode = 'general',
+      personalCategory = 'general',
+      personalCategoryName = 'General Knowledge'
+    } = playerData;
 
-        // Handle remaining players
-        if (game.players.length === 1) {
-          console.log(`Only 1 player remaining in game ${gameId}, notifying and scheduling cleanup`);
-          game.broadcast('playerDisconnected');
+    console.log(`Player ${playerName} looking for ${gameMode} match (personal preference: ${personalCategory})`);
 
-          // End the game after a delay to allow the remaining player to see the message
-          setTimeout(() => {
-            console.log(`Cleaning up game ${gameId} due to player disconnection`);
-            this.games.delete(gameId);
-            game.cleanup();
-          }, 5000);
-        } else if (game.players.length === 0) {
-          console.log(`No players remaining in game ${gameId}, cleaning up immediately`);
-          this.games.delete(gameId);
-          game.cleanup();
+    // Look for existing room with same GAME MODE (not category)
+    let availableRoom = null;
+    for (const room of this.gameRooms.values()) {
+      if (room.gameState === 'waiting' &&
+          room.players.length === 1 &&
+          room.gameMode === gameMode) { // Match by game mode only
+        availableRoom = room;
+        break;
+      }
+    }
+
+    if (availableRoom) {
+      // Join existing room
+      const success = availableRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+      if (success) {
+        console.log(`Player ${playerName} joined existing ${gameMode} room: ${availableRoom.id}`);
+
+        // Update player info
+        const playerInfo = this.connectedPlayers.get(socket.id);
+        if (playerInfo) {
+          playerInfo.currentRoom = availableRoom.id;
         }
+
+        const players = availableRoom.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          gameMode: p.gameMode,
+          personalCategory: p.personalCategory
+        }));
+
+        availableRoom.broadcast('matchFound', {
+          players,
+          gameMode,
+          roomId: availableRoom.id
+        });
+
+        // Start game after brief delay
+        setTimeout(() => {
+          if (availableRoom.players.length === 2 && availableRoom.gameState === 'waiting') {
+            availableRoom.startGame();
+          }
+        }, 2000);
+
         return;
       }
     }
 
-    if (!wasWaiting) {
-      console.log(`Disconnected player ${socket.id} was not in waiting list or active games`);
-    }
-  }
+    // Create new room - Always use 'general' for questions (mixed), gameMode for matching
+    const roomId = this.generateRoomId();
+    const gameRoom = new GameRoom(roomId, this.questionsData, 'general', gameMode);
 
-  // Clean up finished games
-  cleanupGame(gameId) {
-    const game = this.games.get(gameId);
-    if (game) {
-      console.log(`Manually cleaning up finished game ${gameId}`);
-      this.games.delete(gameId);
-      game.cleanup();
-    }
-  }
+    const success = gameRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+    if (success) {
+      this.gameRooms.set(roomId, gameRoom);
 
-  // Get a specific game by ID
-  getGame(gameId) {
-    return this.games.get(gameId);
-  }
-
-  // Get all games with a specific state
-  getGamesByState(state) {
-    return Array.from(this.games.values()).filter(game => game.gameState === state);
-  }
-
-  // Get statistics about the game manager
-  getStats() {
-    const gameStats = Array.from(this.games.values()).map(game => game.getStats());
-    const gamesByState = {
-      waiting: gameStats.filter(g => g.gameState === 'waiting').length,
-      playing: gameStats.filter(g => g.gameState === 'playing').length,
-      finished: gameStats.filter(g => g.gameState === 'finished').length
-    };
-
-    return {
-      activeGames: this.games.size,
-      waitingPlayers: this.waitingPlayers.size,
-      totalQuestions: questionsData.length,
-      gamesByState,
-      gameDetails: gameStats,
-      waitingPlayersList: Array.from(this.waitingPlayers.values()) // For debugging
-    };
-  }
-
-  // Get detailed information for debugging
-  getDetailedStats() {
-    const stats = this.getStats();
-    const detailedGames = Array.from(this.games.entries()).map(([id, game]) => ({
-      id,
-      ...game.getStats(),
-      players: game.players.map(p => ({ id: p.id, name: p.name, health: p.health }))
-    }));
-
-    return {
-      ...stats,
-      detailedGames,
-      memoryUsage: process.memoryUsage(),
-      uptime: process.uptime()
-    };
-  }
-
-  // Cleanup all games and waiting players (for graceful shutdown)
-  cleanup() {
-    console.log(`GameManager cleanup: ${this.games.size} active games, ${this.waitingPlayers.size} waiting players`);
-
-    // Cleanup all games
-    for (const [gameId, game] of this.games) {
-      console.log(`Cleaning up game ${gameId}`);
-      game.cleanup();
-    }
-    this.games.clear();
-
-    // Clear waiting players
-    this.waitingPlayers.clear();
-
-    console.log('GameManager cleanup completed');
-  }
-
-  // Health check method
-  healthCheck() {
-    const stats = this.getStats();
-    const isHealthy = stats.totalQuestions > 0; // Basic health check
-
-    return {
-      status: isHealthy ? 'healthy' : 'unhealthy',
-      timestamp: new Date().toISOString(),
-      ...stats
-    };
-  }
-
-  // Force cleanup of stale games (can be called periodically)
-  cleanupStaleGames(maxAgeMinutes = 30) {
-    const now = Date.now();
-    const maxAge = maxAgeMinutes * 60 * 1000; // Convert to milliseconds
-    let cleanedCount = 0;
-
-    for (const [gameId, game] of this.games) {
-      // If game has been running for too long or has no players
-      const gameAge = now - (game.startTime || now);
-      if (gameAge > maxAge || game.players.length === 0) {
-        console.log(`Cleaning up stale game ${gameId} (age: ${Math.round(gameAge / 1000 / 60)} minutes, players: ${game.players.length})`);
-        this.games.delete(gameId);
-        game.cleanup();
-        cleanedCount++;
+      // Update player info
+      const playerInfo = this.connectedPlayers.get(socket.id);
+      if (playerInfo) {
+        playerInfo.currentRoom = roomId;
       }
-    }
 
-    if (cleanedCount > 0) {
-      console.log(`Cleaned up ${cleanedCount} stale games`);
-    }
+      console.log(`Created new ${gameMode} room: ${roomId} for player: ${playerName}`);
 
-    return cleanedCount;
-  }
+      socket.emit('waitingForMatch', {
+        roomId,
+        gameMode,
+        personalCategory,
+        personalCategoryName
+      });
 
-  // Get player info across all games
-  getAllPlayers() {
-    const players = [];
+      // Set timeout for solo players
+      setTimeout(() => {
+        if (gameRoom.players.length === 1 && gameRoom.gameState === 'waiting') {
+          console.log(`Room ${roomId} timeout - removing solo player`);
 
-    // Add waiting players
-    for (const [socketId, playerName] of this.waitingPlayers) {
-      players.push({
-        id: socketId,
-        name: playerName,
-        status: 'waiting',
-        gameId: null
+          // Notify player
+          if (gameRoom.players[0] && gameRoom.players[0].socket.connected) {
+            gameRoom.players[0].socket.emit('matchTimeout', {
+              reason: 'No opponent found within time limit'
+            });
+          }
+
+          // Clean up
+          this.gameRooms.delete(roomId);
+          const playerInfo = this.connectedPlayers.get(socket.id);
+          if (playerInfo) {
+            playerInfo.currentRoom = null;
+          }
+        }
+      }, 120000); // 2 minutes timeout
+    } else {
+      socket.emit('matchError', {
+        error: 'Failed to create or join game room'
       });
     }
+  }
 
-    // Add players in active games
-    for (const [gameId, game] of this.games) {
-      for (const player of game.players) {
-        players.push({
-          id: player.id,
-          name: player.name,
-          status: `in-game-${game.gameState}`,
-          gameId: gameId,
-          score: player.score,
-          health: player.health
+  // Handle guess submission
+  handleGuess(socket, guess) {
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    if (!playerInfo || !playerInfo.currentRoom) {
+      socket.emit('guessError', { error: 'Not in a game room' });
+      return;
+    }
+
+    const room = this.gameRooms.get(playerInfo.currentRoom);
+    if (!room) {
+      socket.emit('guessError', { error: 'Game room not found' });
+      return;
+    }
+
+    if (room.gameState !== 'playing') {
+      socket.emit('guessError', { error: 'Game is not in playing state' });
+      return;
+    }
+
+    room.handleGuess(socket.id, guess);
+  }
+
+  // Handle player leaving room
+  handleLeaveRoom(socket) {
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    if (!playerInfo || !playerInfo.currentRoom) {
+      return;
+    }
+
+    const room = this.gameRooms.get(playerInfo.currentRoom);
+    if (room) {
+      room.removePlayer(socket.id);
+
+      // Notify other players
+      if (room.players.length > 0) {
+        room.broadcast('playerLeft', {
+          leftPlayer: socket.id
         });
+      }
+
+      // Remove room if empty
+      if (room.players.length === 0) {
+        this.gameRooms.delete(playerInfo.currentRoom);
+        console.log(`Removed empty room: ${playerInfo.currentRoom}`);
       }
     }
 
-    return players;
+    playerInfo.currentRoom = null;
+    socket.emit('leftRoom');
+  }
+
+  // Clean up abandoned rooms
+  cleanupAbandonedRooms() {
+    const now = Date.now();
+    const roomsToDelete = [];
+
+    for (const [roomId, room] of this.gameRooms.entries()) {
+      // Remove rooms that have been empty for more than 5 minutes
+      if (room.players.length === 0) {
+        roomsToDelete.push(roomId);
+        continue;
+      }
+
+      // Remove rooms where all players have disconnected
+      const hasConnectedPlayers = room.players.some(player =>
+        player.socket && player.socket.connected
+      );
+
+      if (!hasConnectedPlayers) {
+        roomsToDelete.push(roomId);
+        continue;
+      }
+
+      // Remove waiting rooms that have been waiting for too long (10 minutes)
+      if (room.gameState === 'waiting' && room.players.length === 1) {
+        const waitTime = now - room.createdAt;
+        if (waitTime > 600000) { // 10 minutes
+          roomsToDelete.push(roomId);
+        }
+      }
+    }
+
+    // Clean up identified rooms
+    roomsToDelete.forEach(roomId => {
+      const room = this.gameRooms.get(roomId);
+      if (room) {
+        console.log(`Cleaning up abandoned room: ${roomId}`);
+        room.cleanup();
+        this.gameRooms.delete(roomId);
+      }
+    });
+
+    if (roomsToDelete.length > 0) {
+      console.log(`Cleaned up ${roomsToDelete.length} abandoned rooms`);
+    }
+  }
+
+  // Get game statistics
+  getStats() {
+    const totalRooms = this.gameRooms.size;
+    const totalPlayers = this.connectedPlayers.size;
+
+    const roomStats = {
+      waiting: 0,
+      playing: 0,
+      finished: 0,
+      general: 0,
+      category: 0
+    };
+
+    const playerStats = {
+      inGame: 0,
+      waiting: 0,
+      connected: 0
+    };
+
+    // Count rooms by state and mode
+    for (const room of this.gameRooms.values()) {
+      roomStats[room.gameState] = (roomStats[room.gameState] || 0) + 1;
+      roomStats[room.gameMode] = (roomStats[room.gameMode] || 0) + 1;
+    }
+
+    // Count players by status
+    for (const playerInfo of this.connectedPlayers.values()) {
+      playerStats.connected++;
+      if (playerInfo.currentRoom) {
+        const room = this.gameRooms.get(playerInfo.currentRoom);
+        if (room) {
+          if (room.gameState === 'playing') {
+            playerStats.inGame++;
+          } else if (room.gameState === 'waiting') {
+            playerStats.waiting++;
+          }
+        }
+      }
+    }
+
+    return {
+      timestamp: new Date().toISOString(),
+      totalRooms,
+      totalPlayers,
+      roomStats,
+      playerStats,
+      questionsAvailable: this.questionsData.length
+    };
+  }
+
+  // Get room details
+  getRoomDetails(roomId) {
+    const room = this.gameRooms.get(roomId);
+    if (!room) {
+      return null;
+    }
+
+    return room.getStats();
+  }
+
+  // Get all active rooms (admin function)
+  getAllRooms() {
+    const rooms = [];
+    for (const [roomId, room] of this.gameRooms.entries()) {
+      rooms.push({
+        id: roomId,
+        ...room.getStats()
+      });
+    }
+    return rooms;
+  }
+
+  // Force close room (admin function)
+  forceCloseRoom(roomId) {
+    const room = this.gameRooms.get(roomId);
+    if (!room) {
+      return false;
+    }
+
+    // Notify all players
+    room.broadcast('roomClosed', {
+      reason: 'Room closed by administrator'
+    });
+
+    // Clean up
+    room.cleanup();
+    this.gameRooms.delete(roomId);
+
+    // Update player info
+    for (const [playerId, playerInfo] of this.connectedPlayers.entries()) {
+      if (playerInfo.currentRoom === roomId) {
+        playerInfo.currentRoom = null;
+      }
+    }
+
+    console.log(`Force closed room: ${roomId}`);
+    return true;
+  }
+
+  // Shutdown manager
+  shutdown() {
+    console.log('Shutting down GameManager...');
+
+    // Notify all players
+    for (const room of this.gameRooms.values()) {
+      room.broadcast('serverShutdown', {
+        reason: 'Server is shutting down'
+      });
+      room.cleanup();
+    }
+
+    // Clear all data
+    this.gameRooms.clear();
+    this.connectedPlayers.clear();
+
+    console.log('GameManager shutdown complete');
   }
 }
 
