@@ -19,7 +19,7 @@ const MissionTracker = ({ correctAnswers = 0, mistakes = 0, playerName, isMyTrac
   return (
     <div className={`mission-tracker ${isMyTracker ? 'my-tracker' : 'opponent-tracker'}`}>
       <div className="tracker-header mb-2">
-        <h3 className="text-sm font-spy font-bold text-gray-100">
+        <h3 className="text-sm font-spy font-bold text-black">
           {isMyTracker ? '👤 YOUR RECORD' : `🎯 ${playerName?.toUpperCase()} RECORD`}
         </h3>
         <div className="text-xs text-gray-300">

@@ -52,6 +52,19 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     };
   }, [hintTimer]);
 
+  // Helper function to check if a player is alive
+  const isPlayerAlive = (playerObj) => {
+    if (!playerObj) return false;
+
+    // Check if the player has an isAlive method
+    if (typeof playerObj.isAlive === 'function') {
+      return playerObj.isAlive();
+    }
+
+    // Fallback: check if health is greater than 0
+    return playerObj.health > 0;
+  };
+
   const shuffleArray = (array) => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -107,8 +120,27 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const startGame = () => {
     if (!player) return;
 
-    player.resetForNewGame();
-    aiPlayer.resetForNewGame();
+    // Reset players for new game
+    if (typeof player.resetForNewGame === 'function') {
+      player.resetForNewGame();
+    } else {
+      // Fallback reset
+      player.health = player.maxHealth || 5000;
+      player.totalCorrect = 0;
+      player.totalQuestions = 0;
+      player.currentStreak = 0;
+    }
+
+    if (typeof aiPlayer.resetForNewGame === 'function') {
+      aiPlayer.resetForNewGame();
+    } else {
+      // Fallback reset
+      aiPlayer.health = aiPlayer.maxHealth || 5000;
+      aiPlayer.totalCorrect = 0;
+      aiPlayer.totalQuestions = 0;
+      aiPlayer.currentStreak = 0;
+    }
+
     setQuestionIndex(0);
     setIsProcessingNext(false);
     setGameResult(null);
@@ -132,10 +164,12 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     console.log(`Starting question ${index + 1}/${maxTargets}: ${question.correctAnswer}`);
 
     setTimeout(() => {
-      if (gameStateRef.current === 'playing' && question.hints.length > 0) {
+      if (gameStateRef.current === 'playing' && question.hints && question.hints.length > 0) {
         const firstHint = question.hints[0];
         addRevealedHint(firstHint.text, 0);
-        question.revealNextHint();
+        if (typeof question.revealNextHint === 'function') {
+          question.revealNextHint();
+        }
       }
     }, 1000);
 
@@ -146,14 +180,25 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       }
 
       const nextHintIndex = revealedHints.length;
-      if (nextHintIndex < question.hints.length) {
+      if (question.hints && nextHintIndex < question.hints.length) {
         const nextHint = question.hints[nextHintIndex];
         addRevealedHint(nextHint.text, nextHintIndex);
-        question.revealNextHint();
+        if (typeof question.revealNextHint === 'function') {
+          question.revealNextHint();
+        }
 
         // Both players lose health for each hint revealed
-        player.loseHealthForHints(1);
-        aiPlayer.loseHealthForHints(1);
+        if (typeof player.loseHealthForHints === 'function') {
+          player.loseHealthForHints(1);
+        } else {
+          player.health = Math.max(0, player.health - 100);
+        }
+
+        if (typeof aiPlayer.loseHealthForHints === 'function') {
+          aiPlayer.loseHealthForHints(1);
+        } else {
+          aiPlayer.health = Math.max(0, aiPlayer.health - 100);
+        }
 
         // Force re-render to show updated health immediately
         setPlayer(prevPlayer => ({ ...prevPlayer }));
@@ -181,15 +226,26 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
     setAiHasGuessed(true);
 
-    const timeElapsed = question.getElapsedTime() / 1000;
+    const timeElapsed = question.getElapsedTime ? question.getElapsedTime() / 1000 : 30;
     const correctChance = Math.min(0.5, (hintCount - 2) * 0.15);
     const isCorrect = Math.random() < correctChance;
 
     // AI loses health for time elapsed
-    aiPlayer.loseHealthForTime(timeElapsed);
+    if (typeof aiPlayer.loseHealthForTime === 'function') {
+      aiPlayer.loseHealthForTime(timeElapsed);
+    } else {
+      const timePenalty = Math.floor(timeElapsed);
+      aiPlayer.health = Math.max(0, aiPlayer.health - timePenalty);
+    }
 
     if (isCorrect) {
-      aiPlayer.recordGuess(true, timeElapsed);
+      if (typeof aiPlayer.recordGuess === 'function') {
+        aiPlayer.recordGuess(true, timeElapsed);
+      } else {
+        aiPlayer.totalCorrect = (aiPlayer.totalCorrect || 0) + 1;
+        aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
+        aiPlayer.health = Math.min(aiPlayer.maxHealth || 5000, aiPlayer.health + 1000);
+      }
 
       setGameResult({
         winner: 'ai',
@@ -201,7 +257,12 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
       proceedToNextQuestion();
     } else {
-      aiPlayer.recordGuess(false, timeElapsed);
+      if (typeof aiPlayer.recordGuess === 'function') {
+        aiPlayer.recordGuess(false, timeElapsed);
+      } else {
+        aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
+        aiPlayer.health = Math.max(0, aiPlayer.health - 500);
+      }
       // Force re-render to show AI health loss immediately
       setAiHasGuessed(prev => !prev && prev); // Trigger re-render
     }
@@ -210,14 +271,30 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const handlePlayerGuess = async (guess) => {
     if (!currentQuestion || gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
 
-    const timeElapsed = currentQuestion.getElapsedTime() / 1000;
-    const isCorrect = currentQuestion.checkAnswer(guess);
+    const timeElapsed = currentQuestion.getElapsedTime ? currentQuestion.getElapsedTime() / 1000 : 30;
+    const isCorrect = currentQuestion.checkAnswer ? currentQuestion.checkAnswer(guess) : false;
 
     console.log(`Player guessed: "${guess}" for answer: "${currentQuestion.correctAnswer}" - ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
 
     // Player loses health for time elapsed
-    player.loseHealthForTime(timeElapsed);
-    player.recordGuess(isCorrect, timeElapsed);
+    if (typeof player.loseHealthForTime === 'function') {
+      player.loseHealthForTime(timeElapsed);
+    } else {
+      const timePenalty = Math.floor(timeElapsed);
+      player.health = Math.max(0, player.health - timePenalty);
+    }
+
+    if (typeof player.recordGuess === 'function') {
+      player.recordGuess(isCorrect, timeElapsed);
+    } else {
+      if (isCorrect) {
+        player.totalCorrect = (player.totalCorrect || 0) + 1;
+        player.health = Math.min(player.maxHealth || 5000, player.health + 1000);
+      } else {
+        player.health = Math.max(0, player.health - 500);
+      }
+      player.totalQuestions = (player.totalQuestions || 0) + 1;
+    }
 
     // Force immediate re-render to show health changes
     setPlayer(prevPlayer => ({ ...prevPlayer }));
@@ -253,12 +330,23 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
     if (player && currentQuestion) {
       const maxTime = 120;
-      player.loseHealthForTime(maxTime);
-      player.recordGuess(false, maxTime);
+
+      if (typeof player.loseHealthForTime === 'function') {
+        player.loseHealthForTime(maxTime);
+        player.recordGuess(false, maxTime);
+      } else {
+        player.health = Math.max(0, player.health - maxTime);
+        player.totalQuestions = (player.totalQuestions || 0) + 1;
+      }
 
       if (!aiHasGuessedRef.current) {
-        aiPlayer.loseHealthForTime(maxTime);
-        aiPlayer.recordGuess(false, maxTime);
+        if (typeof aiPlayer.loseHealthForTime === 'function') {
+          aiPlayer.loseHealthForTime(maxTime);
+          aiPlayer.recordGuess(false, maxTime);
+        } else {
+          aiPlayer.health = Math.max(0, aiPlayer.health - maxTime);
+          aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
+        }
       }
 
       // Force re-render to show health changes
@@ -285,7 +373,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       const nextIndex = questionIndex + 1;
 
       // IMPORTANT: Check against maxTargets (5), and ensure both players are alive
-      if (nextIndex < maxTargets && player.isAlive() && aiPlayer.isAlive()) {
+      if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
         setQuestionIndex(nextIndex);
         startQuestion(nextIndex, shuffledQuestions);
         setIsProcessingNext(false);
@@ -304,11 +392,26 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   // Health Bar Component
   const HealthBar = ({ player: p }) => {
-    const healthPercentage = p.getHealthPercentage();
-    const healthStatus = p.getHealthStatus();
+    if (!p) return null;
+
+    const maxHealth = p.maxHealth || 5000;
+    const currentHealth = p.health || 0;
+    const healthPercentage = (currentHealth / maxHealth) * 100;
+
+    const getHealthStatus = () => {
+      if (typeof p.getHealthStatus === 'function') {
+        return p.getHealthStatus();
+      }
+      // Fallback health status calculation
+      if (healthPercentage > 75) return 'excellent';
+      if (healthPercentage > 50) return 'good';
+      if (healthPercentage > 25) return 'warning';
+      return 'critical';
+    };
 
     const getHealthColor = () => {
-      switch (healthStatus) {
+      const status = getHealthStatus();
+      switch (status) {
         case 'excellent': return 'bg-green-500';
         case 'good': return 'bg-yellow-500';
         case 'warning': return 'bg-orange-500';
@@ -321,7 +424,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       <div className="w-full">
         <div className="flex justify-between items-center mb-1">
           <span className="text-xs text-hitman-gray">Health</span>
-          <span className="text-xs text-hitman-gray">{p.health}/{p.maxHealth}</span>
+          <span className="text-xs text-hitman-gray">{currentHealth}/{maxHealth}</span>
         </div>
         <div className="w-full bg-gray-700 rounded-full h-2">
           <div
@@ -363,7 +466,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   }
 
   if (gameState === 'finished') {
-    const humanWon = player?.health > aiPlayer.health || (player?.isAlive() && !aiPlayer.isAlive());
+    const humanWon = player?.health > aiPlayer.health || (isPlayerAlive(player) && !isPlayerAlive(aiPlayer));
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
@@ -442,13 +545,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <div className="bg-gray-800 p-3 rounded">
               <h3 className="font-spy text-red-500 mb-1">👤 {player.name}</h3>
               <p className="text-white font-bold">{player.health} health</p>
-              <p className="text-xs text-gray-400 mb-2">Streak: {player.currentStreak}</p>
+              <p className="text-xs text-gray-400 mb-2">Streak: {player.currentStreak || 0}</p>
               <HealthBar player={player} />
             </div>
             <div className="bg-gray-800 p-3 rounded">
               <h3 className="font-spy text-red-500 mb-1">🤖 Agent 47</h3>
               <p className="text-white font-bold">{aiPlayer.health} health</p>
-              <p className="text-xs text-gray-400 mb-2">Streak: {aiPlayer.currentStreak}</p>
+              <p className="text-xs text-gray-400 mb-2">Streak: {aiPlayer.currentStreak || 0}</p>
               <HealthBar player={aiPlayer} />
             </div>
           </div>
@@ -485,13 +588,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <HintDisplay
             hints={revealedHints}
-            totalHints={currentQuestion.hints.length}
+            totalHints={currentQuestion.hints ? currentQuestion.hints.length : 0}
             key={`hints-${questionIndex}-${revealedHints.length}`}
           />
 
           <GuessInput
             onSubmit={handlePlayerGuess}
-            disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner || !player?.isAlive()}
+            disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner || !isPlayerAlive(player)}
             placeholder="Enter your target identification (be precise)..."
             key={`input-${questionIndex}`}
           />
