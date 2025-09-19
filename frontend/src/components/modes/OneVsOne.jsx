@@ -18,6 +18,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const [gameResult, setGameResult] = useState(null);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
   const [maxTargets] = useState(5); // FIXED: Always 5 targets/rounds
+  const [maxHints] = useState(5); // FIXED: Maximum 5 hints per question
   const [isProcessingNext, setIsProcessingNext] = useState(false);
   const [revealedHints, setRevealedHints] = useState([]);
   const [aiHasGuessed, setAiHasGuessed] = useState(false);
@@ -25,6 +26,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const gameStateRef = useRef(gameState);
   const isProcessingNextRef = useRef(isProcessingNext);
   const aiHasGuessedRef = useRef(aiHasGuessed);
+  const revealedHintsRef = useRef(revealedHints);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -37,6 +39,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   useEffect(() => {
     aiHasGuessedRef.current = aiHasGuessed;
   }, [aiHasGuessed]);
+
+  useEffect(() => {
+    revealedHintsRef.current = revealedHints;
+  }, [revealedHints]);
 
   useEffect(() => {
     if (!player && playerName) {
@@ -88,7 +94,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       const questionData = questionArray[index];
       const question = new Question(questionData.id, questionData.answer, questionData.category, questionData.difficulty);
 
-      questionData.hints.forEach((hint, hintIndex) => {
+      // Ensure we only take the first 5 hints
+      const hintsToUse = questionData.hints ? questionData.hints.slice(0, maxHints) : [];
+
+      hintsToUse.forEach((hint, hintIndex) => {
         question.addHint(hint, hintIndex * 15);
       });
 
@@ -99,7 +108,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       return question;
     }
     return null;
-  }, []);
+  }, [maxHints]);
 
   const clearTimers = () => {
     if (hintTimer) {
@@ -109,12 +118,30 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const addRevealedHint = (hintText, hintIndex) => {
+    // Double check we don't exceed maxHints
+    if (hintIndex >= maxHints) {
+      console.log(`Prevented adding hint ${hintIndex + 1} - exceeds maximum of ${maxHints}`);
+      return;
+    }
+
     const newHint = {
       text: hintText,
       index: hintIndex,
       revealed: true
     };
-    setRevealedHints(prev => [...prev, newHint]);
+    setRevealedHints(prev => {
+      // Prevent duplicate hints and enforce max limit
+      const filtered = prev.filter(hint => hint.index !== hintIndex);
+      const updated = [...filtered, newHint];
+
+      // Ensure we don't exceed maxHints
+      if (updated.length > maxHints) {
+        console.log(`Limiting hints to maximum of ${maxHints}`);
+        return updated.slice(0, maxHints);
+      }
+
+      return updated;
+    });
   };
 
   const startGame = () => {
@@ -162,6 +189,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     if (!question) return;
 
     console.log(`Starting question ${index + 1}/${maxTargets}: ${question.correctAnswer}`);
+    console.log(`Question has ${question.hints ? question.hints.length : 0} hints available`);
 
     setTimeout(() => {
       if (gameStateRef.current === 'playing' && question.hints && question.hints.length > 0) {
@@ -179,9 +207,20 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         return;
       }
 
-      const nextHintIndex = revealedHints.length;
-      if (question.hints && nextHintIndex < question.hints.length) {
+      const currentHintCount = revealedHintsRef.current.length;
+
+      // CRITICAL: Stop revealing hints if we've reached the maximum
+      if (currentHintCount >= maxHints) {
+        console.log(`Maximum hints (${maxHints}) reached. Stopping hint timer.`);
+        clearInterval(timer);
+        return;
+      }
+
+      const nextHintIndex = currentHintCount;
+      if (question.hints && nextHintIndex < question.hints.length && nextHintIndex < maxHints) {
         const nextHint = question.hints[nextHintIndex];
+        console.log(`Revealing hint ${nextHintIndex + 1}/${maxHints}: ${nextHint.text}`);
+
         addRevealedHint(nextHint.text, nextHintIndex);
         if (typeof question.revealNextHint === 'function') {
           question.revealNextHint();
@@ -203,8 +242,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         // Force re-render to show updated health immediately
         setPlayer(prevPlayer => ({ ...prevPlayer }));
 
-        // AI guess logic
-        if (!aiHasGuessedRef.current && nextHintIndex >= 2) {
+        // AI guess logic - only after hint 2 and before max hints
+        if (!aiHasGuessedRef.current && nextHintIndex >= 2 && nextHintIndex < maxHints - 1) {
           const guessChance = Math.min(0.2, nextHintIndex * 0.05);
 
           if (Math.random() < guessChance) {
@@ -215,6 +254,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             }, Math.random() * 8000 + 3000);
           }
         }
+      } else {
+        // No more hints available - stop the timer
+        console.log(`No more hints available. Stopping timer.`);
+        clearInterval(timer);
       }
     }, 15000);
 
@@ -445,7 +488,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <p className="text-lg mb-4 text-gray-800">Agent {playerName} vs Agent 47</p>
             <div className="bg-gray-800 p-4 rounded text-white text-sm">
               <p className="mb-2">🎯 <strong>Objective:</strong> Survive exactly {maxTargets} targets with the most health</p>
-              <p className="mb-2">📋 <strong>Intel:</strong> Clues will be revealed every 15 seconds</p>
+              <p className="mb-2">📋 <strong>Intel:</strong> Maximum {maxHints} clues will be revealed every 15 seconds</p>
               <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
               <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
               <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
@@ -588,7 +631,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <HintDisplay
             hints={revealedHints}
-            totalHints={currentQuestion.hints ? currentQuestion.hints.length : 0}
+            totalHints={Math.min(maxHints, currentQuestion.hints ? currentQuestion.hints.length : 0)}
             key={`hints-${questionIndex}-${revealedHints.length}`}
           />
 
