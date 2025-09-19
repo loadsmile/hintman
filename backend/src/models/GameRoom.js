@@ -19,7 +19,7 @@ class GameRoom {
     this.createdAt = Date.now();
     this.questionsData = questionsData;
     this.playerCategories = [];
-    this.categoryMix = null; // Store the actual category mix info
+    this.categoryMix = null;
   }
 
   addPlayer(socket, playerName, gameMode = 'general', personalCategory = 'general') {
@@ -72,87 +72,132 @@ class GameRoom {
   getMixedCategoryQuestions() {
     const [category1, category2] = this.playerCategories;
 
-    // Get questions for each category
+    // Get questions for each category with enhanced logic
     const cat1Questions = this.getQuestionsForPlayerCategory(category1);
     const cat2Questions = this.getQuestionsForPlayerCategory(category2);
 
-    // If we don't have enough questions, try fallback
-    if (cat1Questions.length < 5 || cat2Questions.length < 5) {
-      return this.getFallbackQuestions(cat1Questions, cat2Questions);
+    // Enhanced fallback logic - try broader matching if insufficient questions
+    if (cat1Questions.length < 3 || cat2Questions.length < 3) {
+      return this.getEnhancedFallbackQuestions(cat1Questions, cat2Questions, category1, category2);
     }
 
-    // Take 5 from each category
-    const selected1 = this.shuffleArray(cat1Questions).slice(0, 5);
-    const selected2 = this.shuffleArray(cat2Questions).slice(0, 5);
+    // Take equal amounts from each category (5 from each for 10 total)
+    const questionsPerCategory = Math.min(5, Math.floor(this.questionsPerGame / 2));
+    const selected1 = this.shuffleArray(cat1Questions).slice(0, questionsPerCategory);
+    const selected2 = this.shuffleArray(cat2Questions).slice(0, questionsPerCategory);
 
-    // Combine and shuffle
+    // Combine and ensure we have the right number of questions
     const combined = [...selected1, ...selected2];
-    const shuffled = this.shuffleArray(combined);
 
+    // If we need more questions to reach the target, fill from remaining
+    if (combined.length < this.questionsPerGame) {
+      const usedIds = new Set(combined.map(q => q.id));
+      const remaining = [...cat1Questions, ...cat2Questions]
+        .filter(q => !usedIds.has(q.id));
+      const needed = this.questionsPerGame - combined.length;
+      const additional = this.shuffleArray(remaining).slice(0, needed);
+      combined.push(...additional);
+    }
+
+    // Final shuffle
+    const shuffled = this.shuffleArray(combined);
     return shuffled.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
   }
 
   getQuestionsForPlayerCategory(playerCategory) {
-    // Map player category selections to actual question categories in our JSON
+    // Enhanced category mapping with exact matches for compound categories
     const categoryMapping = {
-      // History & Politics
+      // Direct compound category matches
+      'science & technology': ['Science', 'Technology', 'Physics', 'Biology', 'Chemistry', 'Medicine'],
+      'sports & games': ['Sports', 'Entertainment'],
+      'history & politics': ['History'],
+      'literature & arts': ['Literature', 'Art'],
+      'geography & nature': ['Geography'],
+      'entertainment & media': ['Entertainment', 'Music'],
+      'food & culture': ['Food', 'Culture'],
+
+      // Individual category matches
+      'science': ['Science', 'Physics', 'Biology', 'Chemistry'],
+      'technology': ['Technology'],
+      'physics': ['Physics'],
+      'biology': ['Biology'],
+      'chemistry': ['Chemistry'],
+      'medicine': ['Medicine'],
+
+      'sports': ['Sports'],
+      'games': ['Sports', 'Entertainment'],
+
       'history': ['History'],
       'politics': ['History'],
 
-      // Science & Technology
-      'science': ['Science', 'Physics', 'Biology'],
-      'technology': ['Technology'],
-
-      // Literature & Arts
       'literature': ['Literature'],
       'art': ['Art'],
 
-      // Geography & Nature
       'geography': ['Geography'],
+      'nature': ['Geography', 'Science'],
 
-      // Entertainment & Media
       'entertainment': ['Entertainment', 'Music'],
-      'media': ['Entertainment'],
+      'media': ['Entertainment', 'Music'],
       'music': ['Music'],
 
-      // Sports & Games
-      'sports': ['Sports'],
-      'games': ['Sports'],
-
-      // Food & Culture
       'food': ['Food'],
-      'culture': ['Culture'],
-
-      // Medicine
-      'medicine': ['Medicine']
+      'culture': ['Culture']
     };
 
-    // Extract keywords from the player category selection
-    const categoryLower = playerCategory.toLowerCase();
+    // Get available categories in our questions database for validation
+    const availableCategories = [...new Set(this.questionsData.map(q => q.category))];
+
+    // Normalize the player category for exact matching
+    const categoryLower = playerCategory.toLowerCase().trim();
     let matchingQuestionCategories = [];
 
-    // Handle compound categories like "Food & Culture"
-    if (categoryLower.includes('&')) {
-      const parts = categoryLower.split('&').map(part => part.trim());
-
-      parts.forEach(part => {
-        for (const [key, questionCats] of Object.entries(categoryMapping)) {
-          if (part.includes(key) || key.includes(part)) {
-            matchingQuestionCategories.push(...questionCats);
-          }
-        }
-      });
+    // First, try exact compound category match
+    if (categoryMapping[categoryLower]) {
+      matchingQuestionCategories = [...categoryMapping[categoryLower]];
     } else {
-      // Single category
-      for (const [key, questionCats] of Object.entries(categoryMapping)) {
-        if (categoryLower.includes(key) || key.includes(categoryLower)) {
-          matchingQuestionCategories.push(...questionCats);
+      // Parse compound categories manually
+      if (categoryLower.includes('&')) {
+        const parts = categoryLower.split('&').map(part => part.trim());
+
+        parts.forEach(part => {
+          // Try exact matches first
+          if (categoryMapping[part]) {
+            matchingQuestionCategories.push(...categoryMapping[part]);
+          } else {
+            // Fuzzy matching as fallback
+            for (const [key, questionCats] of Object.entries(categoryMapping)) {
+              if (part.includes(key) || key.includes(part)) {
+                matchingQuestionCategories.push(...questionCats);
+              }
+            }
+          }
+        });
+      } else {
+        // Single category - try exact match first
+        if (categoryMapping[categoryLower]) {
+          matchingQuestionCategories = [...categoryMapping[categoryLower]];
+        } else {
+          // Fuzzy matching as fallback
+          for (const [key, questionCats] of Object.entries(categoryMapping)) {
+            if (categoryLower.includes(key) || key.includes(categoryLower)) {
+              matchingQuestionCategories.push(...questionCats);
+            }
+          }
         }
       }
     }
 
-    // Remove duplicates
+    // Remove duplicates and validate against available categories
     matchingQuestionCategories = [...new Set(matchingQuestionCategories)];
+
+    // Filter to only include categories that actually exist in our database
+    matchingQuestionCategories = matchingQuestionCategories.filter(cat =>
+      availableCategories.some(availCat =>
+        availCat.toLowerCase() === cat.toLowerCase() ||
+        availCat.toLowerCase().includes(cat.toLowerCase()) ||
+        cat.toLowerCase().includes(availCat.toLowerCase())
+      )
+    );
 
     // Filter questions based on matching categories
     const filtered = this.questionsData.filter(q => {
@@ -167,28 +212,105 @@ class GameRoom {
     return filtered;
   }
 
-  getFallbackQuestions(cat1Questions, cat2Questions) {
+  getEnhancedFallbackQuestions(cat1Questions, cat2Questions, category1, category2) {
+    // If one category has no questions, try broader matching
+    let enhancedCat1 = cat1Questions;
+    let enhancedCat2 = cat2Questions;
+
+    if (cat1Questions.length === 0) {
+      enhancedCat1 = this.getBroaderCategoryQuestions(category1);
+    }
+    if (cat2Questions.length === 0) {
+      enhancedCat2 = this.getBroaderCategoryQuestions(category2);
+    }
+
     // Combine all available questions from both categories
-    const combined = [...cat1Questions, ...cat2Questions];
+    const combined = [...enhancedCat1, ...enhancedCat2];
 
     // Remove duplicates based on question ID
     const uniqueQuestions = combined.filter((question, index, self) =>
       index === self.findIndex(q => q.id === question.id)
     );
 
-    // If we still don't have 10 questions, fill with random general questions
-    if (uniqueQuestions.length < 10) {
+    // If we still don't have enough questions, fill with random questions
+    if (uniqueQuestions.length < this.questionsPerGame) {
       const usedIds = new Set(uniqueQuestions.map(q => q.id));
       const remainingQuestions = this.questionsData.filter(q => !usedIds.has(q.id));
-      const needed = 10 - uniqueQuestions.length;
+      const needed = this.questionsPerGame - uniqueQuestions.length;
       const randomQuestions = this.shuffleArray(remainingQuestions).slice(0, needed);
       uniqueQuestions.push(...randomQuestions);
     }
 
-    // Shuffle and take 10
-    const shuffled = this.shuffleArray(uniqueQuestions).slice(0, 10);
+    // Try to maintain some balance - take at least some from each category if possible
+    let finalQuestions = [];
 
+    if (enhancedCat1.length > 0 && enhancedCat2.length > 0) {
+      const questionsPerCategory = Math.floor(this.questionsPerGame / 2);
+      const selected1 = this.shuffleArray(enhancedCat1).slice(0, questionsPerCategory);
+      const selected2 = this.shuffleArray(enhancedCat2).slice(0, questionsPerCategory);
+      finalQuestions = [...selected1, ...selected2];
+
+      // Fill remaining slots
+      if (finalQuestions.length < this.questionsPerGame) {
+        const usedIds = new Set(finalQuestions.map(q => q.id));
+        const remaining = uniqueQuestions.filter(q => !usedIds.has(q.id));
+        const needed = this.questionsPerGame - finalQuestions.length;
+        finalQuestions.push(...remaining.slice(0, needed));
+      }
+    } else {
+      finalQuestions = uniqueQuestions.slice(0, this.questionsPerGame);
+    }
+
+    const shuffled = this.shuffleArray(finalQuestions);
     return shuffled.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
+  }
+
+  getBroaderCategoryQuestions(originalCategory) {
+    // Broader category mappings for when specific categories have insufficient questions
+    const broaderMappings = {
+      'sports': ['Entertainment', 'Culture'], // Sports questions might be under Entertainment
+      'games': ['Entertainment', 'Technology'],
+      'sports & games': ['Sports', 'Entertainment', 'Culture'],
+      'politics': ['History', 'Geography'],
+      'nature': ['Science', 'Geography', 'Biology'],
+      'health': ['Medicine', 'Biology', 'Science'],
+      'media': ['Entertainment', 'Culture'],
+      'technology': ['Science', 'Technology']
+    };
+
+    const categoryLower = originalCategory.toLowerCase();
+    let broaderCategories = [];
+
+    // Try exact match first
+    if (broaderMappings[categoryLower]) {
+      broaderCategories = [...broaderMappings[categoryLower]];
+    } else {
+      // Fuzzy matching
+      for (const [key, categories] of Object.entries(broaderMappings)) {
+        if (categoryLower.includes(key) || key.includes(categoryLower)) {
+          broaderCategories.push(...categories);
+        }
+      }
+    }
+
+    // Remove duplicates
+    broaderCategories = [...new Set(broaderCategories)];
+
+    // Filter questions based on broader categories
+    return this.questionsData.filter(q => {
+      const qCategory = q.category;
+      return broaderCategories.some(cat =>
+        qCategory.toLowerCase() === cat.toLowerCase() ||
+        qCategory.toLowerCase().includes(cat.toLowerCase()) ||
+        cat.toLowerCase().includes(qCategory.toLowerCase())
+      );
+    });
+  }
+
+  getFallbackQuestions(cat1Questions, cat2Questions) {
+    // Legacy fallback - redirect to enhanced version
+    return this.getEnhancedFallbackQuestions(cat1Questions, cat2Questions,
+      this.playerCategories[0], this.playerCategories[1]);
   }
 
   getSimpleQuestions() {
