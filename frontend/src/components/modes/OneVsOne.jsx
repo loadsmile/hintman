@@ -133,6 +133,18 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     });
   };
 
+  // Calculate health loss based on hint count when opponent answers correctly
+  const calculateOpponentHealthLoss = (hintCount) => {
+    // After 1st clue: 1000 hp loss
+    // After 2nd clue: 800 hp loss
+    // After 3rd clue: 600 hp loss
+    // After 4th clue: 400 hp loss
+    // After 5th clue: 200 hp loss
+    const baseLoss = 1000;
+    const reduction = Math.min(hintCount, 5) * 200;
+    return Math.max(200, baseLoss - reduction);
+  };
+
   const startGame = () => {
     if (!player) return;
 
@@ -206,17 +218,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           question.revealNextHint();
         }
 
-        if (typeof player.loseHealthForHints === 'function') {
-          player.loseHealthForHints(1);
-        } else {
-          player.health = Math.max(0, player.health - 100);
-        }
-
-        if (typeof aiPlayer.loseHealthForHints === 'function') {
-          aiPlayer.loseHealthForHints(1);
-        } else {
-          aiPlayer.health = Math.max(0, aiPlayer.health - 100);
-        }
+        // NO MORE HEALTH LOSS FOR HINTS - removed the health penalties
 
         setPlayer(prevPlayer => ({ ...prevPlayer }));
 
@@ -248,6 +250,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const correctChance = Math.min(0.5, (hintCount - 2) * 0.15);
     const isCorrect = Math.random() < correctChance;
 
+    // Apply time penalty to AI
     if (typeof aiPlayer.loseHealthForTime === 'function') {
       aiPlayer.loseHealthForTime(timeElapsed);
     } else {
@@ -256,12 +259,16 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }
 
     if (isCorrect) {
+      // AI got it right - player loses health based on hint count
+      const playerHealthLoss = calculateOpponentHealthLoss(hintCount);
+      player.health = Math.max(0, player.health - playerHealthLoss);
+
       if (typeof aiPlayer.recordGuess === 'function') {
         aiPlayer.recordGuess(true, timeElapsed);
       } else {
         aiPlayer.totalCorrect = (aiPlayer.totalCorrect || 0) + 1;
         aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-        aiPlayer.health = Math.min(aiPlayer.maxHealth || 5000, aiPlayer.health + 1000);
+        // No health gain for AI - the player loses health instead
       }
 
       setGameResult({
@@ -269,11 +276,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         playerGuess: null,
         aiGuess: question.correctAnswer,
         correctAnswer: question.correctAnswer,
-        healthGained: 1000
+        hintCount: hintCount,
+        healthLoss: playerHealthLoss
       });
 
       proceedToNextQuestion();
     } else {
+      // AI got it wrong - only loses 500 health for wrong answer
       if (typeof aiPlayer.recordGuess === 'function') {
         aiPlayer.recordGuess(false, timeElapsed);
       } else {
@@ -289,7 +298,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
     const timeElapsed = currentQuestion.getElapsedTime ? currentQuestion.getElapsedTime() / 1000 : 30;
     const isCorrect = currentQuestion.checkAnswer ? currentQuestion.checkAnswer(guess) : false;
+    const currentHintCount = revealedHints.length;
 
+    // Apply time penalty to player
     if (typeof player.loseHealthForTime === 'function') {
       player.loseHealthForTime(timeElapsed);
     } else {
@@ -302,8 +313,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     } else {
       if (isCorrect) {
         player.totalCorrect = (player.totalCorrect || 0) + 1;
-        player.health = Math.min(player.maxHealth || 5000, player.health + 1000);
+        // Player got it right - AI loses health based on hint count
+        const aiHealthLoss = calculateOpponentHealthLoss(currentHintCount);
+        aiPlayer.health = Math.max(0, aiPlayer.health - aiHealthLoss);
       } else {
+        // Player got it wrong - loses 500 health
         player.health = Math.max(0, player.health - 500);
       }
       player.totalQuestions = (player.totalQuestions || 0) + 1;
@@ -312,12 +326,15 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     setPlayer(prevPlayer => ({ ...prevPlayer }));
 
     if (isCorrect) {
+      const aiHealthLoss = calculateOpponentHealthLoss(currentHintCount);
+
       setGameResult({
         winner: 'human',
         playerGuess: guess,
         aiGuess: null,
         correctAnswer: currentQuestion.correctAnswer,
-        healthGained: 1000
+        hintCount: currentHintCount,
+        healthLoss: aiHealthLoss
       });
 
       proceedToNextQuestion();
@@ -326,7 +343,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         winner: null,
         playerGuess: guess,
         aiGuess: null,
-        correctAnswer: null
+        correctAnswer: null,
+        healthLoss: 500
       });
 
       setTimeout(() => {
@@ -343,6 +361,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     if (player && currentQuestion) {
       const maxTime = 120;
 
+      // Both players lose health for timeout
       if (typeof player.loseHealthForTime === 'function') {
         player.loseHealthForTime(maxTime);
         player.recordGuess(false, maxTime);
@@ -367,7 +386,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         winner: 'timeout',
         playerGuess: null,
         aiGuess: null,
-        correctAnswer: currentQuestion.correctAnswer
+        correctAnswer: currentQuestion.correctAnswer,
+        healthLoss: maxTime
       });
     }
 
@@ -488,16 +508,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">MISSION BRIEFING</h2>
             <p className="text-lg mb-4 text-gray-800">Agent {playerName} vs Agent 47</p>
-            <div className="bg-gray-800 p-4 rounded text-white text-sm">
-              <p className="mb-2">🎯 <strong>Objective:</strong> Survive exactly {maxTargets} targets with the most health</p>
-              <p className="mb-2">📋 <strong>Intel:</strong> Maximum {maxHints} clues will be revealed every 15 seconds</p>
-              <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health for time and wrong answers</p>
-              <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
-              <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
-              <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
-              <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
-              <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
-            </div>
+              <div className="bg-gray-800 p-4 rounded text-white text-sm">
+                <p className="mb-2">🎯 <strong>Survive {maxTargets} targets with Agent 47</strong></p>
+                <p className="mb-2">💡 <strong>Hints are FREE!</strong> Wait for clues or answer fast</p>
+                <p className="mb-2">⚡ <strong>Speed matters:</strong> Early answers deal more damage to opponent</p>
+                <p className="mb-2">❌ <strong>Wrong answers:</strong> -500 HP • <strong>Time penalty:</strong> -1 HP per second</p>
+                <p>🏆 <strong>Win by having the most health remaining</strong></p>
+              </div>
           </div>
 
           <div className="text-center">
@@ -588,6 +605,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <div className="text-white">
               <h2 className="text-xl font-spy">TARGET: {questionIndex + 1} / {maxTargets}</h2>
               <p className="text-sm text-gray-300">Category: {currentQuestion.category}</p>
+              <p className="text-xs text-gray-400">Hints revealed: {revealedHints.length}/{maxHints} (FREE)</p>
             </div>
             <Timer
               duration={120}
@@ -631,16 +649,16 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           }`}>
             <div className="text-center text-white">
               {gameResult.winner === 'human' && (
-                <p className="text-lg font-bold">🎯 PERFECT SHOT! +{gameResult.healthGained || 1000} Health</p>
+                <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {gameResult.healthLoss} HP (after {gameResult.hintCount} hints)</p>
               )}
               {gameResult.winner === 'ai' && (
-                <p className="text-lg font-bold">🔫 Agent 47 shot the target first! +{gameResult.healthGained || 1000} Health</p>
+                <p className="text-lg font-bold">🔫 Agent 47 shot first! You lose {gameResult.healthLoss} HP (after {gameResult.hintCount} hints)</p>
               )}
               {gameResult.winner === 'timeout' && (
-                <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped! -120 Health</p>
+                <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped! Both lose {gameResult.healthLoss} HP</p>
               )}
               {!gameResult.winner && gameResult.winner !== 'timeout' && (
-                <p className="text-lg font-bold">❌ Missed shot. Continue the hunt... -500 Health</p>
+                <p className="text-lg font-bold">❌ Missed shot. You lose {gameResult.healthLoss} HP</p>
               )}
               {gameResult.correctAnswer && (
                 <p className="text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
