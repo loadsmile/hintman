@@ -23,15 +23,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [selectedMode, setSelectedMode] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [serverStatus, setServerStatus] = useState('checking');
-
-  // Enhanced tracking states
   const [playerStats, setPlayerStats] = useState({});
 
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
 
-  // Initialize player stats when match is found
   const initializePlayerStats = (players) => {
     const initialStats = {};
     players.forEach(player => {
@@ -42,13 +39,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       };
     });
     setPlayerStats(initialStats);
-    console.log('🎯 Initialized player stats:', initialStats);
   };
 
-  // Update player stats with better tracking
   const updatePlayerStats = (playerId, isCorrect) => {
-    console.log(`📊 Updating stats for ${playerId}: ${isCorrect ? 'CORRECT' : 'MISTAKE'}`);
-
     setPlayerStats(prev => {
       const updated = {
         ...prev,
@@ -59,12 +52,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         }
       };
 
-      console.log('📊 Updated player stats:', updated);
       return updated;
     });
   };
 
-  // Health Bar Component
   const HealthBar = ({ playerId }) => {
     const currentHealth = health[playerId] || 5000;
     const maxHealth = 5000;
@@ -103,10 +94,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   };
 
-  // Check server status
   const checkServerStatus = async () => {
     try {
-      console.log('🔍 Checking server status...');
       const response = await fetch('https://hintman-backend.onrender.com/health', {
         method: 'GET',
         timeout: 10000,
@@ -114,23 +103,19 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       if (response.ok) {
         setServerStatus('online');
-        console.log('✅ Server is online');
         return true;
       } else {
         setServerStatus('offline');
-        console.log('❌ Server returned error:', response.status);
         return false;
       }
-    } catch (error) {
+    } catch {
       setServerStatus('offline');
-      console.log('❌ Server check failed:', error.message);
       return false;
     }
   };
 
   const initializeSocket = async () => {
     if (socketRef.current || initializedRef.current) {
-      console.log('Socket already exists or already initialized, skipping...');
       return;
     }
 
@@ -141,7 +126,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     }
 
     initializedRef.current = true;
-    console.log('🔌 Initializing socket connection...', `Mode: ${selectedMode}`);
 
     const socket = io('https://hintman-backend.onrender.com', {
       transports: ['polling', 'websocket'],
@@ -158,7 +142,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('connect', () => {
       if (!mountedRef.current) return;
 
-      console.log('✅ Connected to server:', socket.id);
       setMyPlayerId(socket.id);
       setConnectionError(false);
       setServerStatus('online');
@@ -168,8 +151,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('disconnect', (reason) => {
       if (!mountedRef.current) return;
 
-      console.log('❌ Disconnected from server. Reason:', reason);
-
       if (reason !== 'io client disconnect' && mountedRef.current) {
         setConnectionError(true);
         setServerStatus('offline');
@@ -177,28 +158,25 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       }
     });
 
-    socket.on('connect_error', (error) => {
+    socket.on('connect_error', () => {
       if (!mountedRef.current) return;
 
-      console.error('🔥 Connection error:', error);
       setConnectionError(true);
       setServerStatus('offline');
       setGameState('connecting');
     });
 
-    socket.on('reconnect', (attemptNumber) => {
+    socket.on('reconnect', () => {
       if (!mountedRef.current) return;
 
-      console.log('🔄 Reconnected after', attemptNumber, 'attempts');
       setConnectionError(false);
       setServerStatus('online');
       setGameState('matchmaking');
     });
 
-    socket.on('reconnect_error', (error) => {
+    socket.on('reconnect_error', () => {
       if (!mountedRef.current) return;
 
-      console.error('🔥 Reconnection failed:', error);
       setConnectionError(true);
       setServerStatus('offline');
     });
@@ -206,38 +184,32 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('reconnect_failed', () => {
       if (!mountedRef.current) return;
 
-      console.error('🔥 All reconnection attempts failed');
       setConnectionError(true);
       setServerStatus('offline');
     });
 
     socket.on('waitingForMatch', () => {
       if (!mountedRef.current) return;
-      console.log('⏳ Waiting for match...');
       setGameState('waiting');
     });
 
-    socket.on('matchFound', ({ players: matchedPlayers, gameMode, categoryInfo }) => {
+    socket.on('matchFound', ({ players: matchedPlayers, categoryInfo }) => {
       if (!mountedRef.current) return;
 
-      console.log('🎯 Match found!', matchedPlayers, 'Game Mode:', gameMode, 'Category Info:', categoryInfo);
       setPlayers(matchedPlayers);
       setGameState('playing');
       setHealth(matchedPlayers.reduce((acc, p) => ({ ...acc, [p.id]: 5000 }), {}));
 
-      // Store category info for display
       if (categoryInfo) {
         setCurrentTarget(prev => ({ ...prev, categoryInfo }));
       }
 
-      // Initialize player stats tracking
       initializePlayerStats(matchedPlayers);
     });
 
     socket.on('questionStart', ({ targetIndex, totalTargets, category, difficulty, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('🎯 Target started:', { targetIndex, totalTargets, category });
       setCurrentTarget({ targetIndex, totalTargets, category, difficulty });
       setHints([]);
       setGameResult(null);
@@ -247,7 +219,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('hintRevealed', ({ index, text, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('💡 Hint revealed:', text);
       setHints(prev => [...prev, { index, text }]);
       if (newHealth) setHealth(newHealth);
     });
@@ -255,20 +226,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('healthUpdate', ({ health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('💊 Health updated:', newHealth);
       setHealth(newHealth);
     });
 
     socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, healthGained }) => {
       if (!mountedRef.current) return;
 
-      console.log('📊 Target result:', { winner, winnerName, healthGained });
-
       if (newHealth) setHealth(newHealth);
 
-      // Update stats for the winner (correct answer)
       if (winner) {
-        console.log('✅ Updating stats for correct answer:', winner);
         updatePlayerStats(winner, true);
       }
 
@@ -281,19 +247,13 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       });
     });
 
-    // Fixed wrong answer tracking with proper game result display
     socket.on('wrongAnswer', ({ playerId, playerName, guess, healthLost }) => {
       if (!mountedRef.current) return;
 
-      console.log('❌ Wrong answer from:', playerName, 'Guess:', guess);
-
-      // Update stats for wrong answer - key fix here!
       if (playerId) {
-        console.log('❌ Updating stats for wrong answer:', playerId);
         updatePlayerStats(playerId, false);
       }
 
-      // Show the mistake result to ALL players (not just the one who made the mistake)
       setGameResult({
         winner: null,
         incorrectGuess: guess,
@@ -307,13 +267,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         if (mountedRef.current) {
           setGameResult(null);
         }
-      }, 2500); // Show for slightly longer
+      }, 2500);
     });
 
     socket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      console.log('💀 Player eliminated:', eliminatedPlayerName);
       if (newHealth) setHealth(newHealth);
 
       setGameResult({
@@ -326,7 +285,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('gameEnd', ({ results }) => {
       if (!mountedRef.current) return;
 
-      console.log('🏁 Game ended:', results);
       setGameState('finished');
       setGameData({ results });
     });
@@ -334,7 +292,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('playerDisconnected', () => {
       if (!mountedRef.current) return;
 
-      console.log('👋 Opponent disconnected');
       setGameResult({
         winner: 'disconnect',
         message: 'Your opponent disconnected. You win by default!'
@@ -358,7 +315,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     mountedRef.current = true;
 
     return () => {
-      console.log('🧹 Component unmounting, cleaning up...');
       mountedRef.current = false;
 
       if (socketRef.current) {
@@ -371,9 +327,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     };
   }, []);
 
-  // Mode selection handlers
   const handleModeSelect = (mode) => {
-    console.log('🎭 Mode selected:', mode);
     setSelectedMode(mode);
 
     if (mode === 'general') {
@@ -387,7 +341,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   };
 
   const handleCategorySelect = (category) => {
-    console.log('🎨 Category selected for personal preference:', category.name);
     setSelectedCategory(category);
     setGameState('connecting');
     initializeSocket();
@@ -411,12 +364,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
   const findMatch = () => {
     if (!socketRef.current?.connected) {
-      console.log('❌ No socket connection available');
       setConnectionError(true);
       return;
     }
-
-    console.log('🔍 Finding match for:', playerName, 'Mode:', selectedMode, 'Personal Category:', selectedCategory?.id);
 
     socketRef.current.emit('findMatch', {
       playerName,
@@ -430,23 +380,18 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
   const submitGuess = (guess) => {
     if (!socketRef.current?.connected || gameState !== 'playing') {
-      console.log('❌ Cannot submit guess - invalid state');
       return;
     }
 
     const myHealth = health[myPlayerId] || 0;
     if (myHealth <= 0) {
-      console.log('❌ Cannot submit guess - player eliminated');
       return;
     }
 
-    console.log('📝 Submitting guess:', guess);
     socketRef.current.emit('submitGuess', { guess });
   };
 
   const handleCancel = () => {
-    console.log('🚫 User cancelled connection/search');
-
     if (socketRef.current) {
       socketRef.current.removeAllListeners();
       socketRef.current.close();
@@ -458,8 +403,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   };
 
   const retryConnection = async () => {
-    console.log('🔄 Retrying connection...');
-
     if (socketRef.current) {
       socketRef.current.removeAllListeners();
       socketRef.current.close();
@@ -489,7 +432,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     }
   };
 
-  // Mode Selection Screen
   if (gameState === 'mode-selection') {
     return (
       <ModeSelector
@@ -500,7 +442,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Category Selection Screen
   if (gameState === 'category-selection') {
     return (
       <CategorySelector
@@ -672,7 +613,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const isWinner = winner?.name === playerName;
     const totalRoundsCompleted = Math.min(10, Math.max(1, currentTarget?.targetIndex || 1));
 
-    // Get final stats for display
     const myStats = playerStats[myPlayerId] || { correctAnswers: 0, mistakes: 0 };
     const opponentStats = Object.values(playerStats).find(stats => stats.name !== playerName) || { correctAnswers: 0, mistakes: 0 };
 
@@ -697,7 +637,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </p>
           </div>
 
-          {/* Mission Trackers */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <MissionTracker
               correctAnswers={myStats.correctAnswers}
@@ -759,7 +698,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const myHealth = health[players.find(p => p.name === playerName)?.id] || 5000;
     const opponentHealth = health[opponent?.id] || 5000;
 
-    // Get current stats for display
     const myStats = playerStats[myPlayerId] || { correctAnswers: 0, mistakes: 0 };
     const opponentStats = playerStats[opponent?.id] || { correctAnswers: 0, mistakes: 0 };
 
@@ -774,6 +712,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                   {currentTarget.category} • {getModeDisplayName()}
                   {selectedCategory && selectedMode === 'category' && (
                     <> • Your specialty: {selectedCategory.icon} {selectedCategory.name}</>
+                  )}
+                  {opponent?.personalCategory && selectedMode === 'category' && (
+                    <> • Opponent: {opponent.personalCategory}</>
                   )}
                 </p>
               </div>
@@ -801,7 +742,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               </div>
             </div>
 
-            {/* Mission Trackers During Game */}
             <div className="grid grid-cols-2 gap-4">
               <MissionTracker
                 correctAnswers={myStats.correctAnswers}

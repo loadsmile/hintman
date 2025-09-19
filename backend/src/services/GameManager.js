@@ -29,8 +29,6 @@ class GameManager {
   }
 
   handleDisconnection(socket) {
-    console.log('Player disconnected:', socket.id);
-
     const playerInfo = this.connectedPlayers.get(socket.id);
     if (playerInfo && playerInfo.currentRoom) {
       const room = this.gameRooms.get(playerInfo.currentRoom);
@@ -60,8 +58,6 @@ class GameManager {
       personalCategoryName = 'General Knowledge'
     } = playerData;
 
-    console.log(`${playerName} (${socket.id}) looking for ${gameMode} match with category: ${personalCategory}`);
-
     // For Under Cover Mission, match only by game mode (not category)
     // This allows players with different categories to match
     let availableRoom = null;
@@ -69,16 +65,25 @@ class GameManager {
       if (room.gameState === 'waiting' &&
           room.players.length === 1 &&
           room.gameMode === gameMode) {
-        availableRoom = room;
-        break;
+
+        // For category mode, ensure we don't match players with the same category
+        // This encourages diversity in question selection
+        if (gameMode === 'category') {
+          const existingPlayer = room.players[0];
+          if (existingPlayer.personalCategory !== personalCategory) {
+            availableRoom = room;
+            break;
+          }
+        } else {
+          availableRoom = room;
+          break;
+        }
       }
     }
 
     if (availableRoom) {
       const success = availableRoom.addPlayer(socket, playerName, gameMode, personalCategory);
       if (success) {
-        console.log(`Match found! ${playerName} (${personalCategory}) joined room ${availableRoom.id}`);
-
         const playerInfo = this.connectedPlayers.get(socket.id);
         if (playerInfo) {
           playerInfo.currentRoom = availableRoom.id;
@@ -91,12 +96,17 @@ class GameManager {
           personalCategory: p.personalCategory
         }));
 
-        // Show the category mix to both players
+        // Enhanced category info for both players
         const categoryInfo = gameMode === 'category' ? {
           player1Category: availableRoom.players[0].personalCategory,
           player2Category: availableRoom.players[1].personalCategory,
-          questionsPerGame: 10
-        } : { questionsPerGame: 5 };
+          questionsPerGame: 10,
+          mixStrategy: `5 questions from ${availableRoom.players[0].personalCategory} + 5 from ${availableRoom.players[1].personalCategory}`,
+          categoryMix: availableRoom.categoryMix
+        } : {
+          questionsPerGame: 5,
+          mixStrategy: 'General knowledge questions'
+        };
 
         availableRoom.broadcast('matchFound', {
           players,
@@ -127,8 +137,6 @@ class GameManager {
         playerInfo.currentRoom = roomId;
       }
 
-      console.log(`${playerName} added to waiting list for ${gameMode} match (${personalCategory} category)`);
-
       socket.emit('waitingForMatch', {
         roomId,
         gameMode,
@@ -136,6 +144,7 @@ class GameManager {
         personalCategoryName
       });
 
+      // Auto-cleanup waiting rooms after 2 minutes
       setTimeout(() => {
         if (gameRoom.players.length === 1 && gameRoom.gameState === 'waiting') {
           if (gameRoom.players[0] && gameRoom.players[0].socket.connected) {
@@ -211,8 +220,6 @@ class GameManager {
   }
 
   shutdown() {
-    console.log('GameManager shutting down...');
-
     for (const room of this.gameRooms.values()) {
       if (room.broadcast) {
         room.broadcast('serverShutdown', { reason: 'Server maintenance' });
