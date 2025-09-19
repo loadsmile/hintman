@@ -56,40 +56,82 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     });
   };
 
-  const HealthBar = ({ playerId }) => {
+  // Enhanced GeoGuessr-style Health Bar
+  const HealthBar = ({ playerId, playerName, isMe = false }) => {
     const currentHealth = health[playerId] || 5000;
     const maxHealth = 5000;
     const healthPercentage = (currentHealth / maxHealth) * 100;
 
     const getHealthColor = () => {
-      if (healthPercentage > 75) return 'bg-green-500';
-      if (healthPercentage > 50) return 'bg-yellow-500';
-      if (healthPercentage > 25) return 'bg-orange-500';
-      return 'bg-red-500';
+      if (healthPercentage > 75) return isMe ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-blue-500 to-blue-400';
+      if (healthPercentage > 50) return isMe ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' : 'bg-gradient-to-r from-purple-500 to-purple-400';
+      if (healthPercentage > 25) return isMe ? 'bg-gradient-to-r from-orange-500 to-orange-400' : 'bg-gradient-to-r from-pink-500 to-pink-400';
+      return 'bg-gradient-to-r from-red-500 to-red-400';
     };
 
-    const getHealthStatus = () => {
-      if (healthPercentage > 75) return 'Excellent';
-      if (healthPercentage > 50) return 'Good';
-      if (healthPercentage > 25) return 'Warning';
-      return 'Critical';
+    const getHealthTextColor = () => {
+      return 'text-white';
+    };
+
+    const getBorderColor = () => {
+      if (isMe) return 'border-green-300';
+      return 'border-blue-300';
     };
 
     return (
-      <div className="w-full">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-gray-400">Health ({getHealthStatus()})</span>
-          <span className="text-xs text-gray-400">{currentHealth}/{maxHealth}</span>
+      <div className="relative w-full">
+        {/* Player name above health bar */}
+        <div className="mb-2 text-center">
+          <span className={`text-sm font-bold ${isMe ? 'text-green-400' : 'text-blue-400'}`}>
+            {playerName} {isMe && '(You)'}
+          </span>
         </div>
-        <div className="w-full bg-gray-700 rounded-full h-2">
+
+        {/* Main health bar container - GeoGuessr style */}
+        <div className={`relative w-full h-12 bg-gray-800 rounded-lg border-2 ${getBorderColor()} overflow-hidden shadow-lg`}>
+          {/* Health fill with gradient */}
           <div
-            className={`h-2 rounded-full transition-all duration-300 ${getHealthColor()}`}
+            className={`h-full transition-all duration-500 ease-out ${getHealthColor()} relative`}
             style={{ width: `${healthPercentage}%` }}
-          />
+          >
+            {/* Inner glow effect */}
+            <div className="absolute inset-0 bg-white bg-opacity-20 rounded-lg"></div>
+
+            {/* Animated pulse effect for low health */}
+            {healthPercentage <= 25 && (
+              <div className="absolute inset-0 bg-white bg-opacity-30 rounded-lg animate-pulse"></div>
+            )}
+          </div>
+
+          {/* Health text centered in the bar */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={`text-lg font-bold ${getHealthTextColor()} drop-shadow-lg tracking-wider`}>
+              {currentHealth} HP
+            </span>
+          </div>
+
+          {/* Fixed shine effect overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 transform -skew-x-12 animate-pulse"></div>
         </div>
-        {currentHealth <= 0 && (
-          <p className="text-xs text-red-400 mt-1">💀 ELIMINATED</p>
-        )}
+
+        {/* Status indicators */}
+        <div className="flex justify-between items-center mt-1">
+          <div className="flex items-center space-x-2">
+            {currentHealth <= 0 && (
+              <span className="text-xs text-red-400 font-bold animate-bounce">💀 SHOT DOWN</span>
+            )}
+            {healthPercentage <= 25 && currentHealth > 0 && (
+              <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>
+            )}
+            {healthPercentage > 75 && (
+              <span className="text-xs text-green-400 font-bold">✨ EXCELLENT</span>
+            )}
+          </div>
+
+          <div className="text-xs text-gray-400">
+            {Math.round(healthPercentage)}%
+          </div>
+        </div>
       </div>
     );
   };
@@ -277,7 +319,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       setGameResult({
         winner: 'elimination',
-        message: `${eliminatedPlayerName} has been eliminated!`,
+        message: `${eliminatedPlayerName} has been shot down!`,
         eliminatedPlayer
       });
     });
@@ -660,13 +702,13 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                 <div className="flex-1">
                   <h3 className="font-spy text-lg">#{index + 1} {player.name}</h3>
                   {index === 0 && <span className="text-sm text-green-600">🏆 Winner</span>}
-                  {!player.isAlive && <span className="text-sm text-red-600">💀 Eliminated</span>}
+                  {!player.isAlive && <span className="text-sm text-red-600">🔫 Shot Down</span>}
                 </div>
                 <div className="flex-1 mx-4">
-                  <HealthBar playerId={player.id} />
+                  <HealthBar playerId={player.id} playerName={player.name} />
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-red-600">{player.health} health</p>
+                  <p className="text-2xl font-bold text-red-600">{player.health} HP</p>
                 </div>
               </div>
             ))}
@@ -696,7 +738,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   if (gameState === 'playing' && currentTarget) {
     const opponent = players.find(p => p.name !== playerName);
     const myHealth = health[players.find(p => p.name === playerName)?.id] || 5000;
-    const opponentHealth = health[opponent?.id] || 5000;
 
     const myStats = playerStats[myPlayerId] || { correctAnswers: 0, mistakes: 0 };
     const opponentStats = playerStats[opponent?.id] || { correctAnswers: 0, mistakes: 0 };
@@ -704,8 +745,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     return (
       <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-black bg-opacity-90 p-4 rounded-lg mb-6 border border-red-600">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-black bg-opacity-90 p-6 rounded-lg mb-6 border border-red-600">
+            <div className="flex justify-between items-center mb-6">
               <div className="text-white">
                 <h2 className="text-xl font-spy">TARGET: {currentTarget.targetIndex} / {currentTarget.totalTargets}</h2>
                 <p className="text-sm text-gray-300">
@@ -725,20 +766,21 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className={`bg-gray-800 p-3 rounded ${myHealth > opponentHealth ? 'ring-2 ring-green-400' : ''}`}>
-                <h3 className="font-spy text-red-500 mb-1">👤 {playerName} (You)</h3>
-                <p className="text-white font-bold">{myHealth} health</p>
-                <div className="mt-2">
-                  <HealthBar playerId={players.find(p => p.name === playerName)?.id} />
-                </div>
+            {/* Enhanced GeoGuessr-style Health Bars */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              <div className="bg-gray-900 p-4 rounded-lg border-2 border-green-400">
+                <HealthBar
+                  playerId={players.find(p => p.name === playerName)?.id}
+                  playerName={playerName}
+                  isMe={true}
+                />
               </div>
-              <div className={`bg-gray-800 p-3 rounded ${opponentHealth > myHealth ? 'ring-2 ring-green-400' : ''}`}>
-                <h3 className="font-spy text-red-500 mb-1">👤 {opponent?.name || 'Opponent'}</h3>
-                <p className="text-white font-bold">{opponentHealth} health</p>
-                <div className="mt-2">
-                  <HealthBar playerId={opponent?.id} />
-                </div>
+              <div className="bg-gray-900 p-4 rounded-lg border-2 border-blue-400">
+                <HealthBar
+                  playerId={opponent?.id}
+                  playerName={opponent?.name || 'Opponent'}
+                  isMe={false}
+                />
               </div>
             </div>
 
@@ -769,25 +811,25 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             }`}>
               <div className="text-center text-white">
                 {gameResult.winner === players.find(p => p.name === playerName)?.id && (
-                  <p className="text-lg font-bold">🎯 EXCELLENT SHOT! +{gameResult.healthGained || 1000} Health</p>
+                  <p className="text-lg font-bold">🎯 PERFECT SHOT! +{gameResult.healthGained || 1000} Health</p>
                 )}
                 {gameResult.winner && gameResult.winner !== players.find(p => p.name === playerName)?.id && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' && (
-                  <p className="text-lg font-bold">💀 {gameResult.winnerName} eliminated the target first! +{gameResult.healthGained || 1000} Health</p>
+                  <p className="text-lg font-bold">🔫 {gameResult.winnerName} shot the target first! +{gameResult.healthGained || 1000} Health</p>
                 )}
                 {gameResult.winner === 'disconnect' && (
                   <p className="text-lg font-bold">🏆 {gameResult.message}</p>
                 )}
                 {gameResult.winner === 'elimination' && (
-                  <p className="text-lg font-bold">💀 {gameResult.message}</p>
+                  <p className="text-lg font-bold">🔫 {gameResult.message}</p>
                 )}
                 {gameResult.isWrongAnswer && gameResult.incorrectGuess && (
-                  <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} MISSED: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
+                  <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} MISSED THE SHOT: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
                 )}
                 {!gameResult.winner && gameResult.incorrectGuess && !gameResult.isWrongAnswer && (
-                  <p className="text-lg font-bold">❌ Incorrect guess: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
+                  <p className="text-lg font-bold">❌ Missed shot: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
                 )}
                 {gameResult.correctAnswer && (
-                  <p className="text-sm mt-2">The answer was: <strong>{gameResult.correctAnswer}</strong></p>
+                  <p className="text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
                 )}
               </div>
             </div>
@@ -803,7 +845,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <GuessInput
               onSubmit={submitGuess}
               disabled={gameResult?.winner && gameResult.winner !== 'disconnect' || myHealth <= 0}
-              placeholder={myHealth <= 0 ? "You have been eliminated..." : "Enter your target identification (be precise)..."}
+              placeholder={myHealth <= 0 ? "You have been shot down..." : "Take your shot (be precise)..."}
               key={`input-${currentTarget.targetIndex}`}
             />
           </div>
