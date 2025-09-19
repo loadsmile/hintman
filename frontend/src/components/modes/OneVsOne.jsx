@@ -17,8 +17,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const [hintTimer, setHintTimer] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
-  const [maxTargets] = useState(5); // FIXED: Always 5 targets/rounds
-  const [maxHints] = useState(5); // FIXED: Maximum 5 hints per question
+  const [maxTargets] = useState(5);
+  const [maxHints] = useState(5);
   const [isProcessingNext, setIsProcessingNext] = useState(false);
   const [revealedHints, setRevealedHints] = useState([]);
   const [aiHasGuessed, setAiHasGuessed] = useState(false);
@@ -58,16 +58,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     };
   }, [hintTimer]);
 
-  // Helper function to check if a player is alive
   const isPlayerAlive = (playerObj) => {
     if (!playerObj) return false;
 
-    // Check if the player has an isAlive method
     if (typeof playerObj.isAlive === 'function') {
       return playerObj.isAlive();
     }
 
-    // Fallback: check if health is greater than 0
     return playerObj.health > 0;
   };
 
@@ -82,10 +79,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   const initializeQuestions = () => {
     const shuffled = shuffleArray(sampleQuestions);
-    // IMPORTANT: Always take exactly 5 questions for the game
     const gameQuestions = shuffled.slice(0, maxTargets);
     setShuffledQuestions(gameQuestions);
-    console.log(`Initialized ${gameQuestions.length} questions for the game from ${sampleQuestions.length} available questions`);
     return gameQuestions;
   };
 
@@ -94,7 +89,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       const questionData = questionArray[index];
       const question = new Question(questionData.id, questionData.answer, questionData.category, questionData.difficulty);
 
-      // Ensure we only take the first 5 hints
       const hintsToUse = questionData.hints ? questionData.hints.slice(0, maxHints) : [];
 
       hintsToUse.forEach((hint, hintIndex) => {
@@ -118,9 +112,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const addRevealedHint = (hintText, hintIndex) => {
-    // Double check we don't exceed maxHints
     if (hintIndex >= maxHints) {
-      console.log(`Prevented adding hint ${hintIndex + 1} - exceeds maximum of ${maxHints}`);
       return;
     }
 
@@ -130,13 +122,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       revealed: true
     };
     setRevealedHints(prev => {
-      // Prevent duplicate hints and enforce max limit
       const filtered = prev.filter(hint => hint.index !== hintIndex);
       const updated = [...filtered, newHint];
 
-      // Ensure we don't exceed maxHints
       if (updated.length > maxHints) {
-        console.log(`Limiting hints to maximum of ${maxHints}`);
         return updated.slice(0, maxHints);
       }
 
@@ -147,11 +136,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const startGame = () => {
     if (!player) return;
 
-    // Reset players for new game
     if (typeof player.resetForNewGame === 'function') {
       player.resetForNewGame();
     } else {
-      // Fallback reset
       player.health = player.maxHealth || 5000;
       player.totalCorrect = 0;
       player.totalQuestions = 0;
@@ -161,7 +148,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     if (typeof aiPlayer.resetForNewGame === 'function') {
       aiPlayer.resetForNewGame();
     } else {
-      // Fallback reset
       aiPlayer.health = aiPlayer.maxHealth || 5000;
       aiPlayer.totalCorrect = 0;
       aiPlayer.totalQuestions = 0;
@@ -188,9 +174,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const question = loadQuestion(index, questionArray);
     if (!question) return;
 
-    console.log(`Starting question ${index + 1}/${maxTargets}: ${question.correctAnswer}`);
-    console.log(`Question has ${question.hints ? question.hints.length : 0} hints available`);
-
     setTimeout(() => {
       if (gameStateRef.current === 'playing' && question.hints && question.hints.length > 0) {
         const firstHint = question.hints[0];
@@ -209,9 +192,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
       const currentHintCount = revealedHintsRef.current.length;
 
-      // CRITICAL: Stop revealing hints if we've reached the maximum
       if (currentHintCount >= maxHints) {
-        console.log(`Maximum hints (${maxHints}) reached. Stopping hint timer.`);
         clearInterval(timer);
         return;
       }
@@ -219,14 +200,12 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       const nextHintIndex = currentHintCount;
       if (question.hints && nextHintIndex < question.hints.length && nextHintIndex < maxHints) {
         const nextHint = question.hints[nextHintIndex];
-        console.log(`Revealing hint ${nextHintIndex + 1}/${maxHints}: ${nextHint.text}`);
 
         addRevealedHint(nextHint.text, nextHintIndex);
         if (typeof question.revealNextHint === 'function') {
           question.revealNextHint();
         }
 
-        // Both players lose health for each hint revealed
         if (typeof player.loseHealthForHints === 'function') {
           player.loseHealthForHints(1);
         } else {
@@ -239,10 +218,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           aiPlayer.health = Math.max(0, aiPlayer.health - 100);
         }
 
-        // Force re-render to show updated health immediately
         setPlayer(prevPlayer => ({ ...prevPlayer }));
 
-        // AI guess logic - only after hint 2 and before max hints
         if (!aiHasGuessedRef.current && nextHintIndex >= 2 && nextHintIndex < maxHints - 1) {
           const guessChance = Math.min(0.2, nextHintIndex * 0.05);
 
@@ -255,8 +232,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           }
         }
       } else {
-        // No more hints available - stop the timer
-        console.log(`No more hints available. Stopping timer.`);
         clearInterval(timer);
       }
     }, 15000);
@@ -273,7 +248,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const correctChance = Math.min(0.5, (hintCount - 2) * 0.15);
     const isCorrect = Math.random() < correctChance;
 
-    // AI loses health for time elapsed
     if (typeof aiPlayer.loseHealthForTime === 'function') {
       aiPlayer.loseHealthForTime(timeElapsed);
     } else {
@@ -306,8 +280,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
         aiPlayer.health = Math.max(0, aiPlayer.health - 500);
       }
-      // Force re-render to show AI health loss immediately
-      setAiHasGuessed(prev => !prev && prev); // Trigger re-render
+      setAiHasGuessed(prev => !prev && prev);
     }
   };
 
@@ -317,9 +290,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const timeElapsed = currentQuestion.getElapsedTime ? currentQuestion.getElapsedTime() / 1000 : 30;
     const isCorrect = currentQuestion.checkAnswer ? currentQuestion.checkAnswer(guess) : false;
 
-    console.log(`Player guessed: "${guess}" for answer: "${currentQuestion.correctAnswer}" - ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
-
-    // Player loses health for time elapsed
     if (typeof player.loseHealthForTime === 'function') {
       player.loseHealthForTime(timeElapsed);
     } else {
@@ -339,7 +309,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       player.totalQuestions = (player.totalQuestions || 0) + 1;
     }
 
-    // Force immediate re-render to show health changes
     setPlayer(prevPlayer => ({ ...prevPlayer }));
 
     if (isCorrect) {
@@ -392,7 +361,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         }
       }
 
-      // Force re-render to show health changes
       setPlayer(prevPlayer => ({ ...prevPlayer }));
 
       setGameResult({
@@ -415,7 +383,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     setTimeout(() => {
       const nextIndex = questionIndex + 1;
 
-      // IMPORTANT: Check against maxTargets (5), and ensure both players are alive
       if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
         setQuestionIndex(nextIndex);
         startQuestion(nextIndex, shuffledQuestions);
@@ -427,13 +394,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const endGame = () => {
-    console.log(`Game ended after ${questionIndex + 1} rounds`);
     clearTimers();
     setIsProcessingNext(false);
     setGameState('finished');
   };
 
-  // Health Bar Component
   const HealthBar = ({ player: p }) => {
     if (!p) return null;
 
@@ -445,7 +410,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       if (typeof p.getHealthStatus === 'function') {
         return p.getHealthStatus();
       }
-      // Fallback health status calculation
       if (healthPercentage > 75) return 'excellent';
       if (healthPercentage > 50) return 'good';
       if (healthPercentage > 25) return 'warning';
@@ -569,7 +533,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   return (
     <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="bg-black bg-opacity-90 p-4 rounded-lg mb-6 border border-red-600">
           <div className="flex justify-between items-center mb-4">
             <div className="text-white">
@@ -600,7 +563,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           </div>
         </div>
 
-        {/* Game Result */}
         {gameResult && (
           <div className={`mb-6 p-4 rounded-lg border-2 ${
             gameResult.winner === 'human' ? 'bg-green-900 border-green-500' :
