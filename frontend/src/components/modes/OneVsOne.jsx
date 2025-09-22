@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player } from '../../classes/Player.js';
 import { Question } from '../../classes/Question.js';
-import { sampleQuestions } from '../../data/questions.js';
+import questionsData from '../../../backend/src/data/questions.json'; // Import the correct 300+ questions
 import HintDisplay from '../game/HintDisplay';
 import GuessInput from '../game/GuessInput';
 import Timer from '../common/Timer';
@@ -27,6 +27,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   const isProcessingNextRef = useRef(isProcessingNext);
   const aiHasGuessedRef = useRef(aiHasGuessed);
   const revealedHintsRef = useRef(revealedHints);
+  const shuffledQuestionsRef = useRef([]);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -43,6 +44,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   useEffect(() => {
     revealedHintsRef.current = revealedHints;
   }, [revealedHints]);
+
+  useEffect(() => {
+    shuffledQuestionsRef.current = shuffledQuestions;
+  }, [shuffledQuestions]);
 
   useEffect(() => {
     if (!player && playerName) {
@@ -94,11 +99,16 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   const initializeQuestions = () => {
     // Enhanced randomization - show selection from larger pool
-    const totalQuestions = sampleQuestions.length;
+    const totalQuestions = questionsData.length;
     console.log(`Total questions available: ${totalQuestions}`);
 
+    if (totalQuestions < maxTargets) {
+      console.error(`Not enough questions! Need ${maxTargets}, but only have ${totalQuestions}`);
+      return questionsData; // Return all available questions
+    }
+
     // Create a thoroughly shuffled copy
-    const shuffled = shuffleArray([...sampleQuestions]);
+    const shuffled = shuffleArray([...questionsData]);
 
     // Take from a random starting point to ensure variety
     const maxStartIndex = Math.max(0, shuffled.length - maxTargets);
@@ -108,36 +118,49 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     console.log(`Selected ${maxTargets} questions from index ${startIndex} to ${startIndex + maxTargets} out of ${totalQuestions} total`);
     console.log('Game questions:', gameQuestions.map(q => q.answer));
 
-    setShuffledQuestions(gameQuestions);
     return gameQuestions;
   };
 
   const loadQuestion = useCallback((index, questionArray) => {
-    if (index < questionArray.length) {
-      const questionData = questionArray[index];
-      const question = new Question(questionData.id, questionData.answer, questionData.category, questionData.difficulty);
+    console.log(`Loading question ${index} from array of ${questionArray.length} questions`);
 
-      const hintsToUse = questionData.hints ? questionData.hints.slice(0, maxHints) : [];
-
-      hintsToUse.forEach((hint, hintIndex) => {
-        question.addHint(hint, hintIndex * 15);
-      });
-
-      question.start();
-      setCurrentQuestion(question);
-      setRevealedHints([]);
-      setAiHasGuessed(false);
-      return question;
+    if (!questionArray || questionArray.length === 0) {
+      console.error('Question array is empty or undefined');
+      return null;
     }
-    return null;
+
+    if (index < 0 || index >= questionArray.length) {
+      console.error(`Question index ${index} out of bounds (array length: ${questionArray.length})`);
+      return null;
+    }
+
+    const questionData = questionArray[index];
+    if (!questionData) {
+      console.error(`Question data at index ${index} is undefined`);
+      return null;
+    }
+
+    const question = new Question(questionData.id, questionData.answer, questionData.category, questionData.difficulty);
+
+    const hintsToUse = questionData.hints ? questionData.hints.slice(0, maxHints) : [];
+
+    hintsToUse.forEach((hint, hintIndex) => {
+      question.addHint(hint, hintIndex * 15);
+    });
+
+    question.start();
+    setCurrentQuestion(question);
+    setRevealedHints([]);
+    setAiHasGuessed(false);
+    return question;
   }, [maxHints]);
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     if (hintTimer) {
       clearInterval(hintTimer);
       setHintTimer(null);
     }
-  };
+  }, [hintTimer]);
 
   const addRevealedHint = (hintText, hintIndex) => {
     if (hintIndex >= maxHints) {
@@ -178,82 +201,26 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }
   };
 
-  // Enhanced AI decision making
-  const scheduleAIGuess = (question, hintIndex) => {
-    if (aiHasGuessedRef.current || !question) return;
-
-    const currentHintCount = hintIndex + 1; // Convert index to count
-
-    // AI gets more likely to guess with each hint
-    let guessChance;
-    switch (currentHintCount) {
-      case 1: guessChance = 0.15; // 15% chance after 1st hint
-      break;
-      case 2: guessChance = 0.25; // 25% chance after 2nd hint
-      break;
-      case 3: guessChance = 0.35; // 35% chance after 3rd hint
-      break;
-      case 4: guessChance = 0.50; // 50% chance after 4th hint
-      break;
-      case 5: guessChance = 0.70; // 70% chance after 5th hint
-      break;
-      default: guessChance = 0.80; // 80% chance after more hints
-    }
-
-    // Random delay before attempting guess (2-8 seconds after hint is revealed)
-    const delay = Math.random() * 6000 + 2000;
-
-    setTimeout(() => {
-      if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
-        if (Math.random() < guessChance) {
-          handleAIGuess(question, currentHintCount);
-        }
-      }
-    }, delay);
-  };
-
-  const startGame = () => {
-    if (!player) return;
-
-    if (typeof player.resetForNewGame === 'function') {
-      player.resetForNewGame();
-    } else {
-      player.health = player.maxHealth || 5000;
-      player.totalCorrect = 0;
-      player.totalQuestions = 0;
-      player.currentStreak = 0;
-    }
-
-    if (typeof aiPlayer.resetForNewGame === 'function') {
-      aiPlayer.resetForNewGame();
-    } else {
-      aiPlayer.health = aiPlayer.maxHealth || 5000;
-      aiPlayer.totalCorrect = 0;
-      aiPlayer.totalQuestions = 0;
-      aiPlayer.currentStreak = 0;
-    }
-
-    setQuestionIndex(0);
+  const endGame = useCallback(() => {
+    console.log('Ending game');
+    clearTimers();
     setIsProcessingNext(false);
-    setGameResult(null);
-    setRevealedHints([]);
+    setGameState('finished');
+  }, [clearTimers]);
 
-    const gameQuestions = initializeQuestions();
-    setGameState('playing');
-
-    setTimeout(() => {
-      startQuestion(0, gameQuestions);
-    }, 100);
-  };
-
-  const startQuestion = (index, questionArray) => {
+  const startQuestion = useCallback((index, questionArray) => {
     console.log(`Starting question ${index + 1}/${maxTargets}`);
     clearTimers();
     setGameResult(null);
 
-    const question = loadQuestion(index, questionArray);
+    // Use the current shuffled questions if questionArray is not provided
+    const questionsToUse = questionArray || shuffledQuestionsRef.current;
+
+    console.log(`Using question array with ${questionsToUse.length} questions`);
+
+    const question = loadQuestion(index, questionsToUse);
     if (!question) {
-      console.log('No question found, ending game');
+      console.error('Failed to load question, ending game');
       endGame();
       return;
     }
@@ -305,6 +272,106 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }, 15000);
 
     setHintTimer(timer);
+  }, [maxTargets, clearTimers, loadQuestion, endGame, maxHints]);
+
+  const proceedToNextQuestion = useCallback(() => {
+    if (isProcessingNextRef.current) {
+      console.log('Already processing next question, skipping');
+      return;
+    }
+
+    console.log(`Proceeding to next question: current=${questionIndex}, max=${maxTargets}`);
+    console.log(`Available questions: ${shuffledQuestionsRef.current.length}`);
+
+    setIsProcessingNext(true);
+    clearTimers();
+
+    // Immediate state update for next question
+    const nextIndex = questionIndex + 1;
+    console.log(`Next question index: ${nextIndex}`);
+
+    setTimeout(() => {
+      if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
+        console.log('Starting next question');
+        setQuestionIndex(nextIndex);
+        startQuestion(nextIndex); // Don't pass questionArray, let it use the ref
+        setIsProcessingNext(false);
+      } else {
+        console.log('Game should end - calling endGame()');
+        endGame();
+      }
+    }, 3000);
+  }, [questionIndex, maxTargets, player, aiPlayer, clearTimers, startQuestion, endGame]);
+
+  // Enhanced AI decision making
+  const scheduleAIGuess = (question, hintIndex) => {
+    if (aiHasGuessedRef.current || !question) return;
+
+    const currentHintCount = hintIndex + 1; // Convert index to count
+
+    // AI gets more likely to guess with each hint
+    let guessChance;
+    switch (currentHintCount) {
+      case 1: guessChance = 0.15; // 15% chance after 1st hint
+      break;
+      case 2: guessChance = 0.25; // 25% chance after 2nd hint
+      break;
+      case 3: guessChance = 0.35; // 35% chance after 3rd hint
+      break;
+      case 4: guessChance = 0.50; // 50% chance after 4th hint
+      break;
+      case 5: guessChance = 0.70; // 70% chance after 5th hint
+      break;
+      default: guessChance = 0.80; // 80% chance after more hints
+    }
+
+    // Random delay before attempting guess (2-8 seconds after hint is revealed)
+    const delay = Math.random() * 6000 + 2000;
+
+    setTimeout(() => {
+      if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
+        if (Math.random() < guessChance) {
+          handleAIGuess(question, currentHintCount);
+        }
+      }
+    }, delay);
+  };
+
+  const startGame = () => {
+    if (!player) return;
+
+    console.log('Starting new game...');
+
+    if (typeof player.resetForNewGame === 'function') {
+      player.resetForNewGame();
+    } else {
+      player.health = player.maxHealth || 5000;
+      player.totalCorrect = 0;
+      player.totalQuestions = 0;
+      player.currentStreak = 0;
+    }
+
+    if (typeof aiPlayer.resetForNewGame === 'function') {
+      aiPlayer.resetForNewGame();
+    } else {
+      aiPlayer.health = aiPlayer.maxHealth || 5000;
+      aiPlayer.totalCorrect = 0;
+      aiPlayer.totalQuestions = 0;
+      aiPlayer.currentStreak = 0;
+    }
+
+    setQuestionIndex(0);
+    setIsProcessingNext(false);
+    setGameResult(null);
+    setRevealedHints([]);
+
+    const gameQuestions = initializeQuestions();
+    setShuffledQuestions(gameQuestions);
+    setGameState('playing');
+
+    setTimeout(() => {
+      startQuestion(0, gameQuestions);
+    }, 100);
   };
 
   const handleAIGuess = (question, hintCount) => {
@@ -457,40 +524,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }
 
     proceedToNextQuestion();
-  };
-
-  const proceedToNextQuestion = useCallback(() => {
-    if (isProcessingNextRef.current) {
-      console.log('Already processing next question, skipping');
-      return;
-    }
-
-    console.log(`Proceeding to next question: current=${questionIndex}, max=${maxTargets}`);
-    setIsProcessingNext(true);
-    clearTimers();
-
-    // Immediate state update for next question
-    const nextIndex = questionIndex + 1;
-    console.log(`Next question index: ${nextIndex}`);
-
-    setTimeout(() => {
-      if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
-        console.log('Starting next question');
-        setQuestionIndex(nextIndex);
-        startQuestion(nextIndex, shuffledQuestions);
-        setIsProcessingNext(false);
-      } else {
-        console.log('Game should end - calling endGame()');
-        endGame();
-      }
-    }, 3000);
-  }, [questionIndex, maxTargets, player, aiPlayer, shuffledQuestions]);
-
-  const endGame = () => {
-    console.log('Ending game');
-    clearTimers();
-    setIsProcessingNext(false);
-    setGameState('finished');
   };
 
   // Enhanced GeoGuessr-style Health Bar
