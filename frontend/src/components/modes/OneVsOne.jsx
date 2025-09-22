@@ -307,12 +307,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       const playerHealthLoss = calculateDamageByHintCount(currentHintCount);
       player.health = Math.max(0, player.health - playerHealthLoss);
 
-      if (typeof aiPlayer.recordGuess === 'function') {
-        aiPlayer.recordGuess(true, 0);
-      } else {
-        aiPlayer.totalCorrect = (aiPlayer.totalCorrect || 0) + 1;
-        aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-      }
+      // Update AI stats but NO health changes for AI
+      aiPlayer.totalCorrect = (aiPlayer.totalCorrect || 0) + 1;
+      aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
 
       setGameResult({
         winner: 'ai',
@@ -325,14 +322,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
       proceedToNextQuestion();
     } else {
-      // AI got it wrong - NO PENALTIES for wrong answers
-      if (typeof aiPlayer.recordGuess === 'function') {
-        aiPlayer.recordGuess(false, 0);
-      } else {
-        aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-      }
+      // AI got it wrong - NO PENALTIES AT ALL
+      aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
 
-      // Reset AI guess status so it can try again
+      // Reset AI guess status so it can try again after a short delay
       setTimeout(() => {
         if (gameStateRef.current === 'playing' && !isProcessingNextRef.current) {
           setAiHasGuessed(false);
@@ -347,17 +340,14 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const isCorrect = currentQuestion.checkAnswer ? currentQuestion.checkAnswer(guess) : false;
     const currentHintCount = revealedHints.length;
 
-    if (typeof player.recordGuess === 'function') {
-      player.recordGuess(isCorrect, 0);
-    } else {
-      if (isCorrect) {
-        player.totalCorrect = (player.totalCorrect || 0) + 1;
-        // Player got it right - AI loses health based on current hint count
-        const aiHealthLoss = calculateDamageByHintCount(currentHintCount);
-        aiPlayer.health = Math.max(0, aiPlayer.health - aiHealthLoss);
-      }
-      player.totalQuestions = (player.totalQuestions || 0) + 1;
+    if (isCorrect) {
+      player.totalCorrect = (player.totalCorrect || 0) + 1;
+      // Player got it right - AI loses health based on current hint count
+      const aiHealthLoss = calculateDamageByHintCount(currentHintCount);
+      aiPlayer.health = Math.max(0, aiPlayer.health - aiHealthLoss);
     }
+    // NO PENALTIES for wrong answers - just update question count
+    player.totalQuestions = (player.totalQuestions || 0) + 1;
 
     setPlayer(prevPlayer => ({ ...prevPlayer }));
 
@@ -395,18 +385,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
 
     if (player && currentQuestion) {
-      if (typeof player.loseHealthForTime === 'function') {
-        player.recordGuess(false, 0);
-      } else {
-        player.totalQuestions = (player.totalQuestions || 0) + 1;
-      }
+      // NO PENALTIES for timeout - just update question counts
+      player.totalQuestions = (player.totalQuestions || 0) + 1;
 
       if (!aiHasGuessedRef.current) {
-        if (typeof aiPlayer.loseHealthForTime === 'function') {
-          aiPlayer.recordGuess(false, 0);
-        } else {
-          aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-        }
+        aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
       }
 
       setPlayer(prevPlayer => ({ ...prevPlayer }));
