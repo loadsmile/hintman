@@ -367,10 +367,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       break;
       default: correctChance = 0.90; // 90% chance with more hints
     }
+    let rndCheckValue = Math.random();
+    const isCorrect = rndCheckValue < correctChance;
 
-    const isCorrect = Math.random() < correctChance;
-
-    console.log(`AI attempting guess with ${hintCount} hints, ${Math.round(correctChance * 100)}% chance, result: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
+    console.log(`AI attempting guess with ${hintCount} hints, rndCheckValue=${rndCheckValue}, correctChance=${correctChance}, ${Math.round(correctChance * 100)}% chance, result: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
 
     if (isCorrect) {
       // AI got it right - PLAYER loses health based on current hint count
