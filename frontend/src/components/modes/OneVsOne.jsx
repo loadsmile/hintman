@@ -68,18 +68,54 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     return playerObj.health > 0;
   };
 
+  // Enhanced shuffle algorithm for better randomization
   const shuffleArray = (array) => {
     const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+
+    // Use crypto random for better randomization if available
+    const getRandomValue = () => {
+      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        const randomBuffer = new Uint32Array(1);
+        crypto.getRandomValues(randomBuffer);
+        return randomBuffer[0] / (0xFFFFFFFF + 1);
+      }
+      return Math.random();
+    };
+
+    // Multiple shuffle passes for better randomization
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(getRandomValue() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
     }
     return shuffled;
   };
 
   const initializeQuestions = () => {
-    const shuffled = shuffleArray(sampleQuestions);
-    const gameQuestions = shuffled.slice(0, maxTargets);
+    // Create a timestamp-based seed for additional randomization
+    const seed = Date.now() + Math.random() * 1000;
+    const seededRandom = () => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    // First shuffle with Math.random
+    let shuffled = shuffleArray([...sampleQuestions]);
+
+    // Second shuffle with seeded random
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRandom() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Take from a random starting point in the array
+    const startIndex = Math.floor(Math.random() * (shuffled.length - maxTargets));
+    const gameQuestions = shuffled.slice(startIndex, startIndex + maxTargets);
+
+    console.log(`Selected questions from index ${startIndex} to ${startIndex + maxTargets}`);
+    console.log('Game questions:', gameQuestions.map(q => q.answer));
+
     setShuffledQuestions(gameQuestions);
     return gameQuestions;
   };
@@ -279,6 +315,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       return;
     }
 
+    console.log(`AI making guess attempt - processing: ${isProcessingNextRef.current}, hasGuessed: ${aiHasGuessedRef.current}`);
     setAiHasGuessed(true);
 
     // AI accuracy based on hint count
@@ -306,6 +343,8 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       const currentHintCount = revealedHintsRef.current.length;
       const playerHealthLoss = calculateDamageByHintCount(currentHintCount);
 
+      console.log(`AI correct! Player loses ${playerHealthLoss} HP`);
+
       // Apply damage to the PLAYER (not AI)
       setPlayer(prevPlayer => {
         const newPlayer = { ...prevPlayer };
@@ -317,6 +356,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       aiPlayer.totalCorrect = (aiPlayer.totalCorrect || 0) + 1;
       aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
 
+      // Clear any timers immediately
+      clearTimers();
+
       setGameResult({
         winner: 'ai',
         playerGuess: null,
@@ -326,8 +368,14 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         healthLoss: playerHealthLoss
       });
 
-      proceedToNextQuestion();
+      // Force proceed to next question
+      setTimeout(() => {
+        console.log('AI win - proceeding to next question');
+        proceedToNextQuestion();
+      }, 100);
+
     } else {
+      console.log('AI wrong guess - can try again');
       // AI got it wrong - NO PENALTIES AT ALL
       aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
 
@@ -351,6 +399,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       // Player got it right - AI loses health based on current hint count
       const aiHealthLoss = calculateDamageByHintCount(currentHintCount);
       aiPlayer.health = Math.max(0, aiPlayer.health - aiHealthLoss);
+
+      // Clear any timers immediately
+      clearTimers();
     }
     // NO PENALTIES for wrong answers - just update question count
     player.totalQuestions = (player.totalQuestions || 0) + 1;
@@ -413,25 +464,33 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const proceedToNextQuestion = () => {
-    if (isProcessingNextRef.current) return;
+    if (isProcessingNextRef.current) {
+      console.log('Already processing next question, skipping');
+      return;
+    }
 
+    console.log(`Proceeding to next question: current=${questionIndex}, max=${maxTargets}`);
     setIsProcessingNext(true);
     clearTimers();
 
     setTimeout(() => {
       const nextIndex = questionIndex + 1;
+      console.log(`Next question index: ${nextIndex}`);
 
       if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
+        console.log('Starting next question');
         setQuestionIndex(nextIndex);
         startQuestion(nextIndex, shuffledQuestions);
         setIsProcessingNext(false);
       } else {
+        console.log('Game should end - calling endGame()');
         endGame();
       }
     }, 3000);
   };
 
   const endGame = () => {
+    console.log('Ending game');
     clearTimers();
     setIsProcessingNext(false);
     setGameState('finished');
