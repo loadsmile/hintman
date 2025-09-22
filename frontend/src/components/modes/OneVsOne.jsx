@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player } from '../../classes/Player.js';
 import { Question } from '../../classes/Question.js';
-import questionsData from '../../../backend/src/data/questions.json'; // Import the correct 300+ questions
+import questionsData from '../../data/questions.json'; // Fixed import path
 import HintDisplay from '../game/HintDisplay';
 import GuessInput from '../game/GuessInput';
 import Timer from '../common/Timer';
@@ -55,13 +55,18 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }
   }, [playerName, player]);
 
+  const clearTimers = useCallback(() => {
+    if (hintTimer) {
+      clearInterval(hintTimer);
+      setHintTimer(null);
+    }
+  }, [hintTimer]);
+
   useEffect(() => {
     return () => {
-      if (hintTimer) {
-        clearInterval(hintTimer);
-      }
+      clearTimers();
     };
-  }, [hintTimer]);
+  }, [clearTimers]);
 
   const isPlayerAlive = (playerObj) => {
     if (!playerObj) return false;
@@ -97,7 +102,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     return shuffled;
   };
 
-  const initializeQuestions = () => {
+  const initializeQuestions = useCallback(() => {
     // Enhanced randomization - show selection from larger pool
     const totalQuestions = questionsData.length;
     console.log(`Total questions available: ${totalQuestions}`);
@@ -119,7 +124,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     console.log('Game questions:', gameQuestions.map(q => q.answer));
 
     return gameQuestions;
-  };
+  }, [maxTargets]);
 
   const loadQuestion = useCallback((index, questionArray) => {
     console.log(`Loading question ${index} from array of ${questionArray.length} questions`);
@@ -154,13 +159,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     setAiHasGuessed(false);
     return question;
   }, [maxHints]);
-
-  const clearTimers = useCallback(() => {
-    if (hintTimer) {
-      clearInterval(hintTimer);
-      setHintTimer(null);
-    }
-  }, [hintTimer]);
 
   const addRevealedHint = (hintText, hintIndex) => {
     if (hintIndex >= maxHints) {
@@ -199,6 +197,40 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
       case 5: return 200;
       default: return 200; // Minimum damage for 5+ hints
     }
+  };
+
+  // Enhanced AI decision making
+  const scheduleAIGuess = (question, hintIndex) => {
+    if (aiHasGuessedRef.current || !question) return;
+
+    const currentHintCount = hintIndex + 1; // Convert index to count
+
+    // AI gets more likely to guess with each hint
+    let guessChance;
+    switch (currentHintCount) {
+      case 1: guessChance = 0.15; // 15% chance after 1st hint
+      break;
+      case 2: guessChance = 0.25; // 25% chance after 2nd hint
+      break;
+      case 3: guessChance = 0.35; // 35% chance after 3rd hint
+      break;
+      case 4: guessChance = 0.50; // 50% chance after 4th hint
+      break;
+      case 5: guessChance = 0.70; // 70% chance after 5th hint
+      break;
+      default: guessChance = 0.80; // 80% chance after more hints
+    }
+
+    // Random delay before attempting guess (2-8 seconds after hint is revealed)
+    const delay = Math.random() * 6000 + 2000;
+
+    setTimeout(() => {
+      if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
+        if (Math.random() < guessChance) {
+          handleAIGuess(question, currentHintCount);
+        }
+      }
+    }, delay);
   };
 
   const endGame = useCallback(() => {
@@ -272,70 +304,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }, 15000);
 
     setHintTimer(timer);
-  }, [maxTargets, clearTimers, loadQuestion, endGame, maxHints]);
-
-  const proceedToNextQuestion = useCallback(() => {
-    if (isProcessingNextRef.current) {
-      console.log('Already processing next question, skipping');
-      return;
-    }
-
-    console.log(`Proceeding to next question: current=${questionIndex}, max=${maxTargets}`);
-    console.log(`Available questions: ${shuffledQuestionsRef.current.length}`);
-
-    setIsProcessingNext(true);
-    clearTimers();
-
-    // Immediate state update for next question
-    const nextIndex = questionIndex + 1;
-    console.log(`Next question index: ${nextIndex}`);
-
-    setTimeout(() => {
-      if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
-        console.log('Starting next question');
-        setQuestionIndex(nextIndex);
-        startQuestion(nextIndex); // Don't pass questionArray, let it use the ref
-        setIsProcessingNext(false);
-      } else {
-        console.log('Game should end - calling endGame()');
-        endGame();
-      }
-    }, 3000);
-  }, [questionIndex, maxTargets, player, aiPlayer, clearTimers, startQuestion, endGame]);
-
-  // Enhanced AI decision making
-  const scheduleAIGuess = (question, hintIndex) => {
-    if (aiHasGuessedRef.current || !question) return;
-
-    const currentHintCount = hintIndex + 1; // Convert index to count
-
-    // AI gets more likely to guess with each hint
-    let guessChance;
-    switch (currentHintCount) {
-      case 1: guessChance = 0.15; // 15% chance after 1st hint
-      break;
-      case 2: guessChance = 0.25; // 25% chance after 2nd hint
-      break;
-      case 3: guessChance = 0.35; // 35% chance after 3rd hint
-      break;
-      case 4: guessChance = 0.50; // 50% chance after 4th hint
-      break;
-      case 5: guessChance = 0.70; // 70% chance after 5th hint
-      break;
-      default: guessChance = 0.80; // 80% chance after more hints
-    }
-
-    // Random delay before attempting guess (2-8 seconds after hint is revealed)
-    const delay = Math.random() * 6000 + 2000;
-
-    setTimeout(() => {
-      if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
-        if (Math.random() < guessChance) {
-          handleAIGuess(question, currentHintCount);
-        }
-      }
-    }, delay);
-  };
+  }, [clearTimers, endGame, loadQuestion, maxTargets, maxHints]);
 
   const startGame = () => {
     if (!player) return;
@@ -525,6 +494,35 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
     proceedToNextQuestion();
   };
+
+  const proceedToNextQuestion = useCallback(() => {
+    if (isProcessingNextRef.current) {
+      console.log('Already processing next question, skipping');
+      return;
+    }
+
+    console.log(`Proceeding to next question: current=${questionIndex}, max=${maxTargets}`);
+    console.log(`Available questions: ${shuffledQuestionsRef.current.length}`);
+
+    setIsProcessingNext(true);
+    clearTimers();
+
+    // Immediate state update for next question
+    const nextIndex = questionIndex + 1;
+    console.log(`Next question index: ${nextIndex}`);
+
+    setTimeout(() => {
+      if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
+        console.log('Starting next question');
+        setQuestionIndex(nextIndex);
+        startQuestion(nextIndex); // Don't pass questionArray, let it use the ref
+        setIsProcessingNext(false);
+      } else {
+        console.log('Game should end - calling endGame()');
+        endGame();
+      }
+    }, 3000);
+  }, [clearTimers, endGame, startQuestion, questionIndex, maxTargets, player, aiPlayer]);
 
   // Enhanced GeoGuessr-style Health Bar
   const HealthBar = ({ player: p, playerName, isAI = false }) => {
