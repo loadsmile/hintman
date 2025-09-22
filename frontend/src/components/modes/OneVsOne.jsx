@@ -302,10 +302,16 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     console.log(`AI attempting guess with ${hintCount} hints, ${Math.round(correctChance * 100)}% chance, result: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
 
     if (isCorrect) {
-      // AI got it right - player loses health based on current hint count
+      // AI got it right - PLAYER loses health based on current hint count
       const currentHintCount = revealedHintsRef.current.length;
       const playerHealthLoss = calculateDamageByHintCount(currentHintCount);
-      player.health = Math.max(0, player.health - playerHealthLoss);
+
+      // Apply damage to the PLAYER (not AI)
+      setPlayer(prevPlayer => {
+        const newPlayer = { ...prevPlayer };
+        newPlayer.health = Math.max(0, newPlayer.health - playerHealthLoss);
+        return newPlayer;
+      });
 
       // Update AI stats but NO health changes for AI
       aiPlayer.totalCorrect = (aiPlayer.totalCorrect || 0) + 1;
