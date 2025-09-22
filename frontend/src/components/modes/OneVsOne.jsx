@@ -93,27 +93,19 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const initializeQuestions = () => {
-    // Create a timestamp-based seed for additional randomization
-    const seed = Date.now() + Math.random() * 1000;
-    const seededRandom = () => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
+    // Enhanced randomization - show selection from larger pool
+    const totalQuestions = sampleQuestions.length;
+    console.log(`Total questions available: ${totalQuestions}`);
 
-    // First shuffle with Math.random
-    let shuffled = shuffleArray([...sampleQuestions]);
+    // Create a thoroughly shuffled copy
+    const shuffled = shuffleArray([...sampleQuestions]);
 
-    // Second shuffle with seeded random
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(seededRandom() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-
-    // Take from a random starting point in the array
-    const startIndex = Math.floor(Math.random() * (shuffled.length - maxTargets));
+    // Take from a random starting point to ensure variety
+    const maxStartIndex = Math.max(0, shuffled.length - maxTargets);
+    const startIndex = Math.floor(Math.random() * maxStartIndex);
     const gameQuestions = shuffled.slice(startIndex, startIndex + maxTargets);
 
-    console.log(`Selected questions from index ${startIndex} to ${startIndex + maxTargets}`);
+    console.log(`Selected ${maxTargets} questions from index ${startIndex} to ${startIndex + maxTargets} out of ${totalQuestions} total`);
     console.log('Game questions:', gameQuestions.map(q => q.answer));
 
     setShuffledQuestions(gameQuestions);
@@ -255,11 +247,16 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const startQuestion = (index, questionArray) => {
+    console.log(`Starting question ${index + 1}/${maxTargets}`);
     clearTimers();
     setGameResult(null);
 
     const question = loadQuestion(index, questionArray);
-    if (!question) return;
+    if (!question) {
+      console.log('No question found, ending game');
+      endGame();
+      return;
+    }
 
     // Reveal first hint after 1 second
     setTimeout(() => {
@@ -312,6 +309,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
 
   const handleAIGuess = (question, hintCount) => {
     if (gameStateRef.current !== 'playing' || isProcessingNextRef.current || aiHasGuessedRef.current) {
+      console.log('AI guess blocked - state check failed');
       return;
     }
 
@@ -368,11 +366,9 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         healthLoss: playerHealthLoss
       });
 
-      // Force proceed to next question
-      setTimeout(() => {
-        console.log('AI win - proceeding to next question');
-        proceedToNextQuestion();
-      }, 100);
+      console.log('AI win - proceeding to next question');
+      // Immediately proceed to next question
+      proceedToNextQuestion();
 
     } else {
       console.log('AI wrong guess - can try again');
@@ -463,7 +459,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     proceedToNextQuestion();
   };
 
-  const proceedToNextQuestion = () => {
+  const proceedToNextQuestion = useCallback(() => {
     if (isProcessingNextRef.current) {
       console.log('Already processing next question, skipping');
       return;
@@ -473,10 +469,11 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     setIsProcessingNext(true);
     clearTimers();
 
-    setTimeout(() => {
-      const nextIndex = questionIndex + 1;
-      console.log(`Next question index: ${nextIndex}`);
+    // Immediate state update for next question
+    const nextIndex = questionIndex + 1;
+    console.log(`Next question index: ${nextIndex}`);
 
+    setTimeout(() => {
       if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
         console.log('Starting next question');
         setQuestionIndex(nextIndex);
@@ -487,7 +484,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         endGame();
       }
     }, 3000);
-  };
+  }, [questionIndex, maxTargets, player, aiPlayer, shuffledQuestions]);
 
   const endGame = () => {
     console.log('Ending game');
