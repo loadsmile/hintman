@@ -150,6 +150,40 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     }
   };
 
+  // Enhanced AI decision making
+  const scheduleAIGuess = (question, hintIndex) => {
+    if (aiHasGuessedRef.current || !question) return;
+
+    const currentHintCount = hintIndex + 1; // Convert index to count
+
+    // AI gets more likely to guess with each hint
+    let guessChance;
+    switch (currentHintCount) {
+      case 1: guessChance = 0.15; // 15% chance after 1st hint
+      break;
+      case 2: guessChance = 0.25; // 25% chance after 2nd hint
+      break;
+      case 3: guessChance = 0.35; // 35% chance after 3rd hint
+      break;
+      case 4: guessChance = 0.50; // 50% chance after 4th hint
+      break;
+      case 5: guessChance = 0.70; // 70% chance after 5th hint
+      break;
+      default: guessChance = 0.80; // 80% chance after more hints
+    }
+
+    // Random delay before attempting guess (2-8 seconds after hint is revealed)
+    const delay = Math.random() * 6000 + 2000;
+
+    setTimeout(() => {
+      if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
+        if (Math.random() < guessChance) {
+          handleAIGuess(question, currentHintCount);
+        }
+      }
+    }, delay);
+  };
+
   const startGame = () => {
     if (!player) return;
 
@@ -191,6 +225,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const question = loadQuestion(index, questionArray);
     if (!question) return;
 
+    // Reveal first hint after 1 second
     setTimeout(() => {
       if (gameStateRef.current === 'playing' && question.hints && question.hints.length > 0) {
         const firstHint = question.hints[0];
@@ -198,9 +233,13 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         if (typeof question.revealNextHint === 'function') {
           question.revealNextHint();
         }
+
+        // Schedule AI to potentially guess after first hint
+        scheduleAIGuess(question, 0);
       }
     }, 1000);
 
+    // Timer to reveal subsequent hints
     const timer = setInterval(() => {
       if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) {
         clearInterval(timer);
@@ -223,21 +262,10 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
           question.revealNextHint();
         }
 
-        // NO HEALTH PENALTIES for hints - completely removed
+        // Schedule AI to potentially guess after this hint
+        scheduleAIGuess(question, nextHintIndex);
 
         setPlayer(prevPlayer => ({ ...prevPlayer }));
-
-        if (!aiHasGuessedRef.current && nextHintIndex >= 2 && nextHintIndex < maxHints - 1) {
-          const guessChance = Math.min(0.2, nextHintIndex * 0.05);
-
-          if (Math.random() < guessChance) {
-            setTimeout(() => {
-              if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
-                handleAIGuess(question, nextHintIndex + 1);
-              }
-            }, Math.random() * 8000 + 3000);
-          }
-        }
       } else {
         clearInterval(timer);
       }
@@ -247,14 +275,31 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
   };
 
   const handleAIGuess = (question, hintCount) => {
-    if (gameStateRef.current !== 'playing' || isProcessingNextRef.current || aiHasGuessedRef.current) return;
+    if (gameStateRef.current !== 'playing' || isProcessingNextRef.current || aiHasGuessedRef.current) {
+      return;
+    }
 
     setAiHasGuessed(true);
 
-    const correctChance = Math.min(0.5, (hintCount - 2) * 0.15);
+    // AI accuracy based on hint count
+    let correctChance;
+    switch (hintCount) {
+      case 1: correctChance = 0.20; // 20% chance with 1 hint
+      break;
+      case 2: correctChance = 0.35; // 35% chance with 2 hints
+      break;
+      case 3: correctChance = 0.50; // 50% chance with 3 hints
+      break;
+      case 4: correctChance = 0.65; // 65% chance with 4 hints
+      break;
+      case 5: correctChance = 0.80; // 80% chance with 5 hints
+      break;
+      default: correctChance = 0.90; // 90% chance with more hints
+    }
+
     const isCorrect = Math.random() < correctChance;
 
-    // NO TIME PENALTIES - removed completely
+    console.log(`AI attempting guess with ${hintCount} hints, ${Math.round(correctChance * 100)}% chance, result: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
 
     if (isCorrect) {
       // AI got it right - player loses health based on current hint count
@@ -285,9 +330,14 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         aiPlayer.recordGuess(false, 0);
       } else {
         aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-        // NO HEALTH LOSS for wrong answers
       }
-      setAiHasGuessed(prev => !prev && prev);
+
+      // Reset AI guess status so it can try again
+      setTimeout(() => {
+        if (gameStateRef.current === 'playing' && !isProcessingNextRef.current) {
+          setAiHasGuessed(false);
+        }
+      }, 3000); // Wait 3 seconds before allowing AI to guess again
     }
   };
 
@@ -297,8 +347,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     const isCorrect = currentQuestion.checkAnswer ? currentQuestion.checkAnswer(guess) : false;
     const currentHintCount = revealedHints.length;
 
-    // NO TIME PENALTIES - removed completely
-
     if (typeof player.recordGuess === 'function') {
       player.recordGuess(isCorrect, 0);
     } else {
@@ -307,8 +355,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         // Player got it right - AI loses health based on current hint count
         const aiHealthLoss = calculateDamageByHintCount(currentHintCount);
         aiPlayer.health = Math.max(0, aiPlayer.health - aiHealthLoss);
-      } else {
-        // Player got it wrong - NO PENALTIES for wrong answers
       }
       player.totalQuestions = (player.totalQuestions || 0) + 1;
     }
@@ -334,7 +380,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         playerGuess: guess,
         aiGuess: null,
         correctAnswer: null,
-        healthLoss: 0 // No health loss for wrong answers
+        healthLoss: 0
       });
 
       setTimeout(() => {
@@ -349,7 +395,6 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
     if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
 
     if (player && currentQuestion) {
-      // NO TIME PENALTIES - timeout just moves to next question
       if (typeof player.loseHealthForTime === 'function') {
         player.recordGuess(false, 0);
       } else {
@@ -371,7 +416,7 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         playerGuess: null,
         aiGuess: null,
         correctAnswer: currentQuestion.correctAnswer,
-        healthLoss: 0 // No health loss for timeout
+        healthLoss: 0
       });
     }
 
