@@ -1,409 +1,462 @@
-console.log('🔥🔥🔥 GAMEROOM.JS IS LOADING - NEW VERSION 🔥🔥🔥');
+const GameRoom = require('../models/GameRoom');
+const SurvivalRoom = require('../models/SurvivalRoom');
+const { v4: uuidv4 } = require('uuid');
 
-const Question = require('./Question');
-
-class GameRoom {
-  constructor(id, questionsData, questionCategory = 'general', gameMode = 'general') {
-    console.log('🚀🚀🚀 USING UPDATED GAMEROOM.JS - ONEVSONE SYSTEM ACTIVE 🚀🚀🚀');
-    this.id = id;
-    this.players = [];
-    this.currentQuestion = 0;
-    this.gameMode = gameMode;
-    this.questions = [];
-    this.gameState = 'waiting';
-    this.currentHintIndex = 0;
-    this.hintTimer = null;
-    this.questionTimer = null;
-    this.health = {};
-    this.startTime = null;
-    this.questionAnswered = false;
-    this.questionsPerGame = gameMode === 'category' ? 10 : 5;
-    this.createdAt = Date.now();
+class GameManager {
+  constructor(questionsData) {
+    this.gameRooms = new Map();
+    this.survivalRooms = new Map();
     this.questionsData = questionsData;
-    this.playerCategories = [];
+    this.connectedPlayers = new Map();
+
+    console.log('🎯 GameManager initialized with Survival Mode support');
   }
 
-  // Damage penalties
-  damageByHint(hintCount) {
-    switch (hintCount) {
-      case 0:
-      case 1: return 500;  // Update from 1000
-      case 2: return 400;  // Update from 800
-      case 3: return 300;  // Update from 600
-      case 4: return 200;  // Update from 400
-      case 5: return 100;  // Update from 200
-      default: return 100;
-    }
+  handleConnection(socket) {
+    this.connectedPlayers.set(socket.id, {
+      socket,
+      connectedAt: Date.now(),
+      currentRoom: null,
+      roomType: null
+    });
+
+    console.log(`🔗 Player connected: ${socket.id}`);
+
+    socket.on('disconnect', () => {
+      this.handleDisconnection(socket);
+    });
+
+    socket.on('findMatch', (playerData) => {
+      this.findMatch(socket, playerData);
+    });
+
+    // Add survival match handler
+    socket.on('findSurvivalMatch', (playerData) => {
+      this.findSurvivalMatch(socket, playerData);
+    });
+
+    socket.on('submitGuess', ({ guess }) => {
+      this.handleGuess(socket, guess);
+    });
   }
 
-  addPlayer(socket, playerName, gameMode = 'general', personalCategory = 'general') {
-    if (this.players.length >= 2) return false;
+  handleDisconnection(socket) {
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    console.log(`🔗 Player disconnected: ${socket.id}`);
 
-    const player = {
-      id: socket.id,
-      name: playerName,
-      health: 5000,
-      gameMode: gameMode,
-      personalCategory: personalCategory,
-      socket: socket
-    };
-
-    this.players.push(player);
-    this.health[socket.id] = 5000;
-    this.playerCategories.push(personalCategory);
-
-    console.log(`🎯 Player added to room ${this.id}: ${playerName} (${socket.id}) - Health: 5000`);
-
-    if (this.players.length === 2) {
-      this.questions = this.prepareGameQuestions();
-      console.log(`🎯 Room ${this.id} ready with 2 players - ${this.questions.length} questions prepared`);
-    }
-
-    return true;
-  }
-
-  prepareGameQuestions() {
-    if (this.gameMode === 'general') {
-      return this.getGeneralQuestions();
-    }
-    return this.getCategoryQuestions();
-  }
-
-  getGeneralQuestions() {
-    const shuffled = this.shuffleArray([...this.questionsData]);
-    const selected = shuffled.slice(0, this.questionsPerGame);
-    return selected.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
-  }
-
-  getCategoryQuestions() {
-    const [category1, category2] = this.playerCategories;
-    const cat1Questions = this.getQuestionsForCategory(category1);
-    const cat2Questions = this.getQuestionsForCategory(category2);
-
-    const questionsPerCategory = 5;
-    const selected1 = this.shuffleArray(cat1Questions).slice(0, questionsPerCategory);
-    const selected2 = this.shuffleArray(cat2Questions).slice(0, questionsPerCategory);
-
-    const combined = [...selected1, ...selected2];
-    const shuffled = this.shuffleArray(combined);
-
-    return shuffled.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
-  }
-
-  getQuestionsForCategory(playerCategory) {
-    const categoryMapping = {
-      'science & technology': ['Science', 'Technology', 'Physics', 'Biology', 'Chemistry'],
-      'sports & games': ['Sports', 'Entertainment'],
-      'history & politics': ['History'],
-      'literature & arts': ['Literature', 'Art'],
-      'geography & nature': ['Geography'],
-      'entertainment & media': ['Entertainment', 'Music'],
-      'food & culture': ['Food', 'Culture'],
-      'science': ['Science', 'Physics', 'Biology', 'Chemistry'],
-      'technology': ['Technology'],
-      'sports': ['Sports'],
-      'history': ['History'],
-      'literature': ['Literature'],
-      'art': ['Art'],
-      'geography': ['Geography'],
-      'entertainment': ['Entertainment', 'Music'],
-      'food': ['Food'],
-      'culture': ['Culture']
-    };
-
-    const categoryLower = playerCategory.toLowerCase().trim();
-    let matchingCategories = categoryMapping[categoryLower] || [];
-
-    if (categoryLower.includes('&')) {
-      const parts = categoryLower.split('&').map(part => part.trim());
-      matchingCategories = [];
-      parts.forEach(part => {
-        if (categoryMapping[part]) {
-          matchingCategories.push(...categoryMapping[part]);
+    if (playerInfo && playerInfo.currentRoom) {
+      if (playerInfo.roomType === 'survival') {
+        const room = this.survivalRooms.get(playerInfo.currentRoom);
+        if (room) {
+          console.log(`🎯 Removing player from survival room: ${playerInfo.currentRoom}`);
+          room.removePlayer(socket.id);
+          if (room.players.length === 0) {
+            this.survivalRooms.delete(playerInfo.currentRoom);
+            console.log(`🎯 Deleted empty survival room: ${playerInfo.currentRoom}`);
+          }
         }
-      });
-    }
-
-    matchingCategories = [...new Set(matchingCategories)];
-
-    return this.questionsData.filter(q => {
-      const qCategory = q.category.toLowerCase();
-      return matchingCategories.some(cat =>
-        qCategory === cat.toLowerCase() ||
-        qCategory.includes(cat.toLowerCase()) ||
-        cat.toLowerCase().includes(qCategory)
-      );
-    });
-  }
-
-  shuffleArray(array) {
-    const result = [...array];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
-  }
-
-  removePlayer(socketId) {
-    this.players = this.players.filter(p => p.id !== socketId);
-    delete this.health[socketId];
-
-    if (this.players.length === 0) {
-      this.cleanup();
-    }
-  }
-
-  updatePlayerHealth(socketId, healthChange) {
-    if (this.health[socketId] !== undefined) {
-      const oldHealth = this.health[socketId];
-      this.health[socketId] = Math.max(0, Math.min(5000, this.health[socketId] + healthChange));
-
-      const player = this.players.find(p => p.id === socketId);
-      if (player) {
-        player.health = this.health[socketId];
-      }
-
-      console.log(`🎯 Health update for ${player?.name || socketId}: ${oldHealth} -> ${this.health[socketId]} (${healthChange >= 0 ? '+' : ''}${healthChange})`);
-    }
-  }
-
-  isPlayerAlive(socketId) {
-    return (this.health[socketId] || 0) > 0;
-  }
-
-  getAlivePlayersCount() {
-    return this.players.filter(p => this.isPlayerAlive(p.id)).length;
-  }
-
-  startGame() {
-    if (this.players.length !== 2 || this.questions.length === 0) {
-      console.warn(`GameRoom ${this.id}: Cannot start game`);
-      return;
-    }
-
-    console.log(`🎯 Starting game in room ${this.id} with OneVsOne system`);
-    this.gameState = 'playing';
-    this.currentQuestion = 0;
-    this.startQuestion();
-  }
-
-  startQuestion() {
-    if (this.currentQuestion >= this.questionsPerGame || this.getAlivePlayersCount() < 2) {
-      this.endGame();
-      return;
-    }
-
-    const question = this.questions[this.currentQuestion];
-    this.currentHintIndex = 0;
-    this.startTime = Date.now();
-    this.questionAnswered = false;
-
-    console.log(`🎯 Room ${this.id}: Starting question ${this.currentQuestion + 1}/${this.questionsPerGame} - "${question.answer}"`);
-
-    this.broadcast('questionStart', {
-      targetIndex: this.currentQuestion + 1,
-      totalTargets: this.questionsPerGame,
-      category: question.category,
-      difficulty: question.difficulty,
-      health: this.health
-    });
-
-    setTimeout(() => {
-      if (this.gameState === 'playing' && !this.questionAnswered) {
-        this.revealHint();
-      }
-    }, 1000);
-
-    this.hintTimer = setInterval(() => {
-      if (this.gameState === 'playing' && !this.questionAnswered) {
-        this.revealHint();
-      }
-    }, 15000);
-
-    this.questionTimer = setTimeout(() => {
-      if (this.gameState === 'playing' && !this.questionAnswered) {
-        this.handleQuestionTimeout();
-      }
-    }, 120000);
-  }
-
-  // CRITICAL: OneVsOne system - NO HP deduction for hints
-  revealHint() {
-    console.log('🎯🎯🎯 REVEALING HINT - NO HP DEDUCTION 🎯🎯🎯');
-    const question = this.questions[this.currentQuestion];
-    if (!question || this.currentHintIndex >= 5 || this.currentHintIndex >= question.getTotalHints()) {
-      return;
-    }
-
-    const hintText = question.getHint(this.currentHintIndex);
-
-    // NO HP DEDUCTION HERE - OneVsOne system
-    console.log('🎯 HEALTH BEFORE HINT:', JSON.stringify(this.health));
-
-    this.broadcast('hintRevealed', {
-      index: this.currentHintIndex,
-      text: hintText,
-      health: this.health
-    });
-
-    console.log('🎯 HEALTH AFTER HINT:', JSON.stringify(this.health), '- NO CHANGE (OneVsOne system)');
-    this.currentHintIndex++;
-  }
-
-  handleGuess(socketId, guess) {
-    const question = this.questions[this.currentQuestion];
-    const player = this.players.find(p => p.id === socketId);
-
-    if (!player || !question || this.gameState !== 'playing' || this.questionAnswered || !this.isPlayerAlive(socketId)) {
-      return;
-    }
-
-    const isCorrect = question.checkAnswer(guess);
-
-    console.log(`🎯 GUESS: "${guess}" by ${player.name} - ${isCorrect ? 'CORRECT' : 'WRONG'}`);
-    console.log(`🎯 Health BEFORE guess: ${JSON.stringify(this.health)}`);
-
-    if (isCorrect) {
-      this.questionAnswered = true;
-
-      const hintCount = this.currentHintIndex;
-      const damageToOpponent = this.damageByHint(hintCount);
-
-      console.log(`🎯 CORRECT! Dealing ${damageToOpponent} damage (hint ${hintCount})`);
-
-      // Damage opponent
-      this.players.forEach(p => {
-        if (p.id !== socketId && this.isPlayerAlive(p.id)) {
-          this.updatePlayerHealth(p.id, -damageToOpponent);
-          console.log(`🎯 Damaged ${p.name}: ${this.health[p.id]} HP remaining`);
-        }
-      });
-
-      this.broadcast('questionResult', {
-        winner: socketId,
-        winnerName: player.name,
-        correctAnswer: question.answer,
-        timeElapsed: (Date.now() - this.startTime) / 1000,
-        health: this.health,
-        hintCount: hintCount,
-        healthLoss: damageToOpponent
-      });
-
-      this.nextQuestion();
-    } else {
-      console.log(`🎯 WRONG ANSWER - NO PENALTY! (OneVsOne system)`);
-
-      // NO HP PENALTY for wrong answers in OneVsOne system
-      this.broadcast('wrongAnswer', {
-        playerId: socketId,
-        playerName: player.name,
-        guess
-      });
-
-      console.log(`🎯 Health AFTER wrong guess: ${JSON.stringify(this.health)} - NO CHANGE (OneVsOne system)`);
-
-      if (this.getAlivePlayersCount() <= 1) {
-        this.questionAnswered = true;
-        this.endGame();
-      }
-    }
-  }
-
-  handleQuestionTimeout() {
-    if (this.questionAnswered) return;
-
-    const question = this.questions[this.currentQuestion];
-
-    console.log(`🎯 TIMEOUT - NO PENALTY! Room: ${this.id}`);
-    console.log(`🎯 Health after timeout: ${JSON.stringify(this.health)} - NO CHANGE (OneVsOne system)`);
-
-    this.broadcast('questionResult', {
-      winner: null,
-      correctAnswer: question.answer,
-      timeElapsed: 120,
-      health: this.health
-    });
-
-    this.nextQuestion();
-  }
-
-  nextQuestion() {
-    this.clearTimers();
-
-    setTimeout(() => {
-      this.currentQuestion++;
-      if (this.currentQuestion < this.questionsPerGame && this.getAlivePlayersCount() >= 2) {
-        this.startQuestion();
       } else {
-        this.endGame();
-      }
-    }, 3000);
-  }
-
-  endGame() {
-    this.clearTimers();
-    this.gameState = 'finished';
-
-    console.log(`🎯 Game ended in room ${this.id}. Final health: ${JSON.stringify(this.health)}`);
-
-    const results = this.players.map(p => ({
-      id: p.id,
-      name: p.name,
-      health: this.health[p.id] || 0,
-      isAlive: this.isPlayerAlive(p.id),
-      category: p.personalCategory
-    })).sort((a, b) => {
-      if (a.isAlive && !b.isAlive) return -1;
-      if (!a.isAlive && b.isAlive) return 1;
-      return b.health - a.health;
-    });
-
-    this.broadcast('gameEnd', { results });
-  }
-
-  clearTimers() {
-    if (this.hintTimer) {
-      clearInterval(this.hintTimer);
-      this.hintTimer = null;
-    }
-    if (this.questionTimer) {
-      clearTimeout(this.questionTimer);
-      this.questionTimer = null;
-    }
-  }
-
-  cleanup() {
-    this.clearTimers();
-  }
-
-  broadcast(event, data) {
-    this.players.forEach(player => {
-      if (player.socket && player.socket.connected) {
-        try {
-          player.socket.emit(event, data);
-        } catch (error) {
-          console.error(`GameRoom ${this.id}: Error broadcasting to ${player.id}:`, error.message);
+        const room = this.gameRooms.get(playerInfo.currentRoom);
+        if (room) {
+          room.removePlayer(socket.id);
+          if (room.players.length > 0) {
+            room.broadcast('playerDisconnected', {
+              disconnectedPlayer: socket.id
+            });
+          }
+          if (room.players.length === 0) {
+            this.gameRooms.delete(playerInfo.currentRoom);
+          }
         }
       }
-    });
+    }
+
+    this.connectedPlayers.delete(socket.id);
+  }
+
+  // Existing findMatch method stays the same...
+  findMatch(socket, playerData) {
+    const {
+      playerName,
+      gameMode = 'general',
+      personalCategory = 'general',
+      personalCategoryName = 'General Knowledge'
+    } = playerData;
+
+    console.log(`🎯 Finding regular match for ${playerName} (${gameMode})`);
+
+    let availableRoom = null;
+    for (const room of this.gameRooms.values()) {
+      if (room.gameState === 'waiting' &&
+          room.players.length === 1 &&
+          room.gameMode === gameMode) {
+
+        if (gameMode === 'category') {
+          const existingPlayer = room.players[0];
+          if (existingPlayer.personalCategory !== personalCategory) {
+            availableRoom = room;
+            break;
+          }
+        } else {
+          availableRoom = room;
+          break;
+        }
+      }
+    }
+
+    if (availableRoom) {
+      const success = availableRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+      if (success) {
+        const playerInfo = this.connectedPlayers.get(socket.id);
+        if (playerInfo) {
+          playerInfo.currentRoom = availableRoom.id;
+          playerInfo.roomType = 'regular';
+        }
+
+        const players = availableRoom.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          gameMode: p.gameMode,
+          personalCategory: p.personalCategory
+        }));
+
+        const categoryInfo = gameMode === 'category' ? {
+          player1Category: availableRoom.players[0].personalCategory,
+          player2Category: availableRoom.players[1].personalCategory,
+          questionsPerGame: 10,
+          mixStrategy: `5 questions from ${availableRoom.players[0].personalCategory} + 5 from ${availableRoom.players[1].personalCategory}`,
+          categoryMix: availableRoom.categoryMix
+        } : {
+          questionsPerGame: 5,
+          mixStrategy: 'General knowledge questions'
+        };
+
+        availableRoom.broadcast('matchFound', {
+          players,
+          gameMode,
+          categoryInfo
+        });
+
+        setTimeout(() => {
+          if (availableRoom.players.length === 2 && availableRoom.gameState === 'waiting') {
+            availableRoom.startGame();
+          }
+        }, 2000);
+
+        return;
+      }
+    }
+
+    // Create new room
+    const roomId = uuidv4().split('-')[0].toUpperCase();
+    const gameRoom = new GameRoom(roomId, this.questionsData, personalCategory, gameMode);
+
+    const success = gameRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+    if (success) {
+      this.gameRooms.set(roomId, gameRoom);
+
+      const playerInfo = this.connectedPlayers.get(socket.id);
+      if (playerInfo) {
+        playerInfo.currentRoom = roomId;
+        playerInfo.roomType = 'regular';
+      }
+
+      socket.emit('waitingForMatch', {
+        roomId,
+        gameMode,
+        personalCategory,
+        personalCategoryName
+      });
+
+      setTimeout(() => {
+        if (gameRoom.players.length === 1 && gameRoom.gameState === 'waiting') {
+          if (gameRoom.players[0] && gameRoom.players[0].socket.connected) {
+            gameRoom.players[0].socket.emit('matchTimeout');
+          }
+          this.gameRooms.delete(roomId);
+        }
+      }, 120000);
+    }
+  }
+
+  // New survival match method
+  findSurvivalMatch(socket, playerData) {
+    const {
+      playerName,
+      gameMode = 'survival',
+      personalCategory = 'general',
+      personalCategoryName = 'General Knowledge'
+    } = playerData;
+
+    console.log(`🎯 Finding survival match for ${playerName}`);
+
+    // Look for available survival room
+    let availableRoom = null;
+    for (const room of this.survivalRooms.values()) {
+      if (room.gameState === 'waiting' && room.players.length < room.maxPlayers) {
+        availableRoom = room;
+        console.log(`🎯 Found available survival room: ${room.id} (${room.players.length}/${room.maxPlayers})`);
+        break;
+      }
+    }
+
+    if (availableRoom) {
+      const success = availableRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+      if (success) {
+        const playerInfo = this.connectedPlayers.get(socket.id);
+        if (playerInfo) {
+          playerInfo.currentRoom = availableRoom.id;
+          playerInfo.roomType = 'survival';
+        }
+
+        console.log(`🎯 Player ${playerName} joined survival room ${availableRoom.id} (${availableRoom.players.length}/${availableRoom.maxPlayers})`);
+
+        // Notify about room status
+        socket.emit('waitingForMatch', {
+          roomId: availableRoom.id,
+          playersInRoom: availableRoom.players.length,
+          maxPlayers: availableRoom.maxPlayers
+        });
+
+        // Notify all players in room about updated count
+        availableRoom.broadcast('waitingForMatch', {
+          roomId: availableRoom.id,
+          playersInRoom: availableRoom.players.length,
+          maxPlayers: availableRoom.maxPlayers
+        });
+
+        // If we have enough players, start the game
+        if (availableRoom.players.length >= 2) {
+          console.log(`🎯 Survival room ${availableRoom.id} has ${availableRoom.players.length} players, starting game...`);
+
+          const players = availableRoom.players.map(p => ({
+            id: p.id,
+            name: p.name,
+            gameMode: p.gameMode,
+            personalCategory: p.personalCategory
+          }));
+
+          availableRoom.broadcast('matchFound', {
+            players,
+            gameMode: 'survival',
+            categoryInfo: {
+              questionsPerGame: 20,
+              mixStrategy: 'Mixed categories for survival challenge',
+              gameType: 'Battle Royale'
+            }
+          });
+
+          // Start game after brief delay
+          setTimeout(() => {
+            if (availableRoom.canStartGame()) {
+              availableRoom.startGame();
+            }
+          }, 5000);
+        }
+
+        return;
+      }
+    }
+
+    // Create new survival room
+    const roomId = `SURVIVAL-${uuidv4().split('-')[0].toUpperCase()}`;
+    const survivalRoom = new SurvivalRoom(roomId, this.questionsData, personalCategory, gameMode);
+
+    const success = survivalRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+    if (success) {
+      this.survivalRooms.set(roomId, survivalRoom);
+
+      const playerInfo = this.connectedPlayers.get(socket.id);
+      if (playerInfo) {
+        playerInfo.currentRoom = roomId;
+        playerInfo.roomType = 'survival';
+      }
+
+      console.log(`🎯 Created new survival room ${roomId} for player ${playerName}`);
+
+      socket.emit('waitingForMatch', {
+        roomId,
+        playersInRoom: 1,
+        maxPlayers: survivalRoom.maxPlayers,
+        gameMode: 'survival',
+        personalCategory,
+        personalCategoryName
+      });
+
+      // Auto-cleanup waiting rooms after 5 minutes
+      setTimeout(() => {
+        if (survivalRoom.players.length < 2 && survivalRoom.gameState === 'waiting') {
+          console.log(`🎯 Auto-cleaning up survival room ${roomId} due to timeout`);
+          survivalRoom.players.forEach(player => {
+            if (player.socket && player.socket.connected) {
+              player.socket.emit('matchTimeout');
+            }
+          });
+          this.survivalRooms.delete(roomId);
+        }
+      }, 300000); // 5 minutes
+    }
+  }
+
+  handleGuess(socket, guess) {
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    if (!playerInfo || !playerInfo.currentRoom) {
+      return;
+    }
+
+    let room = null;
+    if (playerInfo.roomType === 'survival') {
+      room = this.survivalRooms.get(playerInfo.currentRoom);
+    } else {
+      room = this.gameRooms.get(playerInfo.currentRoom);
+    }
+
+    if (!room || room.gameState !== 'playing') {
+      return;
+    }
+
+    room.handleGuess(socket.id, guess);
+  }
+
+  getWaitingPlayersCount() {
+    let count = 0;
+    for (const room of this.gameRooms.values()) {
+      if (room.gameState === 'waiting') {
+        count += room.players.length;
+      }
+    }
+    for (const room of this.survivalRooms.values()) {
+      if (room.gameState === 'waiting') {
+        count += room.players.length;
+      }
+    }
+    return count;
   }
 
   getStats() {
-    return {
-      id: this.id,
-      gameMode: this.gameMode,
-      playerCategories: this.playerCategories,
-      playerCount: this.players.length,
-      gameState: this.gameState,
-      currentTarget: this.currentQuestion + 1,
-      totalTargets: this.questionsPerGame,
-      questionsInDatabase: this.questions.length,
-      playersHealth: this.health,
-      alivePlayersCount: this.getAlivePlayersCount(),
-      createdAt: this.createdAt
+    const totalRooms = this.gameRooms.size + this.survivalRooms.size;
+    const totalPlayers = this.connectedPlayers.size;
+
+    const roomStats = {
+      waiting: 0,
+      playing: 0,
+      finished: 0,
+      general: 0,
+      category: 0,
+      survival: 0
     };
+
+    for (const room of this.gameRooms.values()) {
+      roomStats[room.gameState] = (roomStats[room.gameState] || 0) + 1;
+      roomStats[room.gameMode] = (roomStats[room.gameMode] || 0) + 1;
+    }
+
+    for (const room of this.survivalRooms.values()) {
+      roomStats[room.gameState] = (roomStats[room.gameState] || 0) + 1;
+      roomStats.survival = (roomStats.survival || 0) + 1;
+    }
+
+    // Log stats every now and then
+    console.log(`📊 GameManager Stats: ${totalPlayers} players, ${totalRooms} rooms (${roomStats.survival} survival)`);
+
+    return {
+      totalRooms,
+      totalPlayers,
+      roomStats,
+      questionsAvailable: this.questionsData.length,
+      survivalRoomsActive: this.survivalRooms.size,
+      regularRoomsActive: this.gameRooms.size
+    };
+  }
+
+  cleanupAbandonedRooms() {
+    const regularRoomsToDelete = [];
+    const survivalRoomsToDelete = [];
+
+    for (const [roomId, room] of this.gameRooms.entries()) {
+      if (room.players.length === 0) {
+        regularRoomsToDelete.push(roomId);
+      }
+    }
+
+    for (const [roomId, room] of this.survivalRooms.entries()) {
+      if (room.players.length === 0) {
+        survivalRoomsToDelete.push(roomId);
+      }
+    }
+
+    regularRoomsToDelete.forEach(roomId => {
+      console.log(`🗑️ Cleaning up empty regular room: ${roomId}`);
+      this.gameRooms.delete(roomId);
+    });
+
+    survivalRoomsToDelete.forEach(roomId => {
+      console.log(`🗑️ Cleaning up empty survival room: ${roomId}`);
+      this.survivalRooms.delete(roomId);
+    });
+
+    if (regularRoomsToDelete.length > 0 || survivalRoomsToDelete.length > 0) {
+      console.log(`🗑️ Cleaned up ${regularRoomsToDelete.length} regular rooms and ${survivalRoomsToDelete.length} survival rooms`);
+    }
+  }
+
+  shutdown() {
+    console.log('🔥 GameManager shutting down...');
+
+    for (const room of this.gameRooms.values()) {
+      if (room.broadcast) {
+        room.broadcast('serverShutdown', { reason: 'Server maintenance' });
+      }
+      if (room.cleanup) {
+        room.cleanup();
+      }
+    }
+
+    for (const room of this.survivalRooms.values()) {
+      if (room.broadcast) {
+        room.broadcast('serverShutdown', { reason: 'Server maintenance' });
+      }
+      if (room.cleanup) {
+        room.cleanup();
+      }
+    }
+
+    this.gameRooms.clear();
+    this.survivalRooms.clear();
+    this.connectedPlayers.clear();
+
+    console.log('🔥 GameManager shutdown complete');
+  }
+
+  // Debug methods
+  getSurvivalRoomsInfo() {
+    const roomsInfo = [];
+    for (const [roomId, room] of this.survivalRooms.entries()) {
+      roomsInfo.push({
+        id: roomId,
+        players: room.players.length,
+        maxPlayers: room.maxPlayers,
+        state: room.gameState,
+        playerNames: room.players.map(p => p.name)
+      });
+    }
+    return roomsInfo;
+  }
+
+  logDebugInfo() {
+    console.log('🎯 === GAMEMANAGER DEBUG INFO ===');
+    console.log(`Connected Players: ${this.connectedPlayers.size}`);
+    console.log(`Regular Rooms: ${this.gameRooms.size}`);
+    console.log(`Survival Rooms: ${this.survivalRooms.size}`);
+
+    if (this.survivalRooms.size > 0) {
+      console.log('🎯 Survival Rooms Details:');
+      this.getSurvivalRoomsInfo().forEach(room => {
+        console.log(`  - ${room.id}: ${room.players}/${room.maxPlayers} players (${room.state}) - [${room.playerNames.join(', ')}]`);
+      });
+    }
+    console.log('🎯 ================================');
   }
 }
 
-module.exports = GameRoom;
+module.exports = GameManager;

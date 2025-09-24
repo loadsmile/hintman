@@ -110,24 +110,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </span>
           </div>
         </div>
-
-        <div className="flex justify-between items-center mt-1">
-          <div className="flex items-center space-x-2">
-            {currentHealth <= 0 && (
-              <span className="text-xs text-red-400 font-bold animate-bounce">☠️ ELIMINATED</span>
-            )}
-            {healthPercentage <= 25 && currentHealth > 0 && (
-              <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>
-            )}
-            {healthPercentage > 75 && (
-              <span className="text-xs text-green-400 font-bold">✨ EXCELLENT</span>
-            )}
-          </div>
-
-          <div className="text-xs text-gray-400">
-            {Math.round(healthPercentage)}%
-          </div>
-        </div>
       </div>
     );
   };
@@ -325,7 +307,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         if (mountedRef.current) {
           setGameResult(null);
         }
-      }, 1000);
+      }, 3000); // Increased from 1000ms to 3000ms
     });
 
     socket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
@@ -680,10 +662,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               </p>
             </div>
           )}
-          <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-800">
-            🔗 Server: {getServerDisplayName()}
-          </div>
-          <p className="mt-2 text-xs text-gray-500">Matching by game mode for faster results</p>
           <Button onClick={() => setGameState('matchmaking')} variant="secondary" className="mt-6">
             Cancel Search
           </Button>
@@ -841,7 +819,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                   )}
                 </p>
                 <p className="text-xs text-gray-400">
-                  Hint {hints.length}/{5} • Damage: {damageByHint(hints.length || 1)} HP • Server: {getServerDisplayName()}
+                  Hint {hints.length}/{5} • Damage: {damageByHint(hints.length || 1)} HP
                 </p>
               </div>
               <Timer
@@ -884,40 +862,45 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </div>
           </div>
 
-          {gameResult && (
-            <div className={`mb-6 p-4 rounded-lg border-2 ${
-              gameResult.winner === players.find(p => p.name === playerName)?.id ? 'bg-green-900 border-green-500' :
-              gameResult.winner && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' ? 'bg-red-900 border-red-500' :
-              gameResult.winner === 'disconnect' ? 'bg-blue-900 border-blue-500' :
-              gameResult.winner === 'elimination' ? 'bg-purple-900 border-purple-500' :
-              gameResult.isWrongAnswer ? 'bg-yellow-900 border-yellow-500' :
-              'bg-yellow-900 border-yellow-500'
-            }`}>
-              <div className="text-center text-white">
-                {gameResult.winner === players.find(p => p.name === playerName)?.id && (
-                  <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
-                )}
-                {gameResult.winner && gameResult.winner !== players.find(p => p.name === playerName)?.id && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' && (
-                  <p className="text-lg font-bold">🎯 {gameResult.winnerName} shot the target first! You lose {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
-                )}
-                {gameResult.winner === 'disconnect' && (
-                  <p className="text-lg font-bold">🏆 {gameResult.message}</p>
-                )}
-                {gameResult.winner === 'elimination' && (
-                  <p className="text-lg font-bold">☠️ {gameResult.message}</p>
-                )}
-                {gameResult.isWrongAnswer && gameResult.incorrectGuess && (
-                  <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} missed shot: "{gameResult.incorrectGuess}" - No penalties!</p>
-                )}
-                {!gameResult.winner && gameResult.incorrectGuess && !gameResult.isWrongAnswer && (
-                  <p className="text-lg font-bold">❌ Missed shot: "{gameResult.incorrectGuess}" - No penalties, keep trying!</p>
-                )}
-                {gameResult.correctAnswer && (
-                  <p className="text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
-                )}
-              </div>
+          {/* Fixed Position Result Message - No more movement! */}
+          <div className="relative mb-6">
+            <div className="h-20"> {/* Fixed height container to prevent layout shift */}
+              {gameResult && (
+                <div className={`absolute top-0 left-0 right-0 p-4 rounded-lg border-2 transition-all duration-300 ease-in-out ${
+                  gameResult.winner === players.find(p => p.name === playerName)?.id ? 'bg-green-900 border-green-500' :
+                  gameResult.winner && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' ? 'bg-red-900 border-red-500' :
+                  gameResult.winner === 'disconnect' ? 'bg-blue-900 border-blue-500' :
+                  gameResult.winner === 'elimination' ? 'bg-purple-900 border-purple-500' :
+                  gameResult.isWrongAnswer ? 'bg-yellow-900 border-yellow-500' :
+                  'bg-yellow-900 border-yellow-500'
+                }`}>
+                  <div className="text-center text-white">
+                    {gameResult.winner === players.find(p => p.name === playerName)?.id && (
+                      <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
+                    )}
+                    {gameResult.winner && gameResult.winner !== players.find(p => p.name === playerName)?.id && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' && (
+                      <p className="text-lg font-bold">🎯 {gameResult.winnerName} shot the target first! You lose {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
+                    )}
+                    {gameResult.winner === 'disconnect' && (
+                      <p className="text-lg font-bold">🏆 {gameResult.message}</p>
+                    )}
+                    {gameResult.winner === 'elimination' && (
+                      <p className="text-lg font-bold">☠️ {gameResult.message}</p>
+                    )}
+                    {gameResult.isWrongAnswer && gameResult.incorrectGuess && (
+                      <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} missed shot: "{gameResult.incorrectGuess}" - No penalties!</p>
+                    )}
+                    {!gameResult.winner && gameResult.incorrectGuess && !gameResult.isWrongAnswer && (
+                      <p className="text-lg font-bold">❌ Missed shot: "{gameResult.incorrectGuess}" - No penalties, keep trying!</p>
+                    )}
+                    {gameResult.correctAnswer && (
+                      <p className="text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <HintDisplay

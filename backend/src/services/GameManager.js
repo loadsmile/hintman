@@ -1,19 +1,26 @@
 const GameRoom = require('../models/GameRoom');
+const SurvivalRoom = require('../models/SurvivalRoom');
 const { v4: uuidv4 } = require('uuid');
 
 class GameManager {
   constructor(questionsData) {
     this.gameRooms = new Map();
+    this.survivalRooms = new Map();
     this.questionsData = questionsData;
     this.connectedPlayers = new Map();
+
+    console.log('🎯 GameManager initialized with Survival Mode support');
   }
 
   handleConnection(socket) {
     this.connectedPlayers.set(socket.id, {
       socket,
       connectedAt: Date.now(),
-      currentRoom: null
+      currentRoom: null,
+      roomType: null
     });
+
+    console.log(`🔗 Player connected: ${socket.id}`);
 
     socket.on('disconnect', () => {
       this.handleDisconnection(socket);
@@ -23,6 +30,11 @@ class GameManager {
       this.findMatch(socket, playerData);
     });
 
+    // Add survival match handler
+    socket.on('findSurvivalMatch', (playerData) => {
+      this.findSurvivalMatch(socket, playerData);
+    });
+
     socket.on('submitGuess', ({ guess }) => {
       this.handleGuess(socket, guess);
     });
@@ -30,19 +42,31 @@ class GameManager {
 
   handleDisconnection(socket) {
     const playerInfo = this.connectedPlayers.get(socket.id);
+    console.log(`🔗 Player disconnected: ${socket.id}`);
+
     if (playerInfo && playerInfo.currentRoom) {
-      const room = this.gameRooms.get(playerInfo.currentRoom);
-      if (room) {
-        room.removePlayer(socket.id);
-
-        if (room.players.length > 0) {
-          room.broadcast('playerDisconnected', {
-            disconnectedPlayer: socket.id
-          });
+      if (playerInfo.roomType === 'survival') {
+        const room = this.survivalRooms.get(playerInfo.currentRoom);
+        if (room) {
+          console.log(`🎯 Removing player from survival room: ${playerInfo.currentRoom}`);
+          room.removePlayer(socket.id);
+          if (room.players.length === 0) {
+            this.survivalRooms.delete(playerInfo.currentRoom);
+            console.log(`🎯 Deleted empty survival room: ${playerInfo.currentRoom}`);
+          }
         }
-
-        if (room.players.length === 0) {
-          this.gameRooms.delete(playerInfo.currentRoom);
+      } else {
+        const room = this.gameRooms.get(playerInfo.currentRoom);
+        if (room) {
+          room.removePlayer(socket.id);
+          if (room.players.length > 0) {
+            room.broadcast('playerDisconnected', {
+              disconnectedPlayer: socket.id
+            });
+          }
+          if (room.players.length === 0) {
+            this.gameRooms.delete(playerInfo.currentRoom);
+          }
         }
       }
     }
@@ -50,6 +74,7 @@ class GameManager {
     this.connectedPlayers.delete(socket.id);
   }
 
+  // Existing findMatch method stays the same...
   findMatch(socket, playerData) {
     const {
       playerName,
@@ -58,16 +83,14 @@ class GameManager {
       personalCategoryName = 'General Knowledge'
     } = playerData;
 
-    // For Under Cover Mission, match only by game mode (not category)
-    // This allows players with different categories to match
+    console.log(`🎯 Finding regular match for ${playerName} (${gameMode})`);
+
     let availableRoom = null;
     for (const room of this.gameRooms.values()) {
       if (room.gameState === 'waiting' &&
           room.players.length === 1 &&
           room.gameMode === gameMode) {
 
-        // For category mode, ensure we don't match players with the same category
-        // This encourages diversity in question selection
         if (gameMode === 'category') {
           const existingPlayer = room.players[0];
           if (existingPlayer.personalCategory !== personalCategory) {
@@ -87,6 +110,7 @@ class GameManager {
         const playerInfo = this.connectedPlayers.get(socket.id);
         if (playerInfo) {
           playerInfo.currentRoom = availableRoom.id;
+          playerInfo.roomType = 'regular';
         }
 
         const players = availableRoom.players.map(p => ({
@@ -96,7 +120,6 @@ class GameManager {
           personalCategory: p.personalCategory
         }));
 
-        // Enhanced category info for both players
         const categoryInfo = gameMode === 'category' ? {
           player1Category: availableRoom.players[0].personalCategory,
           player2Category: availableRoom.players[1].personalCategory,
@@ -135,6 +158,7 @@ class GameManager {
       const playerInfo = this.connectedPlayers.get(socket.id);
       if (playerInfo) {
         playerInfo.currentRoom = roomId;
+        playerInfo.roomType = 'regular';
       }
 
       socket.emit('waitingForMatch', {
@@ -144,7 +168,6 @@ class GameManager {
         personalCategoryName
       });
 
-      // Auto-cleanup waiting rooms after 2 minutes
       setTimeout(() => {
         if (gameRoom.players.length === 1 && gameRoom.gameState === 'waiting') {
           if (gameRoom.players[0] && gameRoom.players[0].socket.connected) {
@@ -156,13 +179,138 @@ class GameManager {
     }
   }
 
+  // New survival match method
+  findSurvivalMatch(socket, playerData) {
+    const {
+      playerName,
+      gameMode = 'survival',
+      personalCategory = 'general',
+      personalCategoryName = 'General Knowledge'
+    } = playerData;
+
+    console.log(`🎯 Finding survival match for ${playerName}`);
+
+    // Look for available survival room
+    let availableRoom = null;
+    for (const room of this.survivalRooms.values()) {
+      if (room.gameState === 'waiting' && room.players.length < room.maxPlayers) {
+        availableRoom = room;
+        console.log(`🎯 Found available survival room: ${room.id} (${room.players.length}/${room.maxPlayers})`);
+        break;
+      }
+    }
+
+    if (availableRoom) {
+      const success = availableRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+      if (success) {
+        const playerInfo = this.connectedPlayers.get(socket.id);
+        if (playerInfo) {
+          playerInfo.currentRoom = availableRoom.id;
+          playerInfo.roomType = 'survival';
+        }
+
+        console.log(`🎯 Player ${playerName} joined survival room ${availableRoom.id} (${availableRoom.players.length}/${availableRoom.maxPlayers})`);
+
+        // Notify about room status
+        socket.emit('waitingForMatch', {
+          roomId: availableRoom.id,
+          playersInRoom: availableRoom.players.length,
+          maxPlayers: availableRoom.maxPlayers
+        });
+
+        // Notify all players in room about updated count
+        availableRoom.broadcast('waitingForMatch', {
+          roomId: availableRoom.id,
+          playersInRoom: availableRoom.players.length,
+          maxPlayers: availableRoom.maxPlayers
+        });
+
+        // If we have enough players, start the game
+        if (availableRoom.players.length >= 2) {
+          console.log(`🎯 Survival room ${availableRoom.id} has ${availableRoom.players.length} players, starting game...`);
+
+          const players = availableRoom.players.map(p => ({
+            id: p.id,
+            name: p.name,
+            gameMode: p.gameMode,
+            personalCategory: p.personalCategory
+          }));
+
+          availableRoom.broadcast('matchFound', {
+            players,
+            gameMode: 'survival',
+            categoryInfo: {
+              questionsPerGame: 20,
+              mixStrategy: 'Mixed categories for survival challenge',
+              gameType: 'Battle Royale'
+            }
+          });
+
+          // Start game after brief delay
+          setTimeout(() => {
+            if (availableRoom.canStartGame()) {
+              availableRoom.startGame();
+            }
+          }, 5000);
+        }
+
+        return;
+      }
+    }
+
+    // Create new survival room
+    const roomId = `SURVIVAL-${uuidv4().split('-')[0].toUpperCase()}`;
+    const survivalRoom = new SurvivalRoom(roomId, this.questionsData, personalCategory, gameMode);
+
+    const success = survivalRoom.addPlayer(socket, playerName, gameMode, personalCategory);
+    if (success) {
+      this.survivalRooms.set(roomId, survivalRoom);
+
+      const playerInfo = this.connectedPlayers.get(socket.id);
+      if (playerInfo) {
+        playerInfo.currentRoom = roomId;
+        playerInfo.roomType = 'survival';
+      }
+
+      console.log(`🎯 Created new survival room ${roomId} for player ${playerName}`);
+
+      socket.emit('waitingForMatch', {
+        roomId,
+        playersInRoom: 1,
+        maxPlayers: survivalRoom.maxPlayers,
+        gameMode: 'survival',
+        personalCategory,
+        personalCategoryName
+      });
+
+      // Auto-cleanup waiting rooms after 5 minutes
+      setTimeout(() => {
+        if (survivalRoom.players.length < 2 && survivalRoom.gameState === 'waiting') {
+          console.log(`🎯 Auto-cleaning up survival room ${roomId} due to timeout`);
+          survivalRoom.players.forEach(player => {
+            if (player.socket && player.socket.connected) {
+              player.socket.emit('matchTimeout');
+            }
+          });
+          this.survivalRooms.delete(roomId);
+        }
+      }, 300000); // 5 minutes
+    }
+  }
+
   handleGuess(socket, guess) {
     const playerInfo = this.connectedPlayers.get(socket.id);
     if (!playerInfo || !playerInfo.currentRoom) {
       return;
     }
 
-    const room = this.gameRooms.get(playerInfo.currentRoom);
+    let room = null;
+    if (playerInfo.roomType === 'survival') {
+      room = this.survivalRooms.get(playerInfo.currentRoom);
+    } else {
+      room = this.gameRooms.get(playerInfo.currentRoom);
+    }
+
     if (!room || room.gameState !== 'playing') {
       return;
     }
@@ -177,11 +325,16 @@ class GameManager {
         count += room.players.length;
       }
     }
+    for (const room of this.survivalRooms.values()) {
+      if (room.gameState === 'waiting') {
+        count += room.players.length;
+      }
+    }
     return count;
   }
 
   getStats() {
-    const totalRooms = this.gameRooms.size;
+    const totalRooms = this.gameRooms.size + this.survivalRooms.size;
     const totalPlayers = this.connectedPlayers.size;
 
     const roomStats = {
@@ -189,7 +342,8 @@ class GameManager {
       playing: 0,
       finished: 0,
       general: 0,
-      category: 0
+      category: 0,
+      survival: 0
     };
 
     for (const room of this.gameRooms.values()) {
@@ -197,29 +351,58 @@ class GameManager {
       roomStats[room.gameMode] = (roomStats[room.gameMode] || 0) + 1;
     }
 
+    for (const room of this.survivalRooms.values()) {
+      roomStats[room.gameState] = (roomStats[room.gameState] || 0) + 1;
+      roomStats.survival = (roomStats.survival || 0) + 1;
+    }
+
+    // Log stats every now and then
+    console.log(`📊 GameManager Stats: ${totalPlayers} players, ${totalRooms} rooms (${roomStats.survival} survival)`);
+
     return {
       totalRooms,
       totalPlayers,
       roomStats,
-      questionsAvailable: this.questionsData.length
+      questionsAvailable: this.questionsData.length,
+      survivalRoomsActive: this.survivalRooms.size,
+      regularRoomsActive: this.gameRooms.size
     };
   }
 
   cleanupAbandonedRooms() {
-    const roomsToDelete = [];
+    const regularRoomsToDelete = [];
+    const survivalRoomsToDelete = [];
 
     for (const [roomId, room] of this.gameRooms.entries()) {
       if (room.players.length === 0) {
-        roomsToDelete.push(roomId);
+        regularRoomsToDelete.push(roomId);
       }
     }
 
-    roomsToDelete.forEach(roomId => {
+    for (const [roomId, room] of this.survivalRooms.entries()) {
+      if (room.players.length === 0) {
+        survivalRoomsToDelete.push(roomId);
+      }
+    }
+
+    regularRoomsToDelete.forEach(roomId => {
+      console.log(`🗑️ Cleaning up empty regular room: ${roomId}`);
       this.gameRooms.delete(roomId);
     });
+
+    survivalRoomsToDelete.forEach(roomId => {
+      console.log(`🗑️ Cleaning up empty survival room: ${roomId}`);
+      this.survivalRooms.delete(roomId);
+    });
+
+    if (regularRoomsToDelete.length > 0 || survivalRoomsToDelete.length > 0) {
+      console.log(`🗑️ Cleaned up ${regularRoomsToDelete.length} regular rooms and ${survivalRoomsToDelete.length} survival rooms`);
+    }
   }
 
   shutdown() {
+    console.log('🔥 GameManager shutting down...');
+
     for (const room of this.gameRooms.values()) {
       if (room.broadcast) {
         room.broadcast('serverShutdown', { reason: 'Server maintenance' });
@@ -229,8 +412,50 @@ class GameManager {
       }
     }
 
+    for (const room of this.survivalRooms.values()) {
+      if (room.broadcast) {
+        room.broadcast('serverShutdown', { reason: 'Server maintenance' });
+      }
+      if (room.cleanup) {
+        room.cleanup();
+      }
+    }
+
     this.gameRooms.clear();
+    this.survivalRooms.clear();
     this.connectedPlayers.clear();
+
+    console.log('🔥 GameManager shutdown complete');
+  }
+
+  // Debug methods
+  getSurvivalRoomsInfo() {
+    const roomsInfo = [];
+    for (const [roomId, room] of this.survivalRooms.entries()) {
+      roomsInfo.push({
+        id: roomId,
+        players: room.players.length,
+        maxPlayers: room.maxPlayers,
+        state: room.gameState,
+        playerNames: room.players.map(p => p.name)
+      });
+    }
+    return roomsInfo;
+  }
+
+  logDebugInfo() {
+    console.log('🎯 === GAMEMANAGER DEBUG INFO ===');
+    console.log(`Connected Players: ${this.connectedPlayers.size}`);
+    console.log(`Regular Rooms: ${this.gameRooms.size}`);
+    console.log(`Survival Rooms: ${this.survivalRooms.size}`);
+
+    if (this.survivalRooms.size > 0) {
+      console.log('🎯 Survival Rooms Details:');
+      this.getSurvivalRoomsInfo().forEach(room => {
+        console.log(`  - ${room.id}: ${room.players}/${room.maxPlayers} players (${room.state}) - [${room.playerNames.join(', ')}]`);
+      });
+    }
+    console.log('🎯 ================================');
   }
 }
 

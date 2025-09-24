@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Layout from './components/layout/Layout';
 import OneVsOne from './components/modes/OneVsOne';
 import OneVsOneMultiplayer from './components/modes/OneVsOneMultiplayer';
+import CodenameSurvival from './components/modes/CodenameSurvival';
 import './index.css';
 
 function App() {
@@ -14,7 +15,11 @@ function App() {
     setIsNameSet(true);
   };
 
-  const startGame = (mode) => setGameMode(mode);
+  const startGame = (mode) => {
+    console.log('Starting game mode:', mode);
+    setGameMode(mode);
+  };
+
   const backToMenu = () => setGameMode(null);
 
   // LOGIN SCREEN
@@ -71,7 +76,7 @@ function App() {
                 onClick={() => startGame('1v1')}
                 className="w-full bg-hitman-red text-white py-4 rounded-lg font-semibold hover:bg-red-700 transition duration-200 flex items-center justify-between px-6"
               >
-                <span>🎯 1 vs 1 Duel</span>
+                <span>🎯 Training Mission</span>
                 <span className="text-sm opacity-75">vs AI Agent</span>
               </button>
 
@@ -79,25 +84,32 @@ function App() {
                 onClick={() => startGame('1v1-multiplayer')}
                 className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-between px-6"
               >
-                <span>👥 1 vs 1 Online</span>
-                <span className="text-sm opacity-75">Real Players</span>
+                <span>👥 1 vs 1 Duel</span>
+                <span className="text-sm opacity-75">2 Players Online</span>
               </button>
 
               <button
-                disabled
-                className="w-full bg-hitman-gray text-white py-4 rounded-lg font-semibold opacity-50 cursor-not-allowed flex items-center justify-between px-6"
+                onClick={() => startGame('survival')}
+                className="w-full bg-purple-600 text-white py-4 rounded-lg font-semibold hover:bg-purple-700 transition duration-200 flex items-center justify-between px-6 border-2 border-yellow-400"
               >
-                <span>🎲 Party Mode</span>
-                <span className="text-sm opacity-75">Coming Soon</span>
+                <span>☠️ Codename: Survival</span>
+                <span className="text-sm opacity-75">Up to 6 Players</span>
               </button>
+            </div>
 
-              <button
-                disabled
-                className="w-full bg-hitman-gray text-white py-4 rounded-lg font-semibold opacity-50 cursor-not-allowed flex items-center justify-between px-6"
-              >
-                <span>🥊 Battle Royale</span>
-                <span className="text-sm opacity-75">Coming Soon</span>
-              </button>
+            <div className="mt-6 space-y-2 text-xs text-hitman-gray">
+              <div className="flex items-start space-x-2">
+                <span className="font-semibold">Training:</span>
+                <span>Practice against AI to hone your skills</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="font-semibold">1v1 Duel:</span>
+                <span>Quick duels against other agents</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="font-semibold text-purple-600">Survival:</span>
+                <span>Battle royale - last agent standing wins!</span>
+              </div>
             </div>
           </div>
         </div>
@@ -117,6 +129,12 @@ function App() {
       )}
       {gameMode === '1v1-multiplayer' && (
         <OneVsOneMultiplayer
+          playerName={playerName}
+          onBackToMenu={backToMenu}
+        />
+      )}
+      {gameMode === 'survival' && (
+        <CodenameSurvival
           playerName={playerName}
           onBackToMenu={backToMenu}
         />
