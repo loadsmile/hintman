@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Player } from '../../classes/Player.js';
 import { Question } from '../../classes/Question.js';
 import questionsData from '../../data/questions.json';
@@ -38,7 +38,7 @@ const aiGuessChance = (hintCount) => {
 };
 
 export default function OneVsOne({ playerName, onBackToMenu }) {
-  // UI/game state
+  // Core game state
   const [phase, setPhase] = useState('setup'); // setup | playing | finished
   const [qIndex, setQIndex] = useState(0);
   const [currentQ, setCurrentQ] = useState(null);
@@ -48,46 +48,35 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   const [human, setHuman] = useState(null);
   const [ai] = useState(new Player('ai', 'Agent 47', '🤖'));
 
-  // Refs to avoid stale closures and for strict sequencing
-  const deckRef = useRef([]);            // selected 5 questions
-  const processingRef = useRef(false);   // true while transitioning
-  const hintTimerRef = useRef(null);     // setInterval id
-  const phaseRef = useRef(phase);
-  const aiGuessTimersRef = useRef([]);   // Track all AI guess timeouts
-  const roundCompleteRef = useRef(false); // Flag to prevent multiple AI guesses after round ends
+  // Refs for internal logic that doesn't trigger re-renders
+  const deckRef = useRef([]);
+  const processingRef = useRef(false); // Prevents overlapping advanceRound calls
+  const hintTimerRef = useRef(null);
+  const questionIdRef = useRef(0); // Unique ID for each question instance
 
-  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  // Main game loop driver: mounts a new question when qIndex changes
+  useEffect(() => {
+    if (phase === 'playing') {
+      mountQuestion(qIndex);
+    }
+  }, [qIndex, phase, mountQuestion]);
 
-  // Init player
+  // Init player and cleanup
   useEffect(() => {
     if (!human && playerName) setHuman(new Player('human', playerName, '👤'));
-  }, [playerName, human]);
+    return () => clearHintTimer();
+  }, [playerName, human, clearHintTimer]);
 
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      clearHintTimer();
-      clearAllAIGuessTimers();
-    };
-  }, []);
-
-  const clearHintTimer = () => {
+  const clearHintTimer = useCallback(() => {
     if (hintTimerRef.current) {
       clearInterval(hintTimerRef.current);
       hintTimerRef.current = null;
     }
-  };
-
-  const clearAllAIGuessTimers = () => {
-    aiGuessTimersRef.current.forEach(timerId => {
-      if (timerId) clearTimeout(timerId);
-    });
-    aiGuessTimersRef.current = [];
-  };
+  }, []);
 
   const isAlive = (p) => !!p && (p.health ?? 0) > 0;
 
-  // Make a fresh 5-question deck with strong randomness
+  // Build a new random deck of questions
   const buildDeck = () => {
     const arr = [...questionsData];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -95,53 +84,48 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     const start = Math.floor(Math.random() * Math.max(1, arr.length - MAX_TARGETS));
-    const slice = arr.slice(start, start + MAX_TARGETS);
-    console.log(`Total questions available: ${questionsData.length}`);
-    console.log(`Selected 5 questions from index ${start}`);
-    console.log('Questions:', slice.map(q => q.answer));
-    deckRef.current = slice;
+    deckRef.current = arr.slice(start, start + MAX_TARGETS);
   };
 
-  // Load question model and mount hint mechanics
-  const mountQuestion = (index) => {
+  // Set up a new question and its timers
+  const mountQuestion = useCallback((index) => {
     const data = deckRef.current[index];
-    if (!data) return null;
+    if (!data) return;
 
-    console.log(`Starting question ${index + 1}/${MAX_TARGETS}: ${data.answer}`);
+    const questionId = ++questionIdRef.current;
+    console.log(`Mounting question ${index + 1}: ${data.answer} (ID: ${questionId})`);
 
     const q = new Question(data.id, data.answer, data.category, data.difficulty);
     const hints = (data.hints || []).slice(0, MAX_HINTS);
-    hints.forEach((h, i) => q.addHint(h, i * 15));
     q.start();
 
+    // Reset state for the new round
     setCurrentQ(q);
     setRevealed([]);
-    roundCompleteRef.current = false; // Reset round completion flag
+    setResult(null); // Clear result from previous round
+    setTimerKey(k => k + 1);
+    clearHintTimer();
 
-    // Clear any existing AI guess timers
-    clearAllAIGuessTimers();
-
-    // Timer remount
-    setTimerKey((k) => k + 1);
-
-    // Reveal first hint after 1s
+    // Schedule first hint
     setTimeout(() => {
-      if (phaseRef.current !== 'playing' || roundCompleteRef.current) return;
+      if (questionIdRef.current !== questionId) return;
       if (hints[0]) {
         setRevealed([{ index: 0, text: hints[0], revealed: true }]);
-        scheduleAIGuess(q, 1);
+        scheduleAIGuess(q, 1, questionId, index);
       }
     }, FIRST_HINT_DELAY_MS);
 
-    // Subsequent hints every 15s
-    clearHintTimer();
+    // Schedule subsequent hints
     hintTimerRef.current = setInterval(() => {
-      if (phaseRef.current !== 'playing' || roundCompleteRef.current) return;
+      if (questionIdRef.current !== questionId) {
+        clearHintTimer();
+        return;
+      }
       setRevealed((prev) => {
         const nextIdx = prev.length;
         if (nextIdx < Math.min(MAX_HINTS, hints.length)) {
           const next = { index: nextIdx, text: hints[nextIdx], revealed: true };
-          scheduleAIGuess(q, nextIdx + 1);
+          scheduleAIGuess(q, nextIdx + 1, questionId, index);
           return [...prev, next];
         } else {
           clearHintTimer();
@@ -149,162 +133,93 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
         }
       });
     }, HINT_INTERVAL_MS);
+  }, [clearHintTimer, scheduleAIGuess]);
 
-    return q;
-  };
-
-  // Centralized round advance to eliminate races
-  const advanceRound = (nextIndex) => {
-    // Single gate to prevent double transitions
+  // Handle end-of-round logic and transition to the next
+  const advanceRound = useCallback((nextIndex) => {
     if (processingRef.current) return;
     processingRef.current = true;
 
-    // Mark round as complete to prevent further AI guesses
-    roundCompleteRef.current = true;
-
-    // Clear all timers immediately
     clearHintTimer();
-    clearAllAIGuessTimers();
+    console.log(`Advancing to round ${nextIndex + 1}...`);
 
-    console.log(`Round ${qIndex + 1} complete, advancing to ${nextIndex + 1}`);
-
-    // After result banner, move on
     setTimeout(() => {
-      const canContinue =
-        nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai) && phaseRef.current === 'playing';
-
-      if (!canContinue) {
-        console.log('Game ending - cannot continue');
+      if (nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai)) {
+        setResult(null); // Clear result before updating index
+        setQIndex(nextIndex); // This triggers the useEffect to call mountQuestion
+      } else {
         setPhase('finished');
-        processingRef.current = false;
-        return;
       }
-
-      setQIndex(nextIndex);
-      // Ensure React flushes qIndex first, then mount next q
-      setTimeout(() => {
-        mountQuestion(nextIndex);
-        processingRef.current = false;
-      }, 50);
+      processingRef.current = false;
     }, ROUND_RESULT_DELAY_MS);
-  };
+  }, [clearHintTimer, human, ai]);
 
-  // AI guessing
-  const scheduleAIGuess = (q, hintCount) => {
-    if (roundCompleteRef.current) return; // Don't schedule if round is already complete
-
+  // AI guess logic
+  const scheduleAIGuess = useCallback((q, hintCount, questionId, index) => {
     const delay = 2000 + Math.random() * 6000;
-    const timerId = setTimeout(() => {
-      // Check if round is still active and not processing
-      if (phaseRef.current !== 'playing' || processingRef.current || roundCompleteRef.current) {
-        return;
+    setTimeout(() => {
+      if (questionIdRef.current !== questionId || processingRef.current || result) return;
+
+      if (Math.random() < aiGuessChance(hintCount)) {
+        console.log(`AI guess CORRECT for question ID ${questionId}`);
+        const dmg = damageByHint(hintCount);
+        setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
+        setResult({ winner: 'ai', correctAnswer: q.correctAnswer, hintCount, healthLoss: dmg });
+        advanceRound(index + 1);
+      } else {
+        console.log(`AI guess WRONG for question ID ${questionId}`);
       }
-
-      const chance = aiGuessChance(hintCount);
-      const ok = Math.random() < chance;
-      console.log(`AI guess with ${hintCount} hints: ${Math.round(chance * 100)}% -> ${ok ? 'CORRECT' : 'WRONG'}`);
-
-      if (!ok) return;
-
-      // AI got it right - end the round immediately
-      roundCompleteRef.current = true;
-      clearHintTimer();
-      clearAllAIGuessTimers();
-
-      const dmg = damageByHint(revealed.length || 1);
-      setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
-
-      setResult({
-        winner: 'ai',
-        correctAnswer: q.correctAnswer,
-        hintCount: revealed.length || 1,
-        healthLoss: dmg
-      });
-
-      advanceRound(qIndex + 1);
     }, delay);
+  }, [result, advanceRound]);
 
-    // Store timer ID for cleanup
-    aiGuessTimersRef.current.push(timerId);
-  };
-
-  // Player guess
+  // Human guess logic
   const onGuess = (guess) => {
-    if (!currentQ || phase !== 'playing' || processingRef.current || roundCompleteRef.current) return;
+    if (result && result.winner !== null) return; // Already a final result
 
     const correct = currentQ.checkAnswer(guess);
-    if (!correct) {
-      setResult({ winner: null, playerGuess: guess, healthLoss: 0 });
-      setTimeout(() => setResult(null), 1200);
-      return;
+    if (correct) {
+      const dmg = damageByHint(revealed.length || 1);
+      ai.health = Math.max(0, ai.health - dmg);
+      setResult({ winner: 'human', playerGuess: guess, correctAnswer: currentQ.correctAnswer, hintCount: revealed.length || 1, healthLoss: dmg });
+      advanceRound(qIndex + 1);
+    } else {
+      setResult({ winner: null, playerGuess: guess });
+      setTimeout(() => {
+        if (!processingRef.current) {
+          setResult(null);
+        }
+      }, 1200);
     }
-
-    // Player got it right - end the round immediately
-    roundCompleteRef.current = true;
-    clearHintTimer();
-    clearAllAIGuessTimers();
-
-    const dmg = damageByHint(revealed.length || 1);
-    ai.health = Math.max(0, ai.health - dmg);
-
-    setResult({
-      winner: 'human',
-      playerGuess: guess,
-      correctAnswer: currentQ.correctAnswer,
-      hintCount: revealed.length || 1,
-      healthLoss: dmg
-    });
-
-    advanceRound(qIndex + 1);
   };
 
+  // Handle timeout
   const onTimeUp = () => {
-    if (phase !== 'playing' || processingRef.current || roundCompleteRef.current) return;
-
-    // Time up - end the round
-    roundCompleteRef.current = true;
-    clearHintTimer();
-    clearAllAIGuessTimers();
-
-    setResult({
-      winner: 'timeout',
-      correctAnswer: currentQ?.correctAnswer,
-      hintCount: revealed.length,
-      healthLoss: 0
-    });
-
+    if (result && result.winner !== null) return;
+    setResult({ winner: 'timeout', correctAnswer: currentQ?.correctAnswer, hintCount: revealed.length });
     advanceRound(qIndex + 1);
   };
 
-  // Start/restart game
+  // Start a new game
   const startGame = () => {
-    if (!human) return;
-
     console.log('Starting new game...');
-
-    // Reset
     human.health = 5000;
     ai.health = 5000;
-    setQIndex(0);
-    setResult(null);
-    setRevealed([]);
     processingRef.current = false;
-    roundCompleteRef.current = false;
-
-    // Clear all timers
-    clearHintTimer();
-    clearAllAIGuessTimers();
-
+    questionIdRef.current = 0;
     buildDeck();
-    setPhase('playing');
 
-    // Mount first question after phase flips
-    setTimeout(() => {
+    setResult(null);
+    setPhase('playing');
+    if (qIndex === 0) {
       mountQuestion(0);
-    }, 50);
+    } else {
+      setQIndex(0);
+    }
   };
 
-  // Render
+  const isInputDisabled = (result && result.winner !== null) || phase !== 'playing' || !isAlive(human);
+
+  // Render logic
   if (phase === 'setup') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -316,7 +231,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
               <p className="mb-2">🎯 <strong>Survive {MAX_TARGETS} targets with Agent 47</strong></p>
               <p className="mb-2">💡 <strong>Hints are FREE!</strong> Wait for clues or answer fast</p>
               <p className="mb-2">⚡ <strong>Speed matters:</strong> Earlier answers deal more damage</p>
-              <p className="mb-2">❌ <strong>No penalties</strong> for wrong answers or time</p>
+              <p className="mb-2">❌ <strong>No penalties</strong> for wrong answers</p>
               <p>🏆 <strong>Win by having the most health remaining</strong></p>
             </div>
           </div>
@@ -344,9 +259,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
               Completed {qIndex + (result ? 1 : 0)} out of {MAX_TARGETS} targets
             </p>
           </div>
-
           <ScorePanels human={human} ai={ai} playerName={playerName} />
-
           <div className="flex space-x-4">
             <Button onClick={startGame} variant="primary" className="flex-1">🔄 NEW MISSION</Button>
             <Button onClick={onBackToMenu} variant="secondary" className="flex-1">🏠 BACK TO HQ</Button>
@@ -379,30 +292,25 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
             <Timer
               duration={QUESTION_TIME_SEC}
               onComplete={onTimeUp}
-              isActive={phase === 'playing' && !processingRef.current && !roundCompleteRef.current}
+              isActive={!isInputDisabled}
               key={`timer-${timerKey}`}
             />
           </div>
-
           <div className="grid grid-cols-2 gap-6 mb-6">
             <Panel title={human.name} health={human.health} isAI={false} />
             <Panel title="Agent 47" health={ai.health} isAI={true} />
           </div>
         </div>
-
-        {result && (
-          <ResultBanner result={result} />
-        )}
-
+        {result && <ResultBanner result={result} />}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <HintDisplay
             hints={revealed}
-            totalHints={Math.min(MAX_HINTS, currentQ.hints ? currentQ.hints.length : 0)}
-            key={`hints-${qIndex}-${revealed.length}`}
+            totalHints={Math.min(MAX_HINTS, currentQ.hints?.length || 0)}
+            key={`hints-${qIndex}`}
           />
           <GuessInput
             onSubmit={onGuess}
-            disabled={phase !== 'playing' || processingRef.current || !!result || !isAlive(human) || roundCompleteRef.current}
+            disabled={isInputDisabled}
             placeholder="Take your shot (be precise)..."
             key={`input-${qIndex}`}
           />
@@ -412,17 +320,18 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   );
 }
 
-/* ---------- Small UI helpers ---------- */
-
-function Panel({ title, health, isAI }) {
+/* ---------- UI Helpers ---------- */
+function Panel({ title, health, isAI, isFinishedScreen = false }) {
   const pct = Math.max(0, Math.min(100, Math.round((health / 5000) * 100)));
   const color = pct > 75 ? (isAI ? 'from-red-500 to-red-400' : 'from-green-500 to-green-400')
     : pct > 50 ? (isAI ? 'from-purple-500 to-purple-400' : 'from-yellow-500 to-yellow-400')
     : pct > 25 ? (isAI ? 'from-pink-500 to-pink-400' : 'from-orange-500 to-orange-400')
     : 'from-red-500 to-red-400';
 
+  const backgroundClass = isFinishedScreen ? 'bg-gray-50' : 'bg-gray-900';
+
   return (
-    <div className={`bg-gray-900 p-4 rounded-lg border-2 ${isAI ? 'border-red-400' : 'border-green-400'}`}>
+    <div className={`${backgroundClass} p-4 rounded-lg border-2 ${isAI ? 'border-red-400' : 'border-green-400'}`}>
       <div className="mb-2 text-center">
         <span className={`text-sm font-bold ${isAI ? 'text-red-400' : 'text-green-400'}`}>{title}</span>
       </div>
@@ -437,11 +346,11 @@ function Panel({ title, health, isAI }) {
       </div>
       <div className="flex justify-between items-center mt-1">
         <div className="flex items-center space-x-2">
-          {health <= 0 && <span className="text-xs text-red-400 font-bold animate-bounce">💀 SHOT DOWN</span>}
-          {pct <= 25 && health > 0 && <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>}
-          {pct > 75 && <span className="text-xs text-green-400 font-bold">✨ EXCELLENT</span>}
+          {health <= 0 && <span className={`text-xs text-red-400 font-bold animate-bounce`}>💀 SHOT DOWN</span>}
+          {pct <= 25 && health > 0 && <span className={`text-xs text-red-400 font-bold animate-pulse`}>⚠️ CRITICAL</span>}
+          {pct > 75 && <span className={`text-xs text-green-400 font-bold`}>✨ EXCELLENT</span>}
         </div>
-        <span className="text-xs text-gray-400">{pct}%</span>
+        <span className={`text-xs ${isFinishedScreen ? 'text-gray-600' : 'text-gray-400'}`}>{pct}%</span>
       </div>
     </div>
   );
@@ -449,7 +358,6 @@ function Panel({ title, health, isAI }) {
 
 function ScorePanels({ human, ai, playerName }) {
   const humanWon = (human?.health ?? 0) > ai.health || ((human?.health ?? 0) > 0 && ai.health <= 0);
-
   return (
     <div className="grid grid-cols-2 gap-6 mb-6">
       <div className={`p-4 rounded ${humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
@@ -464,9 +372,8 @@ function ScorePanels({ human, ai, playerName }) {
             <p className="text-sm text-gray-600">{human?.totalCorrect || 0}/{human?.totalQuestions || 0} correct</p>
           </div>
         </div>
-        <Panel title={human?.name || playerName} health={human?.health || 0} isAI={false} />
+        <Panel title={human?.name || playerName} health={human?.health || 0} isAI={false} isFinishedScreen={true} />
       </div>
-
       <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -479,7 +386,7 @@ function ScorePanels({ human, ai, playerName }) {
             <p className="text-sm text-gray-600">{ai.totalCorrect || 0}/{ai.totalQuestions || 0} correct</p>
           </div>
         </div>
-        <Panel title="Agent 47" health={ai.health} isAI={true} />
+        <Panel title="Agent 47" health={ai.health} isAI={true} isFinishedScreen={true} />
       </div>
     </div>
   );
