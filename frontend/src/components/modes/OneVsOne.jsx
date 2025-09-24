@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Player } from '../../classes/Player.js';
 import { Question } from '../../classes/Question.js';
 import questionsData from '../../data/questions.json';
@@ -39,7 +39,7 @@ const aiGuessChance = (hintCount) => {
 
 export default function OneVsOne({ playerName, onBackToMenu }) {
   // Core game state
-  const [phase, setPhase] = useState('setup');
+  const [phase, setPhase] = useState('setup'); // setup | playing | finished
   const [qIndex, setQIndex] = useState(0);
   const [currentQ, setCurrentQ] = useState(null);
   const [revealed, setRevealed] = useState([]);
@@ -48,32 +48,36 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   const [human, setHuman] = useState(null);
   const [ai] = useState(new Player('ai', 'Agent 47', '🤖'));
 
-  // Refs for internal logic
+  // Refs for internal logic that doesn't trigger re-renders
   const deckRef = useRef([]);
-  const processingRef = useRef(false);
+  const processingRef = useRef(false); // Prevents overlapping advanceRound calls
   const hintTimerRef = useRef(null);
-  const questionIdRef = useRef(0);
+  const questionIdRef = useRef(0); // Unique ID for each question instance
 
-  // Init player
+  // Main game loop driver: mounts a new question when qIndex changes
   useEffect(() => {
-    if (!human && playerName) {
-      setHuman(new Player('human', playerName, '👤'));
+    if (phase === 'playing') {
+      mountQuestion(qIndex);
     }
+  }, [qIndex, phase]);
+
+  // Init player and cleanup
+  useEffect(() => {
+    if (!human && playerName) setHuman(new Player('human', playerName, '🕴'));
+    return () => clearHintTimer();
   }, [playerName, human]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (hintTimerRef.current) {
-        clearInterval(hintTimerRef.current);
-        hintTimerRef.current = null;
-      }
-    };
-  }, []);
+  const clearHintTimer = () => {
+    if (hintTimerRef.current) {
+      clearInterval(hintTimerRef.current);
+      hintTimerRef.current = null;
+    }
+  };
 
   const isAlive = (p) => !!p && (p.health ?? 0) > 0;
 
-  const buildDeck = useCallback(() => {
+  // Build a new random deck of questions
+  const buildDeck = () => {
     const arr = [...questionsData];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -81,75 +85,28 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     }
     const start = Math.floor(Math.random() * Math.max(1, arr.length - MAX_TARGETS));
     deckRef.current = arr.slice(start, start + MAX_TARGETS);
-  }, []);
+  };
 
-  const clearHintTimer = useCallback(() => {
-    if (hintTimerRef.current) {
-      clearInterval(hintTimerRef.current);
-      hintTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleAIGuess = useCallback((q, hintCount, questionId, index) => {
-    const delay = 2000 + Math.random() * 6000;
-    setTimeout(() => {
-      if (questionIdRef.current !== questionId || processingRef.current || result) return;
-
-      if (Math.random() < aiGuessChance(hintCount)) {
-        console.log(`AI guess CORRECT for question ID ${questionId}`);
-        const dmg = damageByHint(hintCount);
-        setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
-        setResult({ winner: 'ai', correctAnswer: q.correctAnswer, hintCount, healthLoss: dmg });
-
-        // Advance round
-        setTimeout(() => {
-          if (index + 1 < MAX_TARGETS && isAlive(human) && ai.health > 0) {
-            setResult(null);
-            setQIndex(index + 1);
-          } else {
-            setPhase('finished');
-          }
-          processingRef.current = false;
-        }, ROUND_RESULT_DELAY_MS);
-      }
-    }, delay);
-  }, [result, human, ai.health]);
-
-  const advanceRound = useCallback((nextIndex) => {
-    if (processingRef.current) return;
-    processingRef.current = true;
-    clearHintTimer();
-
-    setTimeout(() => {
-      if (nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai)) {
-        setResult(null);
-        setQIndex(nextIndex);
-      } else {
-        setPhase('finished');
-      }
-      processingRef.current = false;
-    }, ROUND_RESULT_DELAY_MS);
-  }, [clearHintTimer, human, ai]);
-
-  const mountQuestion = useCallback((index) => {
-    if (!deckRef.current[index]) return;
-
+  // Set up a new question and its timers
+  const mountQuestion = (index) => {
     const data = deckRef.current[index];
-    const questionId = ++questionIdRef.current;
+    if (!data) return;
 
+    const questionId = ++questionIdRef.current;
     console.log(`Mounting question ${index + 1}: ${data.answer} (ID: ${questionId})`);
 
     const q = new Question(data.id, data.answer, data.category, data.difficulty);
     const hints = (data.hints || []).slice(0, MAX_HINTS);
     q.start();
 
+    // Reset state for the new round
     setCurrentQ(q);
     setRevealed([]);
-    setResult(null);
+    setResult(null); // Clear result from previous round
     setTimerKey(k => k + 1);
     clearHintTimer();
 
-    // First hint
+    // Schedule first hint
     setTimeout(() => {
       if (questionIdRef.current !== questionId) return;
       if (hints[0]) {
@@ -158,7 +115,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
       }
     }, FIRST_HINT_DELAY_MS);
 
-    // Subsequent hints
+    // Schedule subsequent hints
     hintTimerRef.current = setInterval(() => {
       if (questionIdRef.current !== questionId) {
         clearHintTimer();
@@ -176,18 +133,48 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
         }
       });
     }, HINT_INTERVAL_MS);
-  }, [clearHintTimer, scheduleAIGuess]);
+  };
 
-  // Mount question when qIndex changes
-  useEffect(() => {
-    if (phase === 'playing' && deckRef.current.length > 0) {
-      mountQuestion(qIndex);
-    }
-  }, [qIndex, phase, mountQuestion]);
+  // Handle end-of-round logic and transition to the next
+  const advanceRound = (nextIndex) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
 
-  const onGuess = useCallback((guess) => {
-    if (result && result.winner !== null) return;
-    if (!currentQ) return;
+    clearHintTimer();
+    console.log(`Advancing to round ${nextIndex + 1}...`);
+
+    setTimeout(() => {
+      if (nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai)) {
+        setResult(null); // Clear result before updating index
+        setQIndex(nextIndex); // This triggers the useEffect to call mountQuestion
+      } else {
+        setPhase('finished');
+      }
+      processingRef.current = false;
+    }, ROUND_RESULT_DELAY_MS);
+  };
+
+  // AI guess logic
+  const scheduleAIGuess = (q, hintCount, questionId, index) => {
+    const delay = 2000 + Math.random() * 6000;
+    setTimeout(() => {
+      if (questionIdRef.current !== questionId || processingRef.current || result) return;
+
+      if (Math.random() < aiGuessChance(hintCount)) {
+        console.log(`AI guess CORRECT for question ID ${questionId}`);
+        const dmg = damageByHint(hintCount);
+        setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
+        setResult({ winner: 'ai', correctAnswer: q.correctAnswer, hintCount, healthLoss: dmg });
+        advanceRound(index + 1);
+      } else {
+        console.log(`AI guess WRONG for question ID ${questionId}`);
+      }
+    }, delay);
+  };
+
+  // Human guess logic
+  const onGuess = (guess) => {
+    if (result && result.winner !== null) return; // Already a final result
 
     const correct = currentQ.checkAnswer(guess);
     if (correct) {
@@ -203,17 +190,17 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
         }
       }, 1200);
     }
-  }, [result, currentQ, revealed.length, ai, advanceRound, qIndex]);
+  };
 
-  const onTimeUp = useCallback(() => {
+  // Handle timeout
+  const onTimeUp = () => {
     if (result && result.winner !== null) return;
     setResult({ winner: 'timeout', correctAnswer: currentQ?.correctAnswer, hintCount: revealed.length });
     advanceRound(qIndex + 1);
-  }, [result, currentQ, revealed.length, advanceRound, qIndex]);
+  };
 
-  const startGame = useCallback(() => {
-    if (!human) return;
-
+  // Start a new game
+  const startGame = () => {
     console.log('Starting new game...');
     human.health = 5000;
     ai.health = 5000;
@@ -223,11 +210,16 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
 
     setResult(null);
     setPhase('playing');
-    setQIndex(0);
-  }, [human, ai, buildDeck]);
+    if (qIndex === 0) {
+      mountQuestion(0);
+    } else {
+      setQIndex(0);
+    }
+  };
 
   const isInputDisabled = (result && result.winner !== null) || phase !== 'playing' || !isAlive(human);
 
+  // Render logic
   if (phase === 'setup') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -255,22 +247,46 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     const humanWon = (human?.health ?? 0) > ai.health || (isAlive(human) && !isAlive(ai));
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-3xl w-full text-black border border-gray-200">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
-              {humanWon ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
-            </h2>
-            <p className="text-xl mb-6 text-gray-800">
+        <div className="bg-gradient-to-br from-white to-gray-50 p-10 rounded-2xl shadow-2xl max-w-4xl w-full text-black border border-gray-200 backdrop-blur-sm">
+          {/* Header Section */}
+          <div className="text-center mb-8">
+            <div className="mb-4">
+              <div className="text-6xl mb-3">
+                {humanWon ? '🏆' : '☠️'}
+              </div>
+              <h1 className="text-4xl font-bold font-spy mb-2 bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
+                {humanWon ? 'MISSION ACCOMPLISHED' : 'MISSION FAILED'}
+              </h1>
+              <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-red-700 mx-auto rounded-full mb-4"></div>
+            </div>
+            <p className="text-2xl mb-3 text-gray-700 font-medium">
               {humanWon ? `Congratulations Agent ${playerName}!` : 'Agent 47 completed the mission first.'}
             </p>
-            <p className="text-sm text-gray-600 mb-4">
+            <div className="inline-flex items-center px-4 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-600">
+              <span className="mr-2">📊</span>
               Completed {qIndex + (result ? 1 : 0)} out of {MAX_TARGETS} targets
-            </p>
+            </div>
           </div>
+
+          {/* Enhanced Score Panels */}
           <ScorePanels human={human} ai={ai} playerName={playerName} />
-          <div className="flex space-x-4">
-            <Button onClick={startGame} variant="primary" className="flex-1">🔄 NEW MISSION</Button>
-            <Button onClick={onBackToMenu} variant="secondary" className="flex-1">🏠 BACK TO HQ</Button>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-4 mt-8">
+            <Button
+              onClick={startGame}
+              variant="primary"
+              className="flex-1 py-4 text-lg font-semibold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg transform hover:scale-105 transition-all duration-200"
+            >
+              🔄 NEW MISSION
+            </Button>
+            <Button
+              onClick={onBackToMenu}
+              variant="secondary"
+              className="flex-1 py-4 text-lg font-semibold bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 shadow-lg transform hover:scale-105 transition-all duration-200"
+            >
+              🏠 BACK TO HQ
+            </Button>
           </div>
         </div>
       </div>
@@ -328,6 +344,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   );
 }
 
+/* ---------- UI Helpers ---------- */
 function Panel({ title, health, isAI, isFinishedScreen = false }) {
   const pct = Math.max(0, Math.min(100, Math.round((health / 5000) * 100)));
   const color = pct > 75 ? (isAI ? 'from-red-500 to-red-400' : 'from-green-500 to-green-400')
@@ -335,29 +352,32 @@ function Panel({ title, health, isAI, isFinishedScreen = false }) {
     : pct > 25 ? (isAI ? 'from-pink-500 to-pink-400' : 'from-orange-500 to-orange-400')
     : 'from-red-500 to-red-400';
 
-  const backgroundClass = isFinishedScreen ? 'bg-gray-50' : 'bg-gray-900';
+  // Use light background for finished screen, dark background for gameplay
+  const backgroundClass = isFinishedScreen ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-gray-900';
+  const healthBarBgClass = isFinishedScreen ? 'bg-gray-300' : 'bg-gray-800';
+  const percentageTextColor = isFinishedScreen ? 'text-gray-700' : 'text-gray-400';
 
   return (
-    <div className={`${backgroundClass} p-4 rounded-lg border-2 ${isAI ? 'border-red-400' : 'border-green-400'}`}>
-      <div className="mb-2 text-center">
-        <span className={`text-sm font-bold ${isAI ? 'text-red-400' : 'text-green-400'}`}>{title}</span>
+    <div className={`${backgroundClass} p-6 rounded-xl border-2 ${isAI ? 'border-red-400' : 'border-green-400'} ${isFinishedScreen ? 'shadow-lg' : ''}`}>
+      <div className="mb-3 text-center">
+        <span className={`text-sm font-bold ${isAI ? 'text-red-500' : 'text-green-500'}`}>{title}</span>
       </div>
-      <div className="relative w-full h-12 bg-gray-800 rounded-lg border overflow-hidden shadow-lg">
-        <div className={`h-full transition-all duration-500 ease-out bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }}>
-          <div className="absolute inset-0 bg-white bg-opacity-20 rounded-lg"></div>
-          {pct <= 25 && pct > 0 && <div className="absolute inset-0 bg-white bg-opacity-30 rounded-lg animate-pulse"></div>}
+      <div className={`relative w-full h-14 ${healthBarBgClass} rounded-xl border overflow-hidden shadow-inner`}>
+        <div className={`h-full transition-all duration-700 ease-out bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }}>
+          <div className="absolute inset-0 bg-white bg-opacity-20 rounded-xl"></div>
+          {pct <= 25 && pct > 0 && <div className="absolute inset-0 bg-white bg-opacity-30 rounded-xl animate-pulse"></div>}
         </div>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-bold text-white drop-shadow-lg tracking-wider">{Math.max(0, health)} HP</span>
+          <span className="text-xl font-bold text-white drop-shadow-lg tracking-wider">{Math.max(0, health)} HP</span>
         </div>
       </div>
-      <div className="flex justify-between items-center mt-1">
+      <div className="flex justify-between items-center mt-2">
         <div className="flex items-center space-x-2">
-          {health <= 0 && <span className="text-xs text-red-400 font-bold animate-bounce">💀 SHOT DOWN</span>}
-          {pct <= 25 && health > 0 && <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>}
-          {pct > 75 && <span className="text-xs text-green-400 font-bold">✨ EXCELLENT</span>}
+          {health <= 0 && <span className="text-xs text-red-500 font-bold animate-bounce">☠️ ELIMINATED</span>}
+          {pct <= 25 && health > 0 && <span className="text-xs text-red-500 font-bold animate-pulse">⚠️ CRITICAL</span>}
+          {pct > 75 && <span className="text-xs text-green-500 font-bold">✨ EXCELLENT</span>}
         </div>
-        <span className={`text-xs ${isFinishedScreen ? 'text-gray-600' : 'text-gray-400'}`}>{pct}%</span>
+        <span className={`text-sm font-medium ${percentageTextColor}`}>{pct}%</span>
       </div>
     </div>
   );
@@ -365,32 +385,82 @@ function Panel({ title, health, isAI, isFinishedScreen = false }) {
 
 function ScorePanels({ human, ai, playerName }) {
   const humanWon = (human?.health ?? 0) > ai.health || ((human?.health ?? 0) > 0 && ai.health <= 0);
+
   return (
-    <div className="grid grid-cols-2 gap-6 mb-6">
-      <div className={`p-4 rounded ${humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
-        <div className="flex justify-between items-center mb-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      {/* Human Player Panel */}
+      <div className={`p-6 rounded-2xl shadow-xl transform transition-all duration-300 hover:scale-105 border-3 ${
+        humanWon
+          ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-500 shadow-green-200/50'
+          : 'bg-gradient-to-br from-red-50 to-red-100 border-red-500 shadow-red-200/50'
+      }`}>
+        <div className="flex justify-between items-start mb-6">
           <div>
-            <h3 className="font-spy text-lg">👤 {human?.name || playerName}</h3>
-            {humanWon && <span className="text-sm text-green-600">🏆 Winner</span>}
-            {(human?.health ?? 0) <= 0 && <span className="text-sm text-red-600">🔫 Shot Down</span>}
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">🕴</span>
+              <h3 className="font-spy text-2xl font-bold text-gray-800">{human?.name || playerName}</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {humanWon && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-green-700 bg-green-200">
+                  🏆 Winner
+                </span>
+              )}
+              {!humanWon && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
+                  ⚫ Eliminated
+                </span>
+              )}
+              {(human?.health ?? 0) <= 0 && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
+                  ☠️ Terminated
+                </span>
+              )}
+            </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-red-600">{human?.health || 0} HP</p>
-            <p className="text-sm text-gray-600">{human?.totalCorrect || 0}/{human?.totalQuestions || 0} correct</p>
+            <p className="text-4xl font-bold text-red-600 mb-1">{human?.health || 0}</p>
+            <p className="text-sm text-gray-500 font-medium">Health Points</p>
+            <p className="text-xs text-gray-400 mt-1">{human?.totalCorrect || 0}/{human?.totalQuestions || 0} correct</p>
           </div>
         </div>
         <Panel title={human?.name || playerName} health={human?.health || 0} isAI={false} isFinishedScreen={true} />
       </div>
-      <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
-        <div className="flex justify-between items-center mb-4">
+
+      {/* AI Player Panel */}
+      <div className={`p-6 rounded-2xl shadow-xl transform transition-all duration-300 hover:scale-105 border-3 ${
+        !humanWon
+          ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-500 shadow-green-200/50'
+          : 'bg-gradient-to-br from-red-50 to-red-100 border-red-500 shadow-red-200/50'
+      }`}>
+        <div className="flex justify-between items-start mb-6">
           <div>
-            <h3 className="font-spy text-lg">🤖 Agent 47</h3>
-            {!humanWon && <span className="text-sm text-green-600">🏆 Winner</span>}
-            {ai.health <= 0 && <span className="text-sm text-red-600">🔫 Shot Down</span>}
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">🤖</span>
+              <h3 className="font-spy text-2xl font-bold text-gray-800">Agent 47</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!humanWon && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-green-700 bg-green-200">
+                  🏆 Winner
+                </span>
+              )}
+              {humanWon && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
+                  ⚫ Eliminated
+                </span>
+              )}
+              {ai.health <= 0 && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
+                  ☠️ Terminated
+                </span>
+              )}
+            </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-red-600">{ai.health} HP</p>
-            <p className="text-sm text-gray-600">{ai.totalCorrect || 0}/{ai.totalQuestions || 0} correct</p>
+            <p className="text-4xl font-bold text-red-600 mb-1">{ai.health}</p>
+            <p className="text-sm text-gray-500 font-medium">Health Points</p>
+            <p className="text-xs text-gray-400 mt-1">{ai.totalCorrect || 0}/{ai.totalQuestions || 0} correct</p>
           </div>
         </div>
         <Panel title="Agent 47" health={ai.health} isAI={true} isFinishedScreen={true} />
@@ -412,7 +482,7 @@ function ResultBanner({ result }) {
           <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {result.healthLoss} HP (hint {result.hintCount})</p>
         )}
         {result.winner === 'ai' && (
-          <p className="text-lg font-bold">🔫 Agent 47 shot first! You lose {result.healthLoss} HP (hint {result.hintCount})</p>
+          <p className="text-lg font-bold">🎯 Agent 47 shot first! You lose {result.healthLoss} HP (hint {result.hintCount})</p>
         )}
         {result.winner === 'timeout' && (
           <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped! No penalties.</p>
