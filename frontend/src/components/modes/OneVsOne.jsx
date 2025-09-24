@@ -39,7 +39,7 @@ const aiGuessChance = (hintCount) => {
 
 export default function OneVsOne({ playerName, onBackToMenu }) {
   // Core game state
-  const [phase, setPhase] = useState('setup'); // setup | playing | finished
+  const [phase, setPhase] = useState('setup');
   const [qIndex, setQIndex] = useState(0);
   const [currentQ, setCurrentQ] = useState(null);
   const [revealed, setRevealed] = useState([]);
@@ -48,24 +48,40 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   const [human, setHuman] = useState(null);
   const [ai] = useState(new Player('ai', 'Agent 47', '🤖'));
 
-  // Refs for internal logic that doesn't trigger re-renders
+  // Refs for internal logic
   const deckRef = useRef([]);
-  const processingRef = useRef(false); // Prevents overlapping advanceRound calls
+  const processingRef = useRef(false);
   const hintTimerRef = useRef(null);
-  const questionIdRef = useRef(0); // Unique ID for each question instance
+  const questionIdRef = useRef(0);
 
-  // Main game loop driver: mounts a new question when qIndex changes
+  // Init player
   useEffect(() => {
-    if (phase === 'playing') {
-      mountQuestion(qIndex);
+    if (!human && playerName) {
+      setHuman(new Player('human', playerName, '👤'));
     }
-  }, [qIndex, phase, mountQuestion]);
+  }, [playerName, human]);
 
-  // Init player and cleanup
+  // Cleanup on unmount
   useEffect(() => {
-    if (!human && playerName) setHuman(new Player('human', playerName, '👤'));
-    return () => clearHintTimer();
-  }, [playerName, human, clearHintTimer]);
+    return () => {
+      if (hintTimerRef.current) {
+        clearInterval(hintTimerRef.current);
+        hintTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const isAlive = (p) => !!p && (p.health ?? 0) > 0;
+
+  const buildDeck = useCallback(() => {
+    const arr = [...questionsData];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    const start = Math.floor(Math.random() * Math.max(1, arr.length - MAX_TARGETS));
+    deckRef.current = arr.slice(start, start + MAX_TARGETS);
+  }, []);
 
   const clearHintTimer = useCallback(() => {
     if (hintTimerRef.current) {
@@ -74,39 +90,66 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     }
   }, []);
 
-  const isAlive = (p) => !!p && (p.health ?? 0) > 0;
+  const scheduleAIGuess = useCallback((q, hintCount, questionId, index) => {
+    const delay = 2000 + Math.random() * 6000;
+    setTimeout(() => {
+      if (questionIdRef.current !== questionId || processingRef.current || result) return;
 
-  // Build a new random deck of questions
-  const buildDeck = () => {
-    const arr = [...questionsData];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    const start = Math.floor(Math.random() * Math.max(1, arr.length - MAX_TARGETS));
-    deckRef.current = arr.slice(start, start + MAX_TARGETS);
-  };
+      if (Math.random() < aiGuessChance(hintCount)) {
+        console.log(`AI guess CORRECT for question ID ${questionId}`);
+        const dmg = damageByHint(hintCount);
+        setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
+        setResult({ winner: 'ai', correctAnswer: q.correctAnswer, hintCount, healthLoss: dmg });
 
-  // Set up a new question and its timers
+        // Advance round
+        setTimeout(() => {
+          if (index + 1 < MAX_TARGETS && isAlive(human) && ai.health > 0) {
+            setResult(null);
+            setQIndex(index + 1);
+          } else {
+            setPhase('finished');
+          }
+          processingRef.current = false;
+        }, ROUND_RESULT_DELAY_MS);
+      }
+    }, delay);
+  }, [result, human, ai.health]);
+
+  const advanceRound = useCallback((nextIndex) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    clearHintTimer();
+
+    setTimeout(() => {
+      if (nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai)) {
+        setResult(null);
+        setQIndex(nextIndex);
+      } else {
+        setPhase('finished');
+      }
+      processingRef.current = false;
+    }, ROUND_RESULT_DELAY_MS);
+  }, [clearHintTimer, human, ai]);
+
   const mountQuestion = useCallback((index) => {
-    const data = deckRef.current[index];
-    if (!data) return;
+    if (!deckRef.current[index]) return;
 
+    const data = deckRef.current[index];
     const questionId = ++questionIdRef.current;
+
     console.log(`Mounting question ${index + 1}: ${data.answer} (ID: ${questionId})`);
 
     const q = new Question(data.id, data.answer, data.category, data.difficulty);
     const hints = (data.hints || []).slice(0, MAX_HINTS);
     q.start();
 
-    // Reset state for the new round
     setCurrentQ(q);
     setRevealed([]);
-    setResult(null); // Clear result from previous round
+    setResult(null);
     setTimerKey(k => k + 1);
     clearHintTimer();
 
-    // Schedule first hint
+    // First hint
     setTimeout(() => {
       if (questionIdRef.current !== questionId) return;
       if (hints[0]) {
@@ -115,7 +158,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
       }
     }, FIRST_HINT_DELAY_MS);
 
-    // Schedule subsequent hints
+    // Subsequent hints
     hintTimerRef.current = setInterval(() => {
       if (questionIdRef.current !== questionId) {
         clearHintTimer();
@@ -135,46 +178,16 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     }, HINT_INTERVAL_MS);
   }, [clearHintTimer, scheduleAIGuess]);
 
-  // Handle end-of-round logic and transition to the next
-  const advanceRound = useCallback((nextIndex) => {
-    if (processingRef.current) return;
-    processingRef.current = true;
+  // Mount question when qIndex changes
+  useEffect(() => {
+    if (phase === 'playing' && deckRef.current.length > 0) {
+      mountQuestion(qIndex);
+    }
+  }, [qIndex, phase, mountQuestion]);
 
-    clearHintTimer();
-    console.log(`Advancing to round ${nextIndex + 1}...`);
-
-    setTimeout(() => {
-      if (nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai)) {
-        setResult(null); // Clear result before updating index
-        setQIndex(nextIndex); // This triggers the useEffect to call mountQuestion
-      } else {
-        setPhase('finished');
-      }
-      processingRef.current = false;
-    }, ROUND_RESULT_DELAY_MS);
-  }, [clearHintTimer, human, ai]);
-
-  // AI guess logic
-  const scheduleAIGuess = useCallback((q, hintCount, questionId, index) => {
-    const delay = 2000 + Math.random() * 6000;
-    setTimeout(() => {
-      if (questionIdRef.current !== questionId || processingRef.current || result) return;
-
-      if (Math.random() < aiGuessChance(hintCount)) {
-        console.log(`AI guess CORRECT for question ID ${questionId}`);
-        const dmg = damageByHint(hintCount);
-        setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
-        setResult({ winner: 'ai', correctAnswer: q.correctAnswer, hintCount, healthLoss: dmg });
-        advanceRound(index + 1);
-      } else {
-        console.log(`AI guess WRONG for question ID ${questionId}`);
-      }
-    }, delay);
-  }, [result, advanceRound]);
-
-  // Human guess logic
-  const onGuess = (guess) => {
-    if (result && result.winner !== null) return; // Already a final result
+  const onGuess = useCallback((guess) => {
+    if (result && result.winner !== null) return;
+    if (!currentQ) return;
 
     const correct = currentQ.checkAnswer(guess);
     if (correct) {
@@ -190,17 +203,17 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
         }
       }, 1200);
     }
-  };
+  }, [result, currentQ, revealed.length, ai, advanceRound, qIndex]);
 
-  // Handle timeout
-  const onTimeUp = () => {
+  const onTimeUp = useCallback(() => {
     if (result && result.winner !== null) return;
     setResult({ winner: 'timeout', correctAnswer: currentQ?.correctAnswer, hintCount: revealed.length });
     advanceRound(qIndex + 1);
-  };
+  }, [result, currentQ, revealed.length, advanceRound, qIndex]);
 
-  // Start a new game
-  const startGame = () => {
+  const startGame = useCallback(() => {
+    if (!human) return;
+
     console.log('Starting new game...');
     human.health = 5000;
     ai.health = 5000;
@@ -210,16 +223,11 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
 
     setResult(null);
     setPhase('playing');
-    if (qIndex === 0) {
-      mountQuestion(0);
-    } else {
-      setQIndex(0);
-    }
-  };
+    setQIndex(0);
+  }, [human, ai, buildDeck]);
 
   const isInputDisabled = (result && result.winner !== null) || phase !== 'playing' || !isAlive(human);
 
-  // Render logic
   if (phase === 'setup') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -320,7 +328,6 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   );
 }
 
-/* ---------- UI Helpers ---------- */
 function Panel({ title, health, isAI, isFinishedScreen = false }) {
   const pct = Math.max(0, Math.min(100, Math.round((health / 5000) * 100)));
   const color = pct > 75 ? (isAI ? 'from-red-500 to-red-400' : 'from-green-500 to-green-400')
@@ -346,9 +353,9 @@ function Panel({ title, health, isAI, isFinishedScreen = false }) {
       </div>
       <div className="flex justify-between items-center mt-1">
         <div className="flex items-center space-x-2">
-          {health <= 0 && <span className={`text-xs text-red-400 font-bold animate-bounce`}>💀 SHOT DOWN</span>}
-          {pct <= 25 && health > 0 && <span className={`text-xs text-red-400 font-bold animate-pulse`}>⚠️ CRITICAL</span>}
-          {pct > 75 && <span className={`text-xs text-green-400 font-bold`}>✨ EXCELLENT</span>}
+          {health <= 0 && <span className="text-xs text-red-400 font-bold animate-bounce">💀 SHOT DOWN</span>}
+          {pct <= 25 && health > 0 && <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>}
+          {pct > 75 && <span className="text-xs text-green-400 font-bold">✨ EXCELLENT</span>}
         </div>
         <span className={`text-xs ${isFinishedScreen ? 'text-gray-600' : 'text-gray-400'}`}>{pct}%</span>
       </div>
