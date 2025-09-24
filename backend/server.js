@@ -35,7 +35,7 @@ const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://hintmangame.vercel.app',
+    'https://hintman.vercel.app',
     'https://hintman-frontend.vercel.app',
     /\.vercel\.app$/,
     /^https?:\/\/localhost(:\d+)?$/
