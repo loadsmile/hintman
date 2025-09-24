@@ -8,8 +8,6 @@ class GameManager {
     this.survivalRooms = new Map();
     this.questionsData = questionsData;
     this.connectedPlayers = new Map();
-
-    console.log('🎯 GameManager initialized with Survival Mode support');
   }
 
   handleConnection(socket) {
@@ -30,7 +28,6 @@ class GameManager {
       this.findMatch(socket, playerData);
     });
 
-    // Add survival match handler
     socket.on('findSurvivalMatch', (playerData) => {
       this.findSurvivalMatch(socket, playerData);
     });
@@ -74,7 +71,6 @@ class GameManager {
     this.connectedPlayers.delete(socket.id);
   }
 
-  // Existing findMatch method stays the same...
   findMatch(socket, playerData) {
     const {
       playerName,
