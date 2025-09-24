@@ -18,6 +18,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [hints, setHints] = useState([]);
   const [gameResult, setGameResult] = useState(null);
   const [health, setHealth] = useState({});
+  const [finalHealth, setFinalHealth] = useState({}); // Store final health values
   const [connectionError, setConnectionError] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
@@ -30,14 +31,13 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
 
-  // Revised damage system - starting at 500 HP for 1st hint
   const damageByHint = (hintCount) => {
     switch (hintCount) {
-      case 1: return 500;  // Reduced from 1000
-      case 2: return 400;  // Reduced from 800
-      case 3: return 300;  // Reduced from 600
-      case 4: return 200;  // Reduced from 400
-      case 5: return 100;  // Reduced from 200
+      case 1: return 500;
+      case 2: return 400;
+      case 3: return 300;
+      case 4: return 200;
+      case 5: return 100;
       default: return 100;
     }
   };
@@ -274,7 +274,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('hintRevealed', ({ index, text, health: newHealth }) => {
       if (!mountedRef.current) return;
 
-      setHints(prev => [...prev, { index, text }]);
+      // Add new hints to the beginning of the array (newest first)
+      setHints(prev => [{ index, text }, ...prev]);
       if (newHealth) setHealth(newHealth);
     });
 
@@ -341,6 +342,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
     socket.on('gameEnd', ({ results }) => {
       if (!mountedRef.current) return;
+
+      // Store final health values before game ends
+      setFinalHealth({...health});
 
       setGameState('finished');
       setGameData({ results });
@@ -417,6 +421,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     setServerStatus('checking');
     setPlayerStats({});
     setServerUrl(null);
+    setFinalHealth({});
     setGameState('mode-selection');
   };
 
@@ -495,6 +500,25 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     if (!serverUrl) return 'Unknown';
     if (serverUrl.includes('localhost')) return 'Local Development';
     return 'Production';
+  };
+
+  // Helper function to get player name by ID
+  const getPlayerNameById = (playerId) => {
+    if (playerId === myPlayerId) return playerName;
+
+    const player = players.find(p => p.id === playerId);
+    if (player) return player.name;
+
+    const playerFromStats = Object.values(playerStats).find(stats => stats.id === playerId);
+    if (playerFromStats) return playerFromStats.name;
+
+    return 'Opponent';
+  };
+
+  // Helper function to get final health (for results screen)
+  const getFinalHealthForPlayer = (playerId) => {
+    // Try final health first, then current health, then from results
+    return finalHealth[playerId] || health[playerId] || 0;
   };
 
   if (gameState === 'mode-selection') {
@@ -671,11 +695,16 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   if (gameState === 'finished') {
     const results = gameData?.results || [];
     const winner = results[0];
+    const loser = results[1] || results.find(p => !p.isAlive);
     const isWinner = winner?.name === playerName;
     const totalRoundsCompleted = Math.min(10, Math.max(1, currentTarget?.targetIndex || 1));
 
     const myStats = playerStats[myPlayerId] || { correctAnswers: 0, mistakes: 0 };
     const opponentStats = Object.values(playerStats).find(stats => stats.name !== playerName) || { correctAnswers: 0, mistakes: 0 };
+
+    // Get actual final health values
+    const winnerFinalHealth = getFinalHealthForPlayer(winner?.id) || winner?.health || 0;
+    const loserFinalHealth = loser ? (getFinalHealthForPlayer(loser.id) || loser.health || 0) : 0;
 
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
@@ -710,8 +739,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                 <div className="text-4xl mb-2">🏆</div>
                 <h3 className="text-2xl font-bold text-green-400 mb-2 font-spy">VICTOR</h3>
                 <div className="bg-green-500 text-white rounded-lg p-4">
-                  <h4 className="text-xl font-bold">{winner?.name}</h4>
-                  <div className="text-3xl font-bold mt-2">{winner?.health} HP</div>
+                  <h4 className="text-xl font-bold">{winner?.name || getPlayerNameById(winner?.id) || 'Unknown'}</h4>
+                  <div className="text-3xl font-bold mt-2">{winnerFinalHealth} HP</div>
                   <div className="text-sm mt-2">
                     ✅ {winner?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers} correct
                     • ❌ {winner?.name === playerName ? myStats.mistakes : opponentStats.mistakes} mistakes
@@ -724,11 +753,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                 <div className="text-4xl mb-2">☠️</div>
                 <h3 className="text-2xl font-bold text-red-400 mb-2 font-spy">ELIMINATED</h3>
                 <div className="bg-red-600 text-white rounded-lg p-4">
-                  <h4 className="text-xl font-bold">{results.find(p => !p.isAlive)?.name || 'Unknown'}</h4>
-                  <div className="text-3xl font-bold mt-2">0 HP</div>
+                  <h4 className="text-xl font-bold">{loser?.name || getPlayerNameById(loser?.id) || 'Opponent'}</h4>
+                  <div className="text-3xl font-bold mt-2">{loserFinalHealth} HP</div>
                   <div className="text-sm mt-2">
-                    ✅ {results.find(p => !p.isAlive)?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers} correct
-                    • ❌ {results.find(p => !p.isAlive)?.name === playerName ? myStats.mistakes : opponentStats.mistakes} mistakes
+                    ✅ {loser?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers} correct
+                    • ❌ {loser?.name === playerName ? myStats.mistakes : opponentStats.mistakes} mistakes
                   </div>
                 </div>
               </div>
@@ -740,7 +769,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               <div className="grid grid-cols-2 gap-4 text-white text-sm">
                 <div className="text-center">
                   <div className="text-green-400 font-bold">{playerName === winner?.name ? 'YOU' : 'OPPONENT'}</div>
-                  <div>{winner?.name}</div>
+                  <div>{winner?.name || getPlayerNameById(winner?.id) || 'Unknown'}</div>
                   <div className="mt-2">
                     <div className="bg-green-600 px-2 py-1 rounded inline-block mr-2">
                       ✅ {winner?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers}
@@ -752,13 +781,13 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                 </div>
                 <div className="text-center">
                   <div className="text-red-400 font-bold">{playerName !== winner?.name ? 'YOU' : 'OPPONENT'}</div>
-                  <div>{results.find(p => !p.isAlive)?.name || 'Unknown'}</div>
+                  <div>{loser?.name || getPlayerNameById(loser?.id) || 'Opponent'}</div>
                   <div className="mt-2">
                     <div className="bg-green-600 px-2 py-1 rounded inline-block mr-2">
-                      ✅ {results.find(p => !p.isAlive)?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers}
+                      ✅ {loser?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers}
                     </div>
                     <div className="bg-red-600 px-2 py-1 rounded inline-block">
-                      ❌ {results.find(p => !p.isAlive)?.name === playerName ? myStats.mistakes : opponentStats.mistakes}
+                      ❌ {loser?.name === playerName ? myStats.mistakes : opponentStats.mistakes}
                     </div>
                   </div>
                 </div>
