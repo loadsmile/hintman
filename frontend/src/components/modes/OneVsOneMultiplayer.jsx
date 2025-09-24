@@ -24,10 +24,23 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [serverStatus, setServerStatus] = useState('checking');
   const [playerStats, setPlayerStats] = useState({});
+  const [serverUrl, setServerUrl] = useState(null);
 
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
+
+  // Revised damage system - starting at 500 HP for 1st hint
+  const damageByHint = (hintCount) => {
+    switch (hintCount) {
+      case 1: return 500;  // Reduced from 1000
+      case 2: return 400;  // Reduced from 800
+      case 3: return 300;  // Reduced from 600
+      case 4: return 200;  // Reduced from 400
+      case 5: return 100;  // Reduced from 200
+      default: return 100;
+    }
+  };
 
   const initializePlayerStats = (players) => {
     const initialStats = {};
@@ -56,69 +69,52 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     });
   };
 
-  // Enhanced GeoGuessr-style Health Bar
   const HealthBar = ({ playerId, playerName, isMe = false }) => {
-    const currentHealth = health[playerId] || 5000;
+    const currentHealth = health[playerId] || 0;
     const maxHealth = 5000;
     const healthPercentage = (currentHealth / maxHealth) * 100;
 
     const getHealthColor = () => {
-      if (healthPercentage > 75) return isMe ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-blue-500 to-blue-400';
-      if (healthPercentage > 50) return isMe ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' : 'bg-gradient-to-r from-purple-500 to-purple-400';
-      if (healthPercentage > 25) return isMe ? 'bg-gradient-to-r from-orange-500 to-orange-400' : 'bg-gradient-to-r from-pink-500 to-pink-400';
-      return 'bg-gradient-to-r from-red-500 to-red-400';
-    };
-
-    const getHealthTextColor = () => {
-      return 'text-white';
+      if (healthPercentage > 75) return isMe ? 'from-green-500 to-green-400' : 'from-red-500 to-red-400';
+      if (healthPercentage > 50) return isMe ? 'from-yellow-500 to-yellow-400' : 'from-purple-500 to-purple-400';
+      if (healthPercentage > 25) return isMe ? 'from-orange-500 to-orange-400' : 'from-pink-500 to-pink-400';
+      return 'from-red-500 to-red-400';
     };
 
     const getBorderColor = () => {
-      if (isMe) return 'border-green-300';
-      return 'border-blue-300';
+      return isMe ? 'border-green-400' : 'border-red-400';
     };
 
     return (
       <div className="relative w-full">
-        {/* Player name above health bar */}
         <div className="mb-2 text-center">
-          <span className={`text-sm font-bold ${isMe ? 'text-green-400' : 'text-blue-400'}`}>
+          <span className={`text-sm font-bold ${isMe ? 'text-green-400' : 'text-red-400'}`}>
             {playerName} {isMe && '(You)'}
           </span>
         </div>
 
-        {/* Main health bar container - GeoGuessr style */}
         <div className={`relative w-full h-12 bg-gray-800 rounded-lg border-2 ${getBorderColor()} overflow-hidden shadow-lg`}>
-          {/* Health fill with gradient */}
           <div
-            className={`h-full transition-all duration-500 ease-out ${getHealthColor()} relative`}
+            className={`h-full transition-all duration-500 ease-out bg-gradient-to-r ${getHealthColor()}`}
             style={{ width: `${healthPercentage}%` }}
           >
-            {/* Inner glow effect */}
             <div className="absolute inset-0 bg-white bg-opacity-20 rounded-lg"></div>
-
-            {/* Animated pulse effect for low health */}
-            {healthPercentage <= 25 && (
+            {healthPercentage <= 25 && healthPercentage > 0 && (
               <div className="absolute inset-0 bg-white bg-opacity-30 rounded-lg animate-pulse"></div>
             )}
           </div>
 
-          {/* Health text centered in the bar */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className={`text-lg font-bold ${getHealthTextColor()} drop-shadow-lg tracking-wider`}>
-              {currentHealth} HP
+            <span className="text-lg font-bold text-white drop-shadow-lg tracking-wider">
+              {Math.max(0, currentHealth)} HP
             </span>
           </div>
-
-          {/* Fixed shine effect overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 transform -skew-x-12 animate-pulse"></div>
         </div>
 
-        {/* Status indicators */}
         <div className="flex justify-between items-center mt-1">
           <div className="flex items-center space-x-2">
             {currentHealth <= 0 && (
-              <span className="text-xs text-red-400 font-bold animate-bounce">💀 SHOT DOWN</span>
+              <span className="text-xs text-red-400 font-bold animate-bounce">☠️ ELIMINATED</span>
             )}
             {healthPercentage <= 25 && currentHealth > 0 && (
               <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>
@@ -136,21 +132,38 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   };
 
-  const checkServerStatus = async () => {
-    try {
-      const response = await fetch('https://hintman-backend.onrender.com/health', {
-        method: 'GET',
-        timeout: 10000,
-      });
+  const detectBestServer = async () => {
+    const servers = [
+      'http://localhost:10000',
+      'https://hintman-backend.onrender.com'
+    ];
 
-      if (response.ok) {
-        setServerStatus('online');
-        return true;
-      } else {
-        setServerStatus('offline');
-        return false;
+    for (const server of servers) {
+      try {
+        const response = await fetch(`${server}/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000),
+        });
+
+        if (response.ok) {
+          setServerUrl(server);
+          return server;
+        }
+      } catch {
+        continue;
       }
-    } catch {
+    }
+
+    return null;
+  };
+
+  const checkServerStatus = async () => {
+    const availableServer = await detectBestServer();
+
+    if (availableServer) {
+      setServerStatus('online');
+      return true;
+    } else {
       setServerStatus('offline');
       return false;
     }
@@ -162,14 +175,14 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     }
 
     const isServerOnline = await checkServerStatus();
-    if (!isServerOnline) {
+    if (!isServerOnline || !serverUrl) {
       setConnectionError(true);
       return;
     }
 
     initializedRef.current = true;
 
-    const socket = io('https://hintman-backend.onrender.com', {
+    const socket = io(serverUrl, {
       transports: ['polling', 'websocket'],
       timeout: 30000,
       forceNew: true,
@@ -271,7 +284,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(newHealth);
     });
 
-    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, healthGained }) => {
+    socket.on('questionResult', ({ winner, winnerName, correctAnswer, timeElapsed, health: newHealth, hintCount, healthLoss }) => {
       if (!mountedRef.current) return;
 
       if (newHealth) setHealth(newHealth);
@@ -280,16 +293,19 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         updatePlayerStats(winner, true);
       }
 
+      const actualHealthLoss = healthLoss || damageByHint(hintCount || hints.length || 1);
+
       setGameResult({
         winner,
         winnerName,
         correctAnswer,
         timeElapsed,
-        healthGained
+        healthLoss: actualHealthLoss,
+        hintCount: hintCount || hints.length || 1
       });
     });
 
-    socket.on('wrongAnswer', ({ playerId, playerName, guess, healthLost }) => {
+    socket.on('wrongAnswer', ({ playerId, playerName, guess }) => {
       if (!mountedRef.current) return;
 
       if (playerId) {
@@ -301,7 +317,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         incorrectGuess: guess,
         incorrectPlayer: playerName,
         correctAnswer: null,
-        healthLost,
         isWrongAnswer: true
       });
 
@@ -309,7 +324,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         if (mountedRef.current) {
           setGameResult(null);
         }
-      }, 2500);
+      }, 1000);
     });
 
     socket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
@@ -319,7 +334,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
       setGameResult({
         winner: 'elimination',
-        message: `${eliminatedPlayerName} has been shot down!`,
+        message: `${eliminatedPlayerName} has been eliminated!`,
         eliminatedPlayer
       });
     });
@@ -401,6 +416,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     setConnectionError(false);
     setServerStatus('checking');
     setPlayerStats({});
+    setServerUrl(null);
     setGameState('mode-selection');
   };
 
@@ -454,6 +470,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     initializedRef.current = false;
     setConnectionError(false);
     setServerStatus('checking');
+    setServerUrl(null);
     setGameState('connecting');
 
     setTimeout(() => {
@@ -472,6 +489,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       default:
         return selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1);
     }
+  };
+
+  const getServerDisplayName = () => {
+    if (!serverUrl) return 'Unknown';
+    if (serverUrl.includes('localhost')) return 'Local Development';
+    return 'Production';
   };
 
   if (gameState === 'mode-selection') {
@@ -499,16 +522,16 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
           <h2 className="text-2xl font-bold text-red-600 mb-4 font-spy">SERVER UNAVAILABLE</h2>
-          <p className="mb-4">The multiplayer server is currently offline or experiencing issues.</p>
+          <p className="mb-4">No multiplayer servers are currently available.</p>
           <div className="bg-yellow-100 border border-yellow-300 rounded p-3 mb-6">
             <p className="text-sm text-yellow-800">
-              <strong>🚨 Known Issue:</strong><br />
-              The backend server on Render's free tier may be sleeping or experiencing a cold start.
-              <br /><br />
+              <strong>🚨 Servers Checked:</strong><br />
+              • Local Development (localhost:10000)<br />
+              • Production (hintman-backend.onrender.com)<br /><br />
               <strong>Solutions:</strong><br />
-              • Wait 50-90 seconds for the server to wake up<br />
-              • Try the Single Player mode instead<br />
-              • Check back in a few minutes
+              • Start your local backend server<br />
+              • Wait for production server to wake up<br />
+              • Try the Single Player mode instead
             </p>
           </div>
           {selectedMode && (
@@ -544,9 +567,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
-          <LoadingSpinner size="lg" message={serverStatus === 'checking' ? 'Checking server status...' : 'Connecting to server...'} />
+          <LoadingSpinner size="lg" message={serverStatus === 'checking' ? 'Finding best server...' : `Connecting to ${getServerDisplayName()}...`} />
           <p className="mt-4 text-gray-600">
-            {serverStatus === 'checking' ? 'Verifying server availability...' : 'Establishing secure connection...'}
+            {serverStatus === 'checking' ? 'Testing localhost and production servers...' : 'Establishing secure connection...'}
           </p>
           {selectedMode && (
             <div className="mt-4 p-3 bg-gray-100 rounded-lg">
@@ -562,9 +585,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               </p>
             </div>
           )}
-          <p className="mt-2 text-xs text-gray-500">
-            ⏱️ Free tier servers may take up to 90 seconds to wake up
-          </p>
+          {serverUrl && (
+            <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-800">
+              🔗 Using: {getServerDisplayName()}
+            </div>
+          )}
           <Button onClick={handleBackToModeSelection} variant="secondary" className="mt-4">
             Cancel
           </Button>
@@ -574,8 +599,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   }
 
   if (gameState === 'matchmaking') {
-    const roundsInfo = selectedMode === 'category' ? '10 mixed questions (5 from each specialty)' : '5 mixed questions';
-
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
@@ -589,16 +612,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               {selectedMode === 'category' && selectedCategory && (
                 <p className="mb-2">🎭 <strong>Your Specialty:</strong> {selectedCategory.name}</p>
               )}
-              <p className="mb-2">📋 <strong>Questions:</strong> {roundsInfo}</p>
-              {selectedMode === 'category' && (
-                <p className="mb-2">🔄 <strong>Mix Strategy:</strong> Questions from both players' specialties</p>
-              )}
-              <p className="mb-2">🤝 <strong>Matchmaking:</strong> Against other {getModeDisplayName()} players</p>
-              <p className="mb-2">❤️ <strong>Health:</strong> Start with 5000 health, lose health over time and for mistakes</p>
-              <p className="mb-2">💡 <strong>Hints:</strong> Each hint costs 100 health for both players</p>
-              <p className="mb-2">❌ <strong>Mistakes:</strong> Wrong answers cost 500 health</p>
-              <p className="mb-2">✅ <strong>Rewards:</strong> Correct answers restore 1000 health</p>
-              <p className="mb-2">🔤 <strong>Answers:</strong> Use exact spelling (e.g., "Pacific Ocean", "Mount Everest")</p>
+              <p className="mb-2">💡 <strong>Hints are FREE!</strong> Wait for clues or answer fast</p>
+              <p className="mb-2">⚡ <strong>Speed matters:</strong> Earlier answers deal more damage</p>
+              <p className="mb-2">❌ <strong>No penalties</strong> for wrong answers</p>
               <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
             </div>
           </div>
@@ -606,7 +622,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           <div className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-              <span className="text-sm text-green-600">Connected to server</span>
+              <span className="text-sm text-green-600">Connected to {getServerDisplayName()}</span>
             </div>
             <Button onClick={findMatch} size="lg" className="px-12 mr-4">
               🎯 FIND OPPONENT
@@ -640,6 +656,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               </p>
             </div>
           )}
+          <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-800">
+            🔗 Server: {getServerDisplayName()}
+          </div>
           <p className="mt-2 text-xs text-gray-500">Matching by game mode for faster results</p>
           <Button onClick={() => setGameState('matchmaking')} variant="secondary" className="mt-6">
             Cancel Search
@@ -660,15 +679,19 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-3xl w-full text-black border border-gray-200">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
-              {isWinner ? '🏆 MISSION ACCOMPLISHED' : '💀 MISSION FAILED'}
-            </h2>
+        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-4xl w-full text-black border border-gray-200">
+          {/* Header Section */}
+          <div className="text-center mb-8">
+            <div className="text-6xl mb-4">
+              {isWinner ? '🏆' : '☠️'}
+            </div>
+            <h1 className="text-4xl font-bold text-red-600 mb-2 font-spy">
+              {isWinner ? 'MISSION ACCOMPLISHED' : 'MISSION FAILED'}
+            </h1>
             <p className="text-xl mb-2 text-gray-800">
               {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} completed the mission.`}
             </p>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600">
               <strong>{getModeDisplayName()}</strong>
               {selectedCategory && selectedMode === 'category' && (
                 <>
@@ -679,41 +702,71 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <MissionTracker
-              correctAnswers={myStats.correctAnswers}
-              mistakes={myStats.mistakes}
-              playerName={playerName}
-              isMyTracker={true}
-            />
-            <MissionTracker
-              correctAnswers={opponentStats.correctAnswers}
-              mistakes={opponentStats.mistakes}
-              playerName={opponentStats.name}
-              isMyTracker={false}
-            />
-          </div>
-
-          <div className="space-y-4 mb-6">
-            {results.map((player, index) => (
-              <div key={player.id} className={`p-4 rounded flex justify-between items-center ${
-                index === 0 ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'
-              }`}>
-                <div className="flex-1">
-                  <h3 className="font-spy text-lg">#{index + 1} {player.name}</h3>
-                  {index === 0 && <span className="text-sm text-green-600">🏆 Winner</span>}
-                  {!player.isAlive && <span className="text-sm text-red-600">🔫 Shot Down</span>}
-                </div>
-                <div className="flex-1 mx-4">
-                  <HealthBar playerId={player.id} playerName={player.name} />
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-red-600">{player.health} HP</p>
+          {/* Results Section - OneVsOne Style with Green Victor Card */}
+          <div className="bg-gray-900 rounded-lg p-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Winner - Green Card */}
+              <div className="text-center">
+                <div className="text-4xl mb-2">🏆</div>
+                <h3 className="text-2xl font-bold text-green-400 mb-2 font-spy">VICTOR</h3>
+                <div className="bg-green-500 text-white rounded-lg p-4">
+                  <h4 className="text-xl font-bold">{winner?.name}</h4>
+                  <div className="text-3xl font-bold mt-2">{winner?.health} HP</div>
+                  <div className="text-sm mt-2">
+                    ✅ {winner?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers} correct
+                    • ❌ {winner?.name === playerName ? myStats.mistakes : opponentStats.mistakes} mistakes
+                  </div>
                 </div>
               </div>
-            ))}
+
+              {/* Loser - Red Card */}
+              <div className="text-center">
+                <div className="text-4xl mb-2">☠️</div>
+                <h3 className="text-2xl font-bold text-red-400 mb-2 font-spy">ELIMINATED</h3>
+                <div className="bg-red-600 text-white rounded-lg p-4">
+                  <h4 className="text-xl font-bold">{results.find(p => !p.isAlive)?.name || 'Unknown'}</h4>
+                  <div className="text-3xl font-bold mt-2">0 HP</div>
+                  <div className="text-sm mt-2">
+                    ✅ {results.find(p => !p.isAlive)?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers} correct
+                    • ❌ {results.find(p => !p.isAlive)?.name === playerName ? myStats.mistakes : opponentStats.mistakes} mistakes
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Battle Summary */}
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <h4 className="text-lg font-bold text-white text-center mb-4">BATTLE SUMMARY</h4>
+              <div className="grid grid-cols-2 gap-4 text-white text-sm">
+                <div className="text-center">
+                  <div className="text-green-400 font-bold">{playerName === winner?.name ? 'YOU' : 'OPPONENT'}</div>
+                  <div>{winner?.name}</div>
+                  <div className="mt-2">
+                    <div className="bg-green-600 px-2 py-1 rounded inline-block mr-2">
+                      ✅ {winner?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers}
+                    </div>
+                    <div className="bg-red-600 px-2 py-1 rounded inline-block">
+                      ❌ {winner?.name === playerName ? myStats.mistakes : opponentStats.mistakes}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-red-400 font-bold">{playerName !== winner?.name ? 'YOU' : 'OPPONENT'}</div>
+                  <div>{results.find(p => !p.isAlive)?.name || 'Unknown'}</div>
+                  <div className="mt-2">
+                    <div className="bg-green-600 px-2 py-1 rounded inline-block mr-2">
+                      ✅ {results.find(p => !p.isAlive)?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers}
+                    </div>
+                    <div className="bg-red-600 px-2 py-1 rounded inline-block">
+                      ❌ {results.find(p => !p.isAlive)?.name === playerName ? myStats.mistakes : opponentStats.mistakes}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
+          {/* Action Buttons */}
           <div className="flex space-x-4">
             <Button onClick={() => {
               if (socketRef.current) {
@@ -758,6 +811,9 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                     <> • Opponent: {opponent.personalCategory}</>
                   )}
                 </p>
+                <p className="text-xs text-gray-400">
+                  Hint {hints.length}/{5} • Damage: {damageByHint(hints.length || 1)} HP • Server: {getServerDisplayName()}
+                </p>
               </div>
               <Timer
                 duration={120}
@@ -766,7 +822,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               />
             </div>
 
-            {/* Enhanced GeoGuessr-style Health Bars */}
             <div className="grid grid-cols-2 gap-6 mb-6">
               <div className="bg-gray-900 p-4 rounded-lg border-2 border-green-400">
                 <HealthBar
@@ -775,7 +830,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                   isMe={true}
                 />
               </div>
-              <div className="bg-gray-900 p-4 rounded-lg border-2 border-blue-400">
+              <div className="bg-gray-900 p-4 rounded-lg border-2 border-red-400">
                 <HealthBar
                   playerId={opponent?.id}
                   playerName={opponent?.name || 'Opponent'}
@@ -806,27 +861,27 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               gameResult.winner && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' ? 'bg-red-900 border-red-500' :
               gameResult.winner === 'disconnect' ? 'bg-blue-900 border-blue-500' :
               gameResult.winner === 'elimination' ? 'bg-purple-900 border-purple-500' :
-              gameResult.isWrongAnswer ? 'bg-red-900 border-red-500' :
+              gameResult.isWrongAnswer ? 'bg-yellow-900 border-yellow-500' :
               'bg-yellow-900 border-yellow-500'
             }`}>
               <div className="text-center text-white">
                 {gameResult.winner === players.find(p => p.name === playerName)?.id && (
-                  <p className="text-lg font-bold">🎯 PERFECT SHOT! +{gameResult.healthGained || 1000} Health</p>
+                  <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
                 )}
                 {gameResult.winner && gameResult.winner !== players.find(p => p.name === playerName)?.id && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' && (
-                  <p className="text-lg font-bold">🔫 {gameResult.winnerName} shot the target first! +{gameResult.healthGained || 1000} Health</p>
+                  <p className="text-lg font-bold">🎯 {gameResult.winnerName} shot the target first! You lose {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
                 )}
                 {gameResult.winner === 'disconnect' && (
                   <p className="text-lg font-bold">🏆 {gameResult.message}</p>
                 )}
                 {gameResult.winner === 'elimination' && (
-                  <p className="text-lg font-bold">🔫 {gameResult.message}</p>
+                  <p className="text-lg font-bold">☠️ {gameResult.message}</p>
                 )}
                 {gameResult.isWrongAnswer && gameResult.incorrectGuess && (
-                  <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} MISSED THE SHOT: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
+                  <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} missed shot: "{gameResult.incorrectGuess}" - No penalties!</p>
                 )}
                 {!gameResult.winner && gameResult.incorrectGuess && !gameResult.isWrongAnswer && (
-                  <p className="text-lg font-bold">❌ Missed shot: "{gameResult.incorrectGuess}" • -{gameResult.healthLost || 500} Health</p>
+                  <p className="text-lg font-bold">❌ Missed shot: "{gameResult.incorrectGuess}" - No penalties, keep trying!</p>
                 )}
                 {gameResult.correctAnswer && (
                   <p className="text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
@@ -845,7 +900,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             <GuessInput
               onSubmit={submitGuess}
               disabled={gameResult?.winner && gameResult.winner !== 'disconnect' || myHealth <= 0}
-              placeholder={myHealth <= 0 ? "You have been shot down..." : "Take your shot (be precise)..."}
+              placeholder={myHealth <= 0 ? "You have been eliminated..." : "Take your shot (be precise)..."}
               key={`input-${currentTarget.targetIndex}`}
             />
           </div>
