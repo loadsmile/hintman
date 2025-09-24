@@ -4,52 +4,33 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 
-// Import questions data with error handling
+// Import questions data
 let questionsData;
 try {
   questionsData = require('./src/data/questions.json');
   console.log('✅ Questions loaded successfully:', questionsData.length);
 } catch (error) {
   console.error('❌ Failed to load questions.json:', error.message);
-  // Create fallback questions
-  questionsData = [
-    {
-      id: 1,
-      answer: "The Mona Lisa",
-      category: "Art",
-      difficulty: "medium",
-      hints: [
-        "This painting is displayed in the Louvre Museum",
-        "It was painted by Leonardo da Vinci",
-        "The subject has a mysterious smile",
-        "It's one of the most famous paintings in the world",
-        "The subject is believed to be Lisa Gherardini"
-      ]
-    },
-    {
-      id: 2,
-      answer: "Mount Everest",
-      category: "Geography",
-      difficulty: "easy",
-      hints: [
-        "It's the highest mountain on Earth",
-        "Located in the Himalayas",
-        "First summited in 1953",
-        "It's on the border of Nepal and Tibet",
-        "Its height is approximately 8,848 meters"
-      ]
-    }
-  ];
-  console.log('⚠️  Using fallback questions:', questionsData.length);
+  process.exit(1);
 }
 
-// Import GameManager with correct path
+// Force clear require cache to ensure latest GameRoom.js is loaded
+const gameRoomPath = path.resolve(__dirname, './src/models/GameRoom');
+delete require.cache[gameRoomPath];
+console.log('🔄 Cleared GameRoom cache, loading fresh version...');
+
+// Clear GameManager cache too
+const gameManagerPath = path.resolve(__dirname, './src/services/GameManager');
+delete require.cache[gameManagerPath];
+console.log('🔄 Cleared GameManager cache, loading fresh version...');
+
+// Import GameManager
 const GameManager = require('./src/services/GameManager');
 
 const app = express();
 const server = http.createServer(app);
 
-// Enhanced CORS configuration
+// CORS configuration
 const corsOptions = {
   origin: [
     'http://localhost:3000',
@@ -77,7 +58,7 @@ const io = socketIo(server, {
   pingInterval: 25000
 });
 
-// Initialize Game Manager with error handling
+// Initialize Game Manager
 let gameManager;
 try {
   gameManager = new GameManager(questionsData);
@@ -123,7 +104,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Admin stats endpoint (optional)
+// Admin stats endpoint
 app.get('/admin/stats', (req, res) => {
   try {
     res.json({
@@ -145,7 +126,6 @@ app.get('/admin/stats', (req, res) => {
 io.on('connection', (socket) => {
   console.log('🔗 Player connected:', socket.id);
 
-  // Let GameManager handle the connection completely
   try {
     gameManager.handleConnection(socket);
   } catch (error) {
@@ -153,7 +133,6 @@ io.on('connection', (socket) => {
     socket.emit('connectionError', { message: 'Failed to initialize connection' });
   }
 
-  // Additional socket events for debugging/admin
   socket.on('ping', () => {
     socket.emit('pong', { timestamp: Date.now() });
   });
@@ -223,7 +202,6 @@ function gracefulShutdown(signal) {
     process.exit(err ? 1 : 0);
   });
 
-  // Force close after 30 seconds
   setTimeout(() => {
     console.log('⏰ Forcing shutdown after timeout');
     process.exit(1);
@@ -257,21 +235,18 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('🌍 Environment:', process.env.NODE_ENV || 'production');
   console.log('📊 Questions loaded:', questionsData.length);
   console.log('💾 Memory usage:', `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-  console.log('📁 Working directory:', __dirname);
   console.log('🌐 CORS enabled for multiple origins');
+  console.log('🎮 OneVsOne system: Hints FREE, Speed matters, No penalties');
   console.log('========================');
 
   if (gameManager) {
     console.log('✅ GameManager ready');
   }
 
-  // Log first few questions for verification
-  if (questionsData.length > 0) {
-    console.log('📝 Sample questions loaded:');
-    questionsData.slice(0, 3).forEach((q, i) => {
-      console.log(`   ${i + 1}. ${q.answer} (${q.category})`);
-    });
-  }
+  console.log('📝 Sample questions loaded:');
+  questionsData.slice(0, 3).forEach((q, i) => {
+    console.log(`   ${i + 1}. ${q.answer} (${q.category})`);
+  });
 
   console.log('🎯 Server ready to accept connections!');
 }).on('error', (err) => {
@@ -279,5 +254,4 @@ server.listen(PORT, '0.0.0.0', () => {
   process.exit(1);
 });
 
-// Export for testing if needed
 module.exports = { app, server, io, gameManager };
