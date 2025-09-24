@@ -20,6 +20,56 @@ class GameRoom {
     this.questionsData = questionsData;
     this.playerCategories = [];
     this.categoryMix = null;
+
+    // Validate questions data
+    if (!questionsData || !Array.isArray(questionsData) || questionsData.length === 0) {
+      console.warn(`GameRoom ${id}: Invalid questions data provided, using fallback`);
+      this.questionsData = this.createFallbackQuestions();
+    }
+  }
+
+  createFallbackQuestions() {
+    return [
+      {
+        id: 1,
+        answer: "The Mona Lisa",
+        category: "Art",
+        difficulty: "medium",
+        hints: [
+          "This painting is displayed in the Louvre Museum",
+          "It was painted by Leonardo da Vinci",
+          "The subject has a mysterious smile",
+          "It's one of the most famous paintings in the world",
+          "The subject is believed to be Lisa Gherardini"
+        ]
+      },
+      {
+        id: 2,
+        answer: "Mount Everest",
+        category: "Geography",
+        difficulty: "easy",
+        hints: [
+          "It's the highest mountain on Earth",
+          "Located in the Himalayas",
+          "First summited in 1953",
+          "It's on the border of Nepal and Tibet",
+          "Its height is approximately 8,848 meters"
+        ]
+      },
+      {
+        id: 3,
+        answer: "William Shakespeare",
+        category: "Literature",
+        difficulty: "medium",
+        hints: [
+          "He wrote many famous plays and sonnets",
+          "Born in Stratford-upon-Avon",
+          "Known as the Bard of Avon",
+          "Wrote Romeo and Juliet",
+          "Considered the greatest writer in the English language"
+        ]
+      }
+    ];
   }
 
   addPlayer(socket, playerName, gameMode = 'general', personalCategory = 'general') {
@@ -48,7 +98,9 @@ class GameRoom {
         };
 
         this.questions = this.prepareGameQuestions();
+        console.log(`GameRoom ${this.id}: Prepared ${this.questions.length} questions for ${gameMode} mode`);
       } catch (error) {
+        console.error(`GameRoom ${this.id}: Error preparing questions:`, error);
         this.questions = this.getSimpleQuestions();
       }
     }
@@ -65,6 +117,7 @@ class GameRoom {
     try {
       return this.getMixedCategoryQuestions();
     } catch (error) {
+      console.error(`GameRoom ${this.id}: Error in getMixedCategoryQuestions:`, error);
       return this.getSimpleQuestions();
     }
   }
@@ -75,6 +128,8 @@ class GameRoom {
     // Get questions for each category with enhanced logic
     const cat1Questions = this.getQuestionsForPlayerCategory(category1);
     const cat2Questions = this.getQuestionsForPlayerCategory(category2);
+
+    console.log(`GameRoom ${this.id}: Category questions - ${category1}: ${cat1Questions.length}, ${category2}: ${cat2Questions.length}`);
 
     // Enhanced fallback logic - try broader matching if insufficient questions
     if (cat1Questions.length < 3 || cat2Questions.length < 3) {
@@ -307,16 +362,17 @@ class GameRoom {
     });
   }
 
-  getFallbackQuestions(cat1Questions, cat2Questions) {
-    // Legacy fallback - redirect to enhanced version
-    return this.getEnhancedFallbackQuestions(cat1Questions, cat2Questions,
-      this.playerCategories[0], this.playerCategories[1]);
-  }
-
   getSimpleQuestions() {
-    const shuffled = this.shuffleArray([...this.questionsData]);
-    const selected = shuffled.slice(0, this.questionsPerGame);
-    return selected.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
+    try {
+      const shuffled = this.shuffleArray([...this.questionsData]);
+      const selected = shuffled.slice(0, this.questionsPerGame);
+      return selected.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
+    } catch (error) {
+      console.error(`GameRoom ${this.id}: Error in getSimpleQuestions:`, error);
+      // Return fallback questions
+      const fallback = this.createFallbackQuestions();
+      return fallback.slice(0, this.questionsPerGame).map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
+    }
   }
 
   shuffleArray(array) {
@@ -364,9 +420,11 @@ class GameRoom {
 
   startGame() {
     if (this.players.length !== 2 || this.questions.length === 0) {
+      console.warn(`GameRoom ${this.id}: Cannot start game - players: ${this.players.length}, questions: ${this.questions.length}`);
       return;
     }
 
+    console.log(`GameRoom ${this.id}: Starting game with ${this.questions.length} questions`);
     this.gameState = 'playing';
     this.currentQuestion = 0;
     this.startQuestion();
@@ -380,6 +438,7 @@ class GameRoom {
 
     const question = this.questions[this.currentQuestion];
     if (!question) {
+      console.error(`GameRoom ${this.id}: Question ${this.currentQuestion} is undefined`);
       this.endGame();
       return;
     }
@@ -579,7 +638,7 @@ class GameRoom {
         try {
           player.socket.emit(event, data);
         } catch (error) {
-          // Silent error handling in production
+          console.error(`GameRoom ${this.id}: Error broadcasting to ${player.id}:`, error.message);
         }
       }
     });

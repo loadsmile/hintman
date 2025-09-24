@@ -1,0 +1,3902 @@
+[
+  {
+    "id": "q1",
+    "answer": "Newton's First Law",
+    "category": "Physics",
+    "difficulty": "medium",
+    "hints": [
+      "This scientific principle changed how we understand motion",
+      "Named after an English physicist and mathematician",
+      "Also known as the Law of Inertia",
+      "States that objects at rest stay at rest unless acted upon by force",
+      "F = ma is related, but this is specifically about objects in motion or at rest"
+    ]
+  },
+  {
+    "id": "q2",
+    "answer": "Leonardo da Vinci",
+    "category": "Art",
+    "difficulty": "easy",
+    "hints": [
+      "This Renaissance master created some of the world's most famous paintings",
+      "Born in Italy in the 15th century",
+      "Known for both art and scientific inventions",
+      "Painted the Mona Lisa",
+      "Also painted The Last Supper"
+    ]
+  },
+  {
+    "id": "q3",
+    "answer": "Photosynthesis",
+    "category": "Biology",
+    "difficulty": "medium",
+    "hints": [
+      "This process is essential for life on Earth",
+      "Involves converting light energy into chemical energy",
+      "Plants use this to create food from sunlight",
+      "Produces oxygen as a byproduct",
+      "Uses chlorophyll and occurs mainly in leaves"
+    ]
+  },
+  {
+    "id": "q4",
+    "answer": "Mount Everest",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This is the highest point on Earth",
+      "Located in the Himalayas",
+      "Sits on the border between Nepal and Tibet",
+      "Many climbers attempt to reach its summit each year",
+      "Also known as Sagarmatha in Nepali"
+    ]
+  },
+  {
+    "id": "q5",
+    "answer": "World War II",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This global conflict lasted from 1939 to 1945",
+      "Involved most of the world's nations",
+      "Featured the Holocaust and atomic bomb usage",
+      "Axis powers fought against Allied powers",
+      "Ended with Germany and Japan's surrender"
+    ]
+  },
+  {
+    "id": "q6",
+    "answer": "Albert Einstein",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This scientist is often called the Father of Relativity",
+      "He developed the famous equation E=mc²",
+      "He won the Nobel Prize in Physics in 1921",
+      "His wild hair and mustache made him instantly recognizable",
+      "He was born in Germany but later became an American citizen"
+    ]
+  },
+  {
+    "id": "q7",
+    "answer": "The Great Wall of China",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This ancient structure stretches for thousands of miles",
+      "It was built to protect against invasions from the north",
+      "Construction began in the 7th century BC",
+      "It is visible from space (though this is a myth)",
+      "It winds through deserts, grasslands, and mountains in Asia"
+    ]
+  },
+  {
+    "id": "q8",
+    "answer": "William Shakespeare",
+    "category": "Literature",
+    "difficulty": "easy",
+    "hints": [
+      "This English playwright is considered the greatest writer in the English language",
+      "He wrote 39 plays and 154 sonnets",
+      "His works include tragedies, comedies, and histories",
+      "He created characters like Hamlet, Romeo, and Juliet",
+      "He lived from 1564 to 1616 in Stratford-upon-Avon"
+    ]
+  },
+  {
+    "id": "q9",
+    "answer": "The Titanic",
+    "category": "History",
+    "difficulty": "easy",
+    "hints": [
+      "This \"unsinkable\" ship sank on its maiden voyage in 1912",
+      "It hit an iceberg in the North Atlantic Ocean",
+      "Over 1,500 people died in the disaster",
+      "It was traveling from Southampton to New York City",
+      "James Cameron made a famous movie about this tragedy"
+    ]
+  },
+  {
+    "id": "q10",
+    "answer": "Jupiter",
+    "category": "Science",
+    "difficulty": "easy",
+    "hints": [
+      "This is the largest planet in our solar system",
+      "It is a gas giant with no solid surface",
+      "It has a Great Red Spot that is actually a giant storm",
+      "It has over 80 known moons",
+      "Its four largest moons were discovered by Galileo"
+    ]
+  },
+  {
+    "id": "q11",
+    "answer": "DNA",
+    "category": "Biology",
+    "difficulty": "medium",
+    "hints": [
+      "This molecule carries genetic information in all living things",
+      "It has a double helix structure",
+      "Watson, Crick, and Franklin were key in discovering its structure",
+      "It stands for deoxyribonucleic acid",
+      "It is made up of four bases: A, T, G, and C"
+    ]
+  },
+  {
+    "id": "q12",
+    "answer": "The Mona Lisa",
+    "category": "Art",
+    "difficulty": "easy",
+    "hints": [
+      "This famous painting hangs in the Louvre Museum in Paris",
+      "It was painted by Leonardo da Vinci",
+      "The subject has a mysterious smile",
+      "It was stolen in 1911 but recovered two years later",
+      "The subject is believed to be Lisa Gherardini"
+    ]
+  },
+  {
+    "id": "q13",
+    "answer": "Oxygen",
+    "category": "Science",
+    "difficulty": "easy",
+    "hints": [
+      "This element makes up about 21% of Earth's atmosphere",
+      "All animals need this to breathe and survive",
+      "Its chemical symbol is O",
+      "It has an atomic number of 8",
+      "Plants produce this during photosynthesis"
+    ]
+  },
+  {
+    "id": "q14",
+    "answer": "The Beatles",
+    "category": "Music",
+    "difficulty": "easy",
+    "hints": [
+      "This British band formed in Liverpool in 1960",
+      "They were known as the Fab Four",
+      "Their members included John, Paul, George, and Ringo",
+      "They had hits like \"Hey Jude\" and \"Let It Be\"",
+      "They appeared on The Ed Sullivan Show in 1964"
+    ]
+  },
+  {
+    "id": "q15",
+    "answer": "Amazon River",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This is the longest river in South America",
+      "It flows through the world's largest rainforest",
+      "It empties into the Atlantic Ocean",
+      "It has over 1,100 tributaries",
+      "It flows through Brazil, Peru, Colombia, and other countries"
+    ]
+  },
+  {
+    "id": "q16",
+    "answer": "Mitochondria",
+    "category": "Biology",
+    "difficulty": "hard",
+    "hints": [
+      "This organelle is often called the powerhouse of the cell",
+      "It produces ATP, the cell's energy currency",
+      "It has its own DNA separate from the cell nucleus",
+      "It is believed to have evolved from ancient bacteria",
+      "Muscle cells contain many of these due to high energy needs"
+    ]
+  },
+  {
+    "id": "q17",
+    "answer": "Vincent van Gogh",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This Dutch post-impressionist painter cut off his own ear",
+      "He only sold one painting during his lifetime",
+      "His works include \"Starry Night\" and \"Sunflowers\"",
+      "He suffered from mental illness and died at age 37",
+      "His brother Theo supported him financially throughout his life"
+    ]
+  },
+  {
+    "id": "q18",
+    "answer": "Penicillin",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This antibiotic was discovered accidentally in 1928",
+      "It was found growing as mold in a petri dish",
+      "Alexander Fleming discovered it",
+      "It saved millions of lives during World War II",
+      "It comes from a type of fungus called Penicillium"
+    ]
+  },
+  {
+    "id": "q19",
+    "answer": "The Sahara Desert",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This is the largest hot desert in the world",
+      "It covers much of North Africa",
+      "It is roughly the size of the United States",
+      "Its name means \"desert\" in Arabic",
+      "It experiences extreme temperature differences between day and night"
+    ]
+  },
+  {
+    "id": "q20",
+    "answer": "Charles Darwin",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This naturalist developed the theory of evolution",
+      "He sailed on the HMS Beagle to the Galápagos Islands",
+      "He wrote \"On the Origin of Species\"",
+      "His theory explains how species change over time",
+      "He proposed the concept of natural selection"
+    ]
+  },
+  {
+    "id": "q21",
+    "answer": "The Berlin Wall",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This structure divided a major European city from 1961 to 1989",
+      "It separated East and West during the Cold War",
+      "Ronald Reagan famously said \"Tear down this wall!\"",
+      "Its fall marked the beginning of German reunification",
+      "It was built overnight to prevent people from escaping to the West"
+    ]
+  },
+  {
+    "id": "q22",
+    "answer": "Cleopatra",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This was the last active pharaoh of ancient Egypt",
+      "She had relationships with Julius Caesar and Mark Antony",
+      "She spoke nine languages and was highly educated",
+      "She died by snake bite (according to legend)",
+      "Elizabeth Taylor famously portrayed her in a 1963 film"
+    ]
+  },
+  {
+    "id": "q23",
+    "answer": "The Pacific Ocean",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This is the largest ocean on Earth",
+      "It covers about one-third of the planet's surface",
+      "It contains the Mariana Trench, the deepest point on Earth",
+      "It separates Asia and Australia from the Americas",
+      "Its name means \"peaceful\" in Latin"
+    ]
+  },
+  {
+    "id": "q24",
+    "answer": "Mozart",
+    "category": "Music",
+    "difficulty": "medium",
+    "hints": [
+      "This composer was a child prodigy who started composing at age 5",
+      "He lived from 1756 to 1791",
+      "He composed over 600 works in his short life",
+      "His full name was Wolfgang Amadeus",
+      "He wrote famous operas like \"The Magic Flute\" and \"Don Giovanni\""
+    ]
+  },
+  {
+    "id": "q25",
+    "answer": "Black Hole",
+    "category": "Science",
+    "difficulty": "hard",
+    "hints": [
+      "This cosmic object has gravity so strong that nothing can escape it",
+      "Not even light can escape from beyond its event horizon",
+      "Einstein's theory of relativity predicted their existence",
+      "The first image of one was captured in 2019",
+      "They form when massive stars collapse at the end of their lives"
+    ]
+  },
+  {
+    "id": "q26",
+    "answer": "The Great Gatsby",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This novel was written by F. Scott Fitzgerald",
+      "It's set in the Jazz Age of the 1920s",
+      "The story is narrated by Nick Carraway",
+      "It features the mysterious millionaire Jay Gatsby",
+      "The green light at the end of Daisy's dock is a famous symbol"
+    ]
+  },
+  {
+    "id": "q27",
+    "answer": "Machu Picchu",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This ancient city is located high in the Andes Mountains",
+      "It was built by the Inca civilization in the 15th century",
+      "It's often called the \"Lost City of the Incas\"",
+      "It was rediscovered by Hiram Bingham in 1911",
+      "It's located in modern-day Peru"
+    ]
+  },
+  {
+    "id": "q28",
+    "answer": "The Human Heart",
+    "category": "Biology",
+    "difficulty": "medium",
+    "hints": [
+      "This muscular organ pumps blood throughout the body",
+      "It has four chambers: two atria and two ventricles",
+      "It beats about 100,000 times per day",
+      "It's roughly the size of a clenched fist",
+      "It's located slightly left of center in the chest"
+    ]
+  },
+  {
+    "id": "q29",
+    "answer": "The Renaissance",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This cultural movement began in Italy in the 14th century",
+      "It marked the transition from medieval to modern times",
+      "It was characterized by renewed interest in art, science, and learning",
+      "Famous figures include Leonardo da Vinci and Michelangelo",
+      "The name means \"rebirth\" in French"
+    ]
+  },
+  {
+    "id": "q30",
+    "answer": "The Statue of Liberty",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This monument was a gift from France to the United States",
+      "It stands on an island in New York Harbor",
+      "It was designed by Frédéric Auguste Bartholdi",
+      "It holds a torch in one hand and a tablet in the other",
+      "It was dedicated in 1886 and symbolizes freedom and democracy"
+    ]
+  },
+  {
+    "id": "q31",
+    "answer": "Gravity",
+    "category": "Physics",
+    "difficulty": "medium",
+    "hints": [
+      "This fundamental force attracts objects with mass toward each other",
+      "Sir Isaac Newton described it after observing a falling apple",
+      "Einstein later described it as the curvature of spacetime",
+      "It keeps planets in orbit around the sun",
+      "It's the weakest of the four fundamental forces"
+    ]
+  },
+  {
+    "id": "q32",
+    "answer": "The Pyramids of Giza",
+    "category": "History",
+    "difficulty": "easy",
+    "hints": [
+      "These ancient structures are among the Seven Wonders of the Ancient World",
+      "They were built as tombs for Egyptian pharaohs",
+      "The largest was built for Pharaoh Khufu",
+      "They are located near Cairo, Egypt",
+      "The Great Sphinx guards these monuments"
+    ]
+  },
+  {
+    "id": "q33",
+    "answer": "Beethoven",
+    "category": "Music",
+    "difficulty": "medium",
+    "hints": [
+      "This composer continued to write music even after losing his hearing",
+      "He composed nine symphonies",
+      "His most famous piece might be \"Ode to Joy\"",
+      "He lived from 1770 to 1827",
+      "His first name was Ludwig van"
+    ]
+  },
+  {
+    "id": "q34",
+    "answer": "The Nervous System",
+    "category": "Biology",
+    "difficulty": "medium",
+    "hints": [
+      "This body system controls and coordinates all body functions",
+      "It consists of the brain, spinal cord, and nerves",
+      "It processes information and sends signals throughout the body",
+      "Neurons are the basic cells of this system",
+      "It can be divided into central and peripheral parts"
+    ]
+  },
+  {
+    "id": "q35",
+    "answer": "Hamlet",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This is Shakespeare's longest play",
+      "The protagonist is the Prince of Denmark",
+      "Features the famous soliloquy \"To be or not to be\"",
+      "The main character seeks revenge for his father's murder",
+      "Contains the play-within-a-play scene"
+    ]
+  },
+  {
+    "id": "q36",
+    "answer": "The Internet",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This global network connects billions of devices worldwide",
+      "It originated from ARPANET in the 1960s",
+      "Tim Berners-Lee invented the World Wide Web on this",
+      "It uses protocols like HTTP, TCP/IP, and DNS",
+      "Social media, email, and websites all use this infrastructure"
+    ]
+  },
+  {
+    "id": "q37",
+    "answer": "Marie Curie",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This scientist was the first woman to win a Nobel Prize",
+      "She discovered the elements polonium and radium",
+      "She was born in Poland but worked in France",
+      "She won Nobel Prizes in both Physics and Chemistry",
+      "She died from radiation exposure due to her research"
+    ]
+  },
+  {
+    "id": "q38",
+    "answer": "The Moon",
+    "category": "Science",
+    "difficulty": "easy",
+    "hints": [
+      "This celestial body causes tides on Earth",
+      "It's about 238,900 miles from Earth",
+      "Apollo 11 was the first mission to land here",
+      "It has phases: new, waxing, full, and waning",
+      "Neil Armstrong was the first human to walk on it"
+    ]
+  },
+  {
+    "id": "q39",
+    "answer": "The American Civil War",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This conflict lasted from 1861 to 1865",
+      "It was fought between the Union and the Confederacy",
+      "Abraham Lincoln was president during this war",
+      "It began with the attack on Fort Sumter",
+      "It ended slavery in the United States"
+    ]
+  },
+  {
+    "id": "q40",
+    "answer": "Picasso",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This Spanish artist co-founded the Cubist movement",
+      "He painted \"Guernica\" depicting the horrors of war",
+      "His Blue Period featured predominantly blue paintings",
+      "He lived from 1881 to 1973",
+      "His full name was Pablo Diego José Francisco de Paula Juan Nepomuceno"
+    ]
+  },
+  {
+    "id": "q41",
+    "answer": "The Arctic Ocean",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This is the smallest and shallowest ocean",
+      "It surrounds the North Pole",
+      "It's mostly covered by sea ice year-round",
+      "Polar bears live around its edges",
+      "Climate change is rapidly affecting this ocean"
+    ]
+  },
+  {
+    "id": "q42",
+    "answer": "Antibiotics",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "These medicines fight bacterial infections",
+      "Penicillin was the first widely used one",
+      "They don't work against viral infections",
+      "Overuse can lead to resistance",
+      "Alexander Fleming discovered the first one by accident"
+    ]
+  },
+  {
+    "id": "q43",
+    "answer": "The French Revolution",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This revolution began in 1789",
+      "It overthrew the monarchy in France",
+      "Marie Antoinette was executed during this period",
+      "The slogan was \"Liberty, Equality, Fraternity\"",
+      "It led to the rise of Napoleon Bonaparte"
+    ]
+  },
+  {
+    "id": "q44",
+    "answer": "Electricity",
+    "category": "Physics",
+    "difficulty": "easy",
+    "hints": [
+      "This form of energy powers most modern devices",
+      "Benjamin Franklin studied it with kites and keys",
+      "It flows through conductors like copper wire",
+      "Lightning is a natural form of this phenomenon",
+      "It can be generated by moving magnets near coils"
+    ]
+  },
+  {
+    "id": "q45",
+    "answer": "The Nile River",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This is traditionally considered the longest river in the world",
+      "It flows through Egypt and several other African countries",
+      "Ancient Egyptian civilization developed along its banks",
+      "It floods annually, depositing fertile soil",
+      "The Aswan High Dam was built to control its flow"
+    ]
+  },
+  {
+    "id": "q46",
+    "answer": "Dinosaurs",
+    "category": "Science",
+    "difficulty": "easy",
+    "hints": [
+      "These prehistoric reptiles dominated Earth for millions of years",
+      "They went extinct about 66 million years ago",
+      "Some evolved into modern birds",
+      "T. Rex and Triceratops are famous examples",
+      "Their fossils help us understand ancient life"
+    ]
+  },
+  {
+    "id": "q47",
+    "answer": "The Immune System",
+    "category": "Biology",
+    "difficulty": "medium",
+    "hints": [
+      "This body system defends against diseases and infections",
+      "White blood cells are its main soldiers",
+      "It can remember previous infections for faster response",
+      "Vaccines train this system to recognize threats",
+      "It includes organs like the spleen and lymph nodes"
+    ]
+  },
+  {
+    "id": "q48",
+    "answer": "Romeo and Juliet",
+    "category": "Literature",
+    "difficulty": "easy",
+    "hints": [
+      "This is Shakespeare's most famous tragedy about young love",
+      "It features two feuding families in Verona",
+      "The Montagues and Capulets are the warring houses",
+      "The protagonists die in the end",
+      "Friar Lawrence secretly marries the couple"
+    ]
+  },
+  {
+    "id": "q49",
+    "answer": "Antarctica",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This is the coldest and windiest continent",
+      "It's almost entirely covered by ice",
+      "No permanent human residents live here",
+      "It contains about 70% of the world's fresh water",
+      "Research stations from many countries operate here"
+    ]
+  },
+  {
+    "id": "q50",
+    "answer": "The Periodic Table",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This chart organizes all known chemical elements",
+      "Dmitri Mendeleev created the first version",
+      "Elements are arranged by atomic number",
+      "It predicts properties of undiscovered elements",
+      "Hydrogen is the first element on this table"
+    ]
+  },
+  {
+    "id": "q51",
+    "answer": "Pasta Carbonara",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This Italian pasta dish originated in Rome",
+      "Made with eggs, cheese, pancetta, and black pepper",
+      "The name means \"charcoal burner's pasta\"",
+      "No cream is used in the authentic recipe",
+      "Traditionally made with Pecorino Romano cheese"
+    ]
+  },
+  {
+    "id": "q52",
+    "answer": "Sushi",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This Japanese dish features vinegared rice",
+      "Often served with raw fish or seafood",
+      "Wasabi and pickled ginger are common accompaniments",
+      "Chopsticks are traditionally used to eat this",
+      "Popular varieties include maki, nigiri, and sashimi"
+    ]
+  },
+  {
+    "id": "q53",
+    "answer": "Croissant",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This buttery, flaky pastry originated in France",
+      "Has a distinctive crescent shape",
+      "Made with laminated dough containing butter layers",
+      "Often eaten for breakfast with coffee",
+      "Can be filled with chocolate, almonds, or ham and cheese"
+    ]
+  },
+  {
+    "id": "q54",
+    "answer": "Paella",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This rice dish originated in Valencia, Spain",
+      "Traditionally cooked in a wide, shallow pan",
+      "Contains saffron which gives it a yellow color",
+      "Classic version includes rabbit, chicken, and beans",
+      "Seafood versions are popular in coastal areas"
+    ]
+  },
+  {
+    "id": "q55",
+    "answer": "Tacos",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This Mexican dish consists of a folded tortilla",
+      "Can be filled with meat, vegetables, or beans",
+      "Often topped with salsa, onions, and cilantro",
+      "Corn tortillas are traditional, flour tortillas are also used",
+      "Street vendors are famous for serving these"
+    ]
+  },
+  {
+    "id": "q56",
+    "answer": "Curry",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This spiced dish originated in South Asian cuisine",
+      "Made with a variety of spices like turmeric and cumin",
+      "Can be made with meat, vegetables, or legumes",
+      "Often served with rice or bread like naan",
+      "Different regions have their own unique versions"
+    ]
+  },
+  {
+    "id": "q57",
+    "answer": "Chocolate",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This sweet treat comes from cacao beans",
+      "The Aztecs and Mayans first cultivated the cacao plant",
+      "Can be dark, milk, or white varieties",
+      "Contains compounds that can improve mood",
+      "Belgium and Switzerland are famous for producing high-quality versions"
+    ]
+  },
+  {
+    "id": "q58",
+    "answer": "Coffee",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This caffeinated beverage is made from roasted beans",
+      "Ethiopia is considered the birthplace of this drink",
+      "Can be served as espresso, cappuccino, or americano",
+      "The beans grow in tropical regions around the world",
+      "Many people rely on this to start their day"
+    ]
+  },
+  {
+    "id": "q59",
+    "answer": "Pizza",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This Italian dish consists of a flatbread base",
+      "Traditionally topped with tomato sauce and mozzarella",
+      "Naples is considered the birthplace of the modern version",
+      "Popular toppings include pepperoni, mushrooms, and peppers",
+      "Often baked in a wood-fired oven for the best results"
+    ]
+  },
+  {
+    "id": "q60",
+    "answer": "Dim Sum",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This Cantonese cuisine consists of small plates",
+      "Traditionally served with Chinese tea",
+      "Popular items include dumplings and buns",
+      "Often served from rolling carts in restaurants",
+      "The name means \"touch the heart\" in Chinese"
+    ]
+  },
+  {
+    "id": "q61",
+    "answer": "Oktoberfest",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This German beer festival takes place annually in Munich",
+      "Originally celebrated the marriage of Crown Prince Ludwig",
+      "Features traditional Bavarian music, food, and clothing",
+      "Visitors wear lederhosen and dirndls",
+      "Despite its name, it actually begins in September"
+    ]
+  },
+  {
+    "id": "q62",
+    "answer": "Carnival",
+    "category": "Culture",
+    "difficulty": "easy",
+    "hints": [
+      "This festive celebration occurs before Lent",
+      "Famous for elaborate costumes, parades, and dancing",
+      "Rio de Janeiro hosts one of the most famous versions",
+      "Venice is known for its elegant masked balls",
+      "New Orleans calls their version Mardi Gras"
+    ]
+  },
+  {
+    "id": "q63",
+    "answer": "Dia de los Muertos",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Mexican holiday honors deceased family members",
+      "Takes place on November 1st and 2nd",
+      "Families create colorful altars called ofrendas",
+      "Sugar skulls and marigolds are traditional decorations",
+      "The name means \"Day of the Dead\" in English"
+    ]
+  },
+  {
+    "id": "q64",
+    "answer": "Chinese New Year",
+    "category": "Culture",
+    "difficulty": "easy",
+    "hints": [
+      "This celebration marks the beginning of the lunar calendar",
+      "Also known as the Spring Festival",
+      "Features dragon and lion dances",
+      "Red envelopes with money are given as gifts",
+      "Each year is associated with one of twelve zodiac animals"
+    ]
+  },
+  {
+    "id": "q65",
+    "answer": "Holi",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Hindu festival is known as the Festival of Colors",
+      "Celebrates the arrival of spring and victory of good over evil",
+      "People throw colored powder and water at each other",
+      "Traditionally associated with the love story of Krishna and Radha",
+      "Celebrated primarily in India and Nepal"
+    ]
+  },
+  {
+    "id": "q66",
+    "answer": "Diwali",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Hindu festival is known as the Festival of Lights",
+      "Celebrates the victory of light over darkness",
+      "People light oil lamps called diyas",
+      "Families exchange sweets and gifts",
+      "Fireworks displays are common during this celebration"
+    ]
+  },
+  {
+    "id": "q67",
+    "answer": "Flamenco",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This passionate art form originated in Andalusia, Spain",
+      "Combines singing, guitar playing, dancing, and handclaps",
+      "Dancers often wear colorful ruffled dresses",
+      "The guitar style is characterized by complex fingerpicking",
+      "UNESCO recognized it as a Masterpiece of Oral and Intangible Heritage"
+    ]
+  },
+  {
+    "id": "q68",
+    "answer": "Kabuki",
+    "category": "Culture",
+    "difficulty": "hard",
+    "hints": [
+      "This traditional Japanese theater art form began in the early 17th century",
+      "Features elaborate makeup, costumes, and stylized movements",
+      "Originally performed by women, now performed only by men",
+      "Stories often involve historical events or moral conflicts",
+      "The name comes from a verb meaning \"to lean\" or \"to be out of the ordinary\""
+    ]
+  },
+  {
+    "id": "q69",
+    "answer": "Bollywood",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This film industry is based in Mumbai, India",
+      "Known for colorful musicals with elaborate dance sequences",
+      "Produces more films annually than Hollywood",
+      "Movies often feature themes of family, love, and tradition",
+      "The name is a combination of Bombay and Hollywood"
+    ]
+  },
+  {
+    "id": "q70",
+    "answer": "Netflix",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This streaming service started as a DVD-by-mail company",
+      "Now produces original content like \"Stranger Things\" and \"The Crown\"",
+      "Available in over 190 countries worldwide",
+      "Uses algorithms to recommend content to users",
+      "Headquarters are located in Los Gatos, California"
+    ]
+  },
+  {
+    "id": "q71",
+    "answer": "Marvel Cinematic Universe",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "This franchise features interconnected superhero movies",
+      "Started with \"Iron Man\" in 2008",
+      "Characters include Spider-Man, Thor, and Black Widow",
+      "\"Avengers: Endgame\" was one of its highest-grossing films",
+      "Owned by The Walt Disney Company"
+    ]
+  },
+  {
+    "id": "q72",
+    "answer": "TikTok",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This social media app is known for short-form videos",
+      "Owned by the Chinese company ByteDance",
+      "Popular among younger users for dancing and comedy content",
+      "Videos are typically 15 seconds to 3 minutes long",
+      "Has faced scrutiny over data privacy concerns"
+    ]
+  },
+  {
+    "id": "q73",
+    "answer": "YouTube",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This video-sharing platform was founded in 2005",
+      "Users can upload, watch, and share videos",
+      "Owned by Google since 2006",
+      "Content creators can monetize their channels",
+      "The first video uploaded was titled \"Me at the zoo\""
+    ]
+  },
+  {
+    "id": "q74",
+    "answer": "Spotify",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This music streaming service was founded in Sweden",
+      "Offers both free and premium subscription tiers",
+      "Users can create and share playlists",
+      "Provides personalized recommendations like \"Discover Weekly\"",
+      "Has over 400 million monthly active users worldwide"
+    ]
+  },
+  {
+    "id": "q75",
+    "answer": "Instagram",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This photo and video-sharing app was launched in 2010",
+      "Owned by Meta (formerly Facebook)",
+      "Features include Stories, Reels, and IGTV",
+      "Popular among influencers and businesses for marketing",
+      "Uses hashtags to categorize and discover content"
+    ]
+  },
+  {
+    "id": "q76",
+    "answer": "Smartphone",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This mobile device combines phone and computer functions",
+      "Features a touchscreen interface",
+      "Can run various applications or \"apps\"",
+      "Includes features like camera, GPS, and internet access",
+      "The iPhone revolutionized this device category in 2007"
+    ]
+  },
+  {
+    "id": "q77",
+    "answer": "Artificial Intelligence",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology simulates human intelligence in machines",
+      "Applications include machine learning and natural language processing",
+      "Used in virtual assistants like Siri and Alexa",
+      "Can analyze large amounts of data to find patterns",
+      "Raises ethical questions about automation and employment"
+    ]
+  },
+  {
+    "id": "q78",
+    "answer": "Bitcoin",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This digital currency was created by the mysterious Satoshi Nakamoto",
+      "Uses blockchain technology for secure transactions",
+      "Not controlled by any government or central authority",
+      "Can be \"mined\" using powerful computer hardware",
+      "Value is highly volatile and speculative"
+    ]
+  },
+  {
+    "id": "q79",
+    "answer": "Cloud Computing",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology delivers computing services over the internet",
+      "Allows users to access data and applications from anywhere",
+      "Services include storage, databases, and software",
+      "Major providers include Amazon AWS, Microsoft Azure, and Google Cloud",
+      "Reduces the need for local hardware and maintenance"
+    ]
+  },
+  {
+    "id": "q80",
+    "answer": "Virtual Reality",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology creates immersive, computer-generated environments",
+      "Users typically wear special headsets to experience it",
+      "Applications include gaming, education, and training",
+      "Can simulate presence in real or imagined worlds",
+      "Often abbreviated as VR"
+    ]
+  },
+  {
+    "id": "q81",
+    "answer": "Electric Car",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This vehicle uses electric motors instead of gasoline engines",
+      "Powered by rechargeable battery packs",
+      "Tesla is a well-known manufacturer of these vehicles",
+      "Produces zero direct emissions",
+      "Charging stations are becoming more common worldwide"
+    ]
+  },
+  {
+    "id": "q82",
+    "answer": "Social Media",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "These online platforms allow users to share content and interact",
+      "Examples include Facebook, Twitter, and Instagram",
+      "Has changed how people communicate and get news",
+      "Can be used for marketing and building communities",
+      "Raises concerns about privacy and misinformation"
+    ]
+  },
+  {
+    "id": "q83",
+    "answer": "E-commerce",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This refers to buying and selling goods online",
+      "Amazon is the largest platform for this activity",
+      "Allows businesses to reach customers worldwide",
+      "Includes online payments and digital transactions",
+      "Has grown significantly, especially during the COVID-19 pandemic"
+    ]
+  },
+  {
+    "id": "q84",
+    "answer": "Cybersecurity",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This field focuses on protecting digital systems from attacks",
+      "Includes measures like firewalls, encryption, and antivirus software",
+      "Professionals in this field are called cybersecurity analysts",
+      "Threats include malware, phishing, and data breaches",
+      "Becoming increasingly important as more activities move online"
+    ]
+  },
+  {
+    "id": "q85",
+    "answer": "Machine Learning",
+    "category": "Technology",
+    "difficulty": "hard",
+    "hints": [
+      "This subset of AI enables computers to learn from data",
+      "Algorithms improve automatically through experience",
+      "Used in recommendation systems and image recognition",
+      "Does not require explicit programming for every task",
+      "Popular frameworks include TensorFlow and PyTorch"
+    ]
+  },
+  {
+    "id": "q86",
+    "answer": "Insulin",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This hormone regulates blood sugar levels",
+      "Produced by the pancreas in healthy individuals",
+      "People with diabetes may need injections of this",
+      "Its discovery won the Nobel Prize in Physiology",
+      "Type 1 diabetics cannot produce this naturally"
+    ]
+  },
+  {
+    "id": "q87",
+    "answer": "X-Ray",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This medical imaging technique uses electromagnetic radiation",
+      "Can see through soft tissue to reveal bones",
+      "Discovered by Wilhelm Röntgen in 1895",
+      "Common use is diagnosing broken bones",
+      "Radiation exposure is kept to safe levels"
+    ]
+  },
+  {
+    "id": "q88",
+    "answer": "Aspirin",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This common painkiller also reduces inflammation",
+      "Originally derived from willow bark",
+      "Can help prevent heart attacks and strokes",
+      "One of the most widely used medications in the world",
+      "Generic name is acetylsalicylic acid"
+    ]
+  },
+  {
+    "id": "q89",
+    "answer": "MRI",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This imaging technique uses magnetic fields and radio waves",
+      "Provides detailed images of soft tissues",
+      "Patients must remain very still during the procedure",
+      "The machine makes loud knocking sounds",
+      "Stands for Magnetic Resonance Imaging"
+    ]
+  },
+  {
+    "id": "q90",
+    "answer": "Chemotherapy",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This cancer treatment uses powerful drugs",
+      "Can cause side effects like hair loss and nausea",
+      "Often given in cycles over several months",
+      "May be combined with radiation or surgery",
+      "Works by targeting rapidly dividing cells"
+    ]
+  },
+  {
+    "id": "q91",
+    "answer": "Anesthesia",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This medical technique prevents pain during surgery",
+      "Can be local, regional, or general",
+      "Revolutionized modern surgery",
+      "Administered by specialized doctors called anesthesiologists",
+      "Early forms included ether and chloroform"
+    ]
+  },
+  {
+    "id": "q92",
+    "answer": "CPR",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This emergency procedure helps restart the heart",
+      "Involves chest compressions and rescue breathing",
+      "Can be performed by trained bystanders",
+      "Should be started immediately during cardiac arrest",
+      "Stands for Cardiopulmonary Resuscitation"
+    ]
+  },
+  {
+    "id": "q93",
+    "answer": "Blood Pressure",
+    "category": "Medicine",
+    "difficulty": "easy",
+    "hints": [
+      "This measurement indicates the force of blood against artery walls",
+      "Recorded as two numbers, like 120 over 80",
+      "High levels increase risk of heart disease and stroke",
+      "Measured using a device called a sphygmomanometer",
+      "Can be affected by diet, exercise, and stress"
+    ]
+  },
+  {
+    "id": "q94",
+    "answer": "Organ Transplant",
+    "category": "Medicine",
+    "difficulty": "medium",
+    "hints": [
+      "This procedure replaces a failing organ with a healthy one",
+      "Requires careful matching between donor and recipient",
+      "Recipients must take immunosuppressive drugs for life",
+      "Common types include heart, liver, and kidney",
+      "First successful one was performed in 1954"
+    ]
+  },
+  {
+    "id": "q95",
+    "answer": "Antibiotic Resistance",
+    "category": "Medicine",
+    "difficulty": "hard",
+    "hints": [
+      "This occurs when bacteria evolve to survive antibiotic treatment",
+      "Caused by overuse and misuse of antibiotics",
+      "Creates \"superbugs\" that are hard to treat",
+      "A major global health concern",
+      "Can be prevented by completing full antibiotic courses"
+    ]
+  },
+  {
+    "id": "q96",
+    "answer": "Quantum Computing",
+    "category": "Technology",
+    "difficulty": "hard",
+    "hints": [
+      "This computing method uses quantum mechanical phenomena",
+      "Uses quantum bits or \"qubits\" instead of regular bits",
+      "Could solve certain problems exponentially faster",
+      "Still largely experimental and theoretical",
+      "Companies like IBM and Google are developing these systems"
+    ]
+  },
+  {
+    "id": "q97",
+    "answer": "Renewable Energy",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This type of energy comes from naturally replenishing sources",
+      "Includes solar, wind, and hydroelectric power",
+      "Considered more environmentally friendly than fossil fuels",
+      "Costs have decreased significantly in recent years",
+      "Key to addressing climate change"
+    ]
+  },
+  {
+    "id": "q98",
+    "answer": "Gene Therapy",
+    "category": "Medicine",
+    "difficulty": "hard",
+    "hints": [
+      "This treatment involves inserting genetic material into cells",
+      "Aims to treat or prevent disease at the genetic level",
+      "Still largely experimental but showing promise",
+      "Could potentially cure inherited disorders",
+      "Raises ethical questions about genetic modification"
+    ]
+  },
+  {
+    "id": "q99",
+    "answer": "Blockchain",
+    "category": "Technology",
+    "difficulty": "hard",
+    "hints": [
+      "This technology creates tamper-resistant digital records",
+      "Uses cryptographic hashing to link blocks of data",
+      "The foundation technology behind cryptocurrencies",
+      "Can provide transparency and security for transactions",
+      "Applications extend beyond digital currency"
+    ]
+  },
+  {
+    "id": "q100",
+    "answer": "CRISPR",
+    "category": "Science",
+    "difficulty": "hard",
+    "hints": [
+      "This gene-editing technology can precisely modify DNA",
+      "Stands for Clustered Regularly Interspaced Short Palindromic Repeats",
+      "Originally discovered as part of bacterial immune systems",
+      "Could potentially cure genetic diseases",
+      "Raises ethical concerns about genetic modification"
+    ]
+  },
+  {
+    "id": "q101",
+    "answer": "The Cold War",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This ideological conflict lasted from 1947 to 1991",
+      "It was primarily between the United States and Soviet Union",
+      "No direct military confrontation occurred between the superpowers",
+      "The Berlin Wall was a symbol of this division",
+      "It ended with the collapse of the Soviet Union"
+    ]
+  },
+  {
+    "id": "q102",
+    "answer": "Julius Caesar",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This Roman general crossed the Rubicon River in 49 BC",
+      "He was assassinated on the Ides of March",
+      "Shakespeare wrote a famous play about him",
+      "He had a romantic relationship with Cleopatra",
+      "His last words were allegedly 'Et tu, Brute?'"
+    ]
+  },
+  {
+    "id": "q103",
+    "answer": "Winston Churchill",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This British Prime Minister led the UK during World War II",
+      "He was known for his inspiring speeches and cigar smoking",
+      "He famously said 'We shall never surrender'",
+      "He won the Nobel Prize in Literature in 1953",
+      "His initials were W.S.C."
+    ]
+  },
+  {
+    "id": "q104",
+    "answer": "The Watergate Scandal",
+    "category": "History",
+    "difficulty": "hard",
+    "hints": [
+      "This political scandal led to a US President's resignation in 1974",
+      "It involved a break-in at Democratic National Committee headquarters",
+      "Bob Woodward and Carl Bernstein investigated this story",
+      "The phrase 'Deep Throat' was associated with this scandal",
+      "Richard Nixon was the president who resigned because of it"
+    ]
+  },
+  {
+    "id": "q105",
+    "answer": "The Ottoman Empire",
+    "category": "History",
+    "difficulty": "hard",
+    "hints": [
+      "This empire lasted from 1299 to 1922",
+      "It controlled much of Southeast Europe, Western Asia, and North Africa",
+      "Constantinople was its capital city",
+      "It was known as 'the sick man of Europe' in its decline",
+      "Mustafa Kemal Atatürk helped establish its successor state"
+    ]
+  },
+  {
+    "id": "q106",
+    "answer": "The Magna Carta",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This document was signed in 1215 in England",
+      "It limited the power of King John",
+      "It established the principle that no one is above the law",
+      "It was signed at Runnymede",
+      "It influenced the development of constitutional law"
+    ]
+  },
+  {
+    "id": "q107",
+    "answer": "Genghis Khan",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This Mongol leader created the largest contiguous empire in history",
+      "His birth name was Temüjin",
+      "He died in 1227, possibly from falling off his horse",
+      "His empire stretched from Eastern Europe to the Pacific Ocean",
+      "He established the Silk Road trade routes"
+    ]
+  },
+  {
+    "id": "q108",
+    "answer": "The Boston Tea Party",
+    "category": "History",
+    "difficulty": "easy",
+    "hints": [
+      "This protest occurred in Boston Harbor in 1773",
+      "Colonists dumped 342 chests of tea into the water",
+      "It was a response to the Tea Act imposed by Britain",
+      "Participants disguised themselves as Native Americans",
+      "It was one of the events leading to the American Revolution"
+    ]
+  },
+  {
+    "id": "q109",
+    "answer": "The Space Race",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This competition occurred between 1955 and 1975",
+      "The main competitors were the USA and USSR",
+      "Sputnik 1 was the first artificial satellite launched",
+      "Yuri Gagarin was the first human in space",
+      "It ended with the Apollo-Soyuz Test Project"
+    ]
+  },
+  {
+    "id": "q110",
+    "answer": "The Industrial Revolution",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This period began in Britain in the late 18th century",
+      "It marked the transition from manual labor to mechanization",
+      "The steam engine was a key invention of this era",
+      "It led to urbanization and factory systems",
+      "It fundamentally changed how goods were produced"
+    ]
+  },
+  {
+    "id": "q111",
+    "answer": "CRISPR",
+    "category": "Science",
+    "difficulty": "hard",
+    "hints": [
+      "This gene-editing technology was developed in the 2010s",
+      "It stands for Clustered Regularly Interspaced Short Palindromic Repeats",
+      "Jennifer Doudna and Emmanuelle Charpentier won the Nobel Prize for it",
+      "It can precisely edit DNA sequences",
+      "It's being used to treat genetic diseases and modify crops"
+    ]
+  },
+  {
+    "id": "q112",
+    "answer": "Quantum Computing",
+    "category": "Technology",
+    "difficulty": "hard",
+    "hints": [
+      "This computing method uses quantum mechanical phenomena",
+      "It uses quantum bits called qubits instead of regular bits",
+      "Google claimed quantum supremacy in 2019",
+      "It could potentially break current encryption methods",
+      "Companies like IBM and Microsoft are developing these systems"
+    ]
+  },
+  {
+    "id": "q113",
+    "answer": "The Human Genome Project",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This international research project was completed in 2003",
+      "It mapped all human DNA sequences",
+      "It took 13 years and cost $3 billion",
+      "Francis Collins was one of its leaders",
+      "It identified approximately 20,000-25,000 genes"
+    ]
+  },
+  {
+    "id": "q114",
+    "answer": "Artificial Intelligence",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This technology simulates human intelligence in machines",
+      "Machine learning is a subset of this field",
+      "ChatGPT is a recent breakthrough in this area",
+      "Alan Turing was an early pioneer of this concept",
+      "It's used in voice assistants like Siri and Alexa"
+    ]
+  },
+  {
+    "id": "q115",
+    "answer": "The Large Hadron Collider",
+    "category": "Science",
+    "difficulty": "hard",
+    "hints": [
+      "This particle accelerator is located at CERN in Switzerland",
+      "It's the world's largest and most powerful particle collider",
+      "It discovered the Higgs boson in 2012",
+      "It's 27 kilometers in circumference",
+      "Scientists use it to study the fundamental nature of matter"
+    ]
+  },
+  {
+    "id": "q116",
+    "answer": "Blockchain",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology underlies cryptocurrencies like Bitcoin",
+      "It creates tamper-resistant digital ledgers",
+      "Each block contains a cryptographic hash of the previous block",
+      "It enables decentralized, peer-to-peer transactions",
+      "Satoshi Nakamoto introduced it in 2008"
+    ]
+  },
+  {
+    "id": "q117",
+    "answer": "Photosynthesis",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This process converts light energy into chemical energy",
+      "Plants use carbon dioxide and water for this process",
+      "Chlorophyll is the green pigment that captures light",
+      "It produces glucose and oxygen as byproducts",
+      "It occurs in the chloroplasts of plant cells"
+    ]
+  },
+  {
+    "id": "q118",
+    "answer": "The Internet of Things",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This concept connects everyday objects to the internet",
+      "Smart thermostats and refrigerators are examples",
+      "It enables devices to collect and exchange data",
+      "Kevin Ashton coined this term in 1999",
+      "It's abbreviated as IoT"
+    ]
+  },
+  {
+    "id": "q119",
+    "answer": "Evolution",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This theory explains how species change over time",
+      "Charles Darwin developed the modern understanding of this concept",
+      "Natural selection is the primary mechanism",
+      "'On the Origin of Species' is the famous book about it",
+      "The Galápagos Islands provided key evidence for this theory"
+    ]
+  },
+  {
+    "id": "q120",
+    "answer": "5G Technology",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This is the fifth generation of cellular network technology",
+      "It promises much faster internet speeds than 4G",
+      "It enables technologies like autonomous vehicles",
+      "It has lower latency than previous generations",
+      "Companies like Verizon and AT&T have deployed this technology"
+    ]
+  },
+  {
+    "id": "q121",
+    "answer": "Pride and Prejudice",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This novel was published by Jane Austen in 1813",
+      "The protagonist is Elizabeth Bennet",
+      "Mr. Darcy is the male romantic lead",
+      "It begins with 'It is a truth universally acknowledged'",
+      "It's been adapted into numerous films and TV series"
+    ]
+  },
+  {
+    "id": "q122",
+    "answer": "George Orwell",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This author wrote '1984' and 'Animal Farm'",
+      "His real name was Eric Arthur Blair",
+      "He coined terms like 'Big Brother' and 'doublethink'",
+      "He fought in the Spanish Civil War",
+      "He died in 1950 from tuberculosis"
+    ]
+  },
+  {
+    "id": "q123",
+    "answer": "The Great Gatsby",
+    "category": "Literature",
+    "difficulty": "easy",
+    "hints": [
+      "This novel was written by F. Scott Fitzgerald",
+      "It's set in the Jazz Age of the 1920s",
+      "The narrator is Nick Carraway",
+      "It features the mysterious Jay Gatsby",
+      "The green light is a famous symbol in the story"
+    ]
+  },
+  {
+    "id": "q124",
+    "answer": "Harper Lee",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This author wrote 'To Kill a Mockingbird'",
+      "She won the Pulitzer Prize for Fiction in 1961",
+      "She was born and raised in Alabama",
+      "Truman Capote was her childhood friend",
+      "She published only two novels in her lifetime"
+    ]
+  },
+  {
+    "id": "q125",
+    "answer": "The Odyssey",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This epic poem was written by Homer",
+      "It tells the story of Odysseus's journey home from Troy",
+      "The journey takes ten years to complete",
+      "It features mythical creatures like the Cyclops and Sirens",
+      "Penelope is Odysseus's faithful wife"
+    ]
+  },
+  {
+    "id": "q126",
+    "answer": "Virginia Woolf",
+    "category": "Literature",
+    "difficulty": "hard",
+    "hints": [
+      "This modernist author wrote 'Mrs. Dalloway' and 'To the Lighthouse'",
+      "She was part of the Bloomsbury Group in London",
+      "She used stream-of-consciousness narrative technique",
+      "She struggled with mental illness throughout her life",
+      "She drowned in the River Ouse in 1941"
+    ]
+  },
+  {
+    "id": "q127",
+    "answer": "Don Quixote",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This novel was written by Miguel de Cervantes",
+      "The protagonist is an idealistic knight-errant",
+      "Sancho Panza is his loyal squire",
+      "He fights windmills thinking they are giants",
+      "It's considered one of the first modern novels"
+    ]
+  },
+  {
+    "id": "q128",
+    "answer": "The Canterbury Tales",
+    "category": "Literature",
+    "difficulty": "hard",
+    "hints": [
+      "This collection of stories was written by Geoffrey Chaucer",
+      "It was written in Middle English in the 14th century",
+      "The stories are told by pilgrims traveling to Canterbury",
+      "The Wife of Bath is one of the famous characters",
+      "It provides insight into medieval English society"
+    ]
+  },
+  {
+    "id": "q129",
+    "answer": "One Hundred Years of Solitude",
+    "category": "Literature",
+    "difficulty": "hard",
+    "hints": [
+      "This novel was written by Gabriel García Márquez",
+      "It tells the story of the Buendía family",
+      "It's set in the fictional town of Macondo",
+      "It's a prime example of magical realism",
+      "The author won the Nobel Prize in Literature partly for this work"
+    ]
+  },
+  {
+    "id": "q130",
+    "answer": "The Picture of Dorian Gray",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This novel was written by Oscar Wilde",
+      "The protagonist remains young while his portrait ages",
+      "Lord Henry Wotton influences the main character",
+      "It explores themes of aestheticism and moral corruption",
+      "It was Wilde's only published novel"
+    ]
+  },
+  {
+    "id": "q131",
+    "answer": "The Grand Canyon",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This natural wonder is located in Arizona, USA",
+      "It was carved by the Colorado River over millions of years",
+      "It's one of the Seven Natural Wonders of the World",
+      "It's about 277 miles long and up to 18 miles wide",
+      "Theodore Roosevelt helped establish it as a national monument"
+    ]
+  },
+  {
+    "id": "q132",
+    "answer": "Mount Kilimanjaro",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This mountain is located in Tanzania, East Africa",
+      "It's the highest peak in Africa at 19,341 feet",
+      "It has three volcanic cones: Kibo, Mawenzi, and Shira",
+      "Ernest Hemingway wrote 'The Snows of...' about this mountain",
+      "It's a popular destination for mountain climbers"
+    ]
+  },
+  {
+    "id": "q133",
+    "answer": "The Dead Sea",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This salt lake is located between Jordan and Israel",
+      "It's the lowest point on Earth's surface at 1,412 feet below sea level",
+      "Its high salt content makes it impossible to sink",
+      "It's about 10 times saltier than most oceans",
+      "It's shrinking rapidly due to water diversions"
+    ]
+  },
+  {
+    "id": "q134",
+    "answer": "Madagascar",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This island nation is located off the coast of East Africa",
+      "It's the fourth largest island in the world",
+      "About 90% of its wildlife is found nowhere else on Earth",
+      "Lemurs are native to this island",
+      "Its capital city is Antananarivo"
+    ]
+  },
+  {
+    "id": "q135",
+    "answer": "The Ring of Fire",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This area surrounds the Pacific Ocean basin",
+      "It's known for frequent earthquakes and volcanic activity",
+      "About 75% of the world's active volcanoes are located here",
+      "It includes countries like Japan, Indonesia, and Chile",
+      "Tectonic plate boundaries create this geological phenomenon"
+    ]
+  },
+  {
+    "id": "q136",
+    "answer": "The Maldives",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This island nation is located in the Indian Ocean",
+      "It consists of 1,192 coral islands grouped into 26 atolls",
+      "It's the lowest country in the world in terms of elevation",
+      "Its highest point is only 8 feet above sea level",
+      "Climate change and rising sea levels threaten its existence"
+    ]
+  },
+  {
+    "id": "q137",
+    "answer": "The Himalayas",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This mountain range stretches across South Asia",
+      "It contains the world's highest peaks including Mount Everest",
+      "It separates the Indian subcontinent from the Tibetan Plateau",
+      "It spans across five countries including Nepal and India",
+      "The name means 'abode of snow' in Sanskrit"
+    ]
+  },
+  {
+    "id": "q138",
+    "answer": "Victoria Falls",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This waterfall is located on the border of Zambia and Zimbabwe",
+      "It's on the Zambezi River in southern Africa",
+      "David Livingstone named it after Queen Victoria",
+      "Local people call it 'Mosi-oa-Tunya' meaning 'the smoke that thunders'",
+      "It's one of the largest waterfalls in the world"
+    ]
+  },
+  {
+    "id": "q139",
+    "answer": "The Amazon Rainforest",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This rainforest covers much of the Amazon Basin in South America",
+      "It's often called 'the lungs of the Earth'",
+      "It contains about 10% of the world's known biodiversity",
+      "The majority of it is located in Brazil",
+      "It spans across nine countries in total"
+    ]
+  },
+  {
+    "id": "q140",
+    "answer": "The Gobi Desert",
+    "category": "Geography",
+    "difficulty": "hard",
+    "hints": [
+      "This desert spans across northern China and southern Mongolia",
+      "It's the fifth largest desert in the world",
+      "It's a cold desert, not a hot one like the Sahara",
+      "It's expanding southward due to desertification",
+      "Dinosaur fossils and eggs have been found here"
+    ]
+  },
+  {
+    "id": "q141",
+    "answer": "Stranger Things",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This Netflix series is set in the fictional town of Hawkins, Indiana",
+      "It features a parallel dimension called the Upside Down",
+      "Eleven is a character with telekinetic powers",
+      "The show is set in the 1980s",
+      "The Duffer Brothers created this series"
+    ]
+  },
+  {
+    "id": "q142",
+    "answer": "Game of Thrones",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This HBO series was based on George R.R. Martin's books",
+      "The phrase 'Winter is Coming' is from this show",
+      "It features the Iron Throne as a central symbol",
+      "Dragons are important creatures in the story",
+      "It aired from 2011 to 2019"
+    ]
+  },
+  {
+    "id": "q143",
+    "answer": "Marvel Cinematic Universe",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This franchise began with Iron Man in 2008",
+      "It features interconnected superhero movies and TV shows",
+      "Avengers: Endgame was its culminating film in 2019",
+      "Characters include Spider-Man, Thor, and Black Widow",
+      "Disney owns this entertainment property"
+    ]
+  },
+  {
+    "id": "q144",
+    "answer": "The Office",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This mockumentary sitcom is set in Scranton, Pennsylvania",
+      "Steve Carell played the regional manager Michael Scott",
+      "Jim and Pam's relationship was a central storyline",
+      "Dwight Schrute is known for his beet farming",
+      "It ran from 2005 to 2013 on NBC"
+    ]
+  },
+  {
+    "id": "q145",
+    "answer": "Taylor Swift",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This singer is known for writing songs about her personal experiences",
+      "She has won multiple Grammy Awards for Album of the Year",
+      "Her fans are called Swifties",
+      "She started as a country singer before moving to pop",
+      "Recent albums include 'Folklore' and 'The Tortured Poets Department'"
+    ]
+  },
+  {
+    "id": "q146",
+    "answer": "Avatar",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This 2009 film was directed by James Cameron",
+      "It's set on the alien moon called Pandora",
+      "The Na'vi are the indigenous blue-skinned humanoids",
+      "It was the highest-grossing film of all time for a decade",
+      "Jake Sully is the main character"
+    ]
+  },
+  {
+    "id": "q147",
+    "answer": "BTS",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This South Korean boy band became globally famous",
+      "They were the first K-pop group to top the Billboard Hot 100",
+      "The group has seven members",
+      "Songs include 'Dynamite' and 'Butter'",
+      "Their fandom is called ARMY"
+    ]
+  },
+  {
+    "id": "q148",
+    "answer": "TikTok",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This social media app is known for short-form videos",
+      "It was originally called Musical.ly",
+      "ByteDance is the Chinese company that owns it",
+      "Users can create videos up to 10 minutes long",
+      "It's been the subject of government scrutiny in several countries"
+    ]
+  },
+  {
+    "id": "q149",
+    "answer": "The Crown",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "This Netflix series chronicles the reign of Queen Elizabeth II",
+      "Different actors play the royal family members across different seasons",
+      "It covers British royal family events from the 1940s onward",
+      "Peter Morgan created this biographical drama",
+      "It has won multiple Emmy and Golden Globe awards"
+    ]
+  },
+  {
+    "id": "q150",
+    "answer": "Squid Game",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This Korean survival drama became Netflix's most-watched series",
+      "Contestants play deadly versions of children's games",
+      "The main character is Seong Gi-hun, player 456",
+      "Players wear green tracksuits while guards wear pink",
+      "It sparked global conversations about inequality and capitalism"
+    ]
+  },
+  {
+    "id": "q151",
+    "answer": "Serena Williams",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This tennis player has won 23 Grand Slam singles titles",
+      "She's considered one of the greatest female athletes of all time",
+      "Her sister Venus is also a professional tennis player",
+      "She won her last Grand Slam while pregnant",
+      "She retired from professional tennis in 2022"
+    ]
+  },
+  {
+    "id": "q152",
+    "answer": "Michael Jordan",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This basketball player won six NBA championships with the Chicago Bulls",
+      "He wore jersey number 23 for most of his career",
+      "His nickname is 'His Airness'",
+      "He starred in the movie 'Space Jam'",
+      "The Jordan brand of sneakers is named after him"
+    ]
+  },
+  {
+    "id": "q153",
+    "answer": "The Olympics",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This international sporting event occurs every four years",
+      "Ancient Greece is where this competition originated",
+      "There are Summer and Winter versions of this event",
+      "The five interlocking rings are its symbol",
+      "Athletes compete for gold, silver, and bronze medals"
+    ]
+  },
+  {
+    "id": "q154",
+    "answer": "Lionel Messi",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This Argentine soccer player has won multiple Ballon d'Or awards",
+      "He spent most of his career at FC Barcelona",
+      "He led Argentina to victory in the 2022 FIFA World Cup",
+      "He currently plays for Inter Miami in MLS",
+      "He's often compared to Cristiano Ronaldo"
+    ]
+  },
+  {
+    "id": "q155",
+    "answer": "The Super Bowl",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This is the championship game of the National Football League",
+      "It's held on the first Sunday in February",
+      "The halftime show features major musical performances",
+      "Roman numerals are used to number each game",
+      "It's one of the most-watched television events in the United States"
+    ]
+  },
+  {
+    "id": "q156",
+    "answer": "Usain Bolt",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This Jamaican sprinter holds world records in the 100m and 200m",
+      "He won eight Olympic gold medals",
+      "His signature celebration pose is called 'Lightning Bolt'",
+      "He's known as the fastest man in the world",
+      "He retired from athletics in 2017"
+    ]
+  },
+  {
+    "id": "q157",
+    "answer": "Wimbledon",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This tennis tournament is held annually in London, England",
+      "It's the oldest tennis tournament in the world",
+      "Players traditionally wear all white clothing",
+      "Strawberries and cream are a traditional treat served here",
+      "It's played on grass courts"
+    ]
+  },
+  {
+    "id": "q158",
+    "answer": "Formula One",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This is the highest class of international auto racing",
+      "Races are called Grand Prix and held on circuits worldwide",
+      "Lewis Hamilton and Max Verstappen are recent champions",
+      "Teams like Ferrari, Mercedes, and Red Bull compete",
+      "The Monaco Grand Prix is one of its most prestigious races"
+    ]
+  },
+  {
+    "id": "q159",
+    "answer": "The World Cup",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This soccer tournament is held every four years",
+      "It's organized by FIFA",
+      "32 national teams compete in the main tournament",
+      "Brazil has won this tournament the most times",
+      "The 2022 edition was held in Qatar"
+    ]
+  },
+  {
+    "id": "q160",
+    "answer": "Tiger Woods",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This golfer has won 15 major championships",
+      "He was the youngest player to achieve the career Grand Slam",
+      "His real first name is Eldrick",
+      "He made a comeback after personal and physical struggles",
+      "He won the Masters Tournament in 2019 after an 11-year major drought"
+    ]
+  },
+  {
+    "id": "q161",
+    "answer": "Sushi",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This Japanese dish typically features vinegared rice",
+      "It often includes raw fish but can be vegetarian",
+      "Wasabi and pickled ginger are common accompaniments",
+      "Different types include nigiri, maki, and sashimi",
+      "It's traditionally eaten with chopsticks"
+    ]
+  },
+  {
+    "id": "q162",
+    "answer": "Pasta Carbonara",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This Italian pasta dish originated in Rome",
+      "Traditional ingredients include eggs, cheese, pancetta, and black pepper",
+      "No cream is used in the authentic recipe",
+      "Pecorino Romano is the traditional cheese used",
+      "The name means 'charcoal burner's pasta'"
+    ]
+  },
+  {
+    "id": "q163",
+    "answer": "Champagne",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This sparkling wine can only be called by this name if made in a specific French region",
+      "Dom Pérignon is a famous brand of this beverage",
+      "It's made using the méthode champenoise",
+      "Chardonnay, Pinot Noir, and Pinot Meunier are the main grape varieties",
+      "It's traditionally used for celebrations and toasts"
+    ]
+  },
+  {
+    "id": "q164",
+    "answer": "Quinoa",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This grain-like seed is native to South America",
+      "It's considered a superfood due to its complete protein profile",
+      "The Incas called it 'chisaya mama' meaning 'mother of all grains'",
+      "It's naturally gluten-free",
+      "Bolivia and Peru are the largest producers"
+    ]
+  },
+  {
+    "id": "q165",
+    "answer": "Molecular Gastronomy",
+    "category": "Food",
+    "difficulty": "hard",
+    "hints": [
+      "This culinary technique applies scientific principles to cooking",
+      "Ferran Adrià was a pioneer of this cooking style",
+      "It often involves unusual textures and presentations",
+      "Techniques include spherification and gelification",
+      "Restaurants like El Bulli were famous for this style"
+    ]
+  },
+  {
+    "id": "q166",
+    "answer": "Kimchi",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This fermented vegetable dish is a Korean staple",
+      "Napa cabbage is the most common main ingredient",
+      "It's seasoned with chili peppers, garlic, and ginger",
+      "It's rich in probiotics and vitamins",
+      "There are hundreds of varieties of this dish"
+    ]
+  },
+  {
+    "id": "q167",
+    "answer": "Truffle",
+    "category": "Food",
+    "difficulty": "hard",
+    "hints": [
+      "This expensive ingredient is a type of fungus that grows underground",
+      "Specially trained pigs or dogs are used to find them",
+      "They have a strong, distinctive aroma",
+      "Italy and France are famous for high-quality varieties",
+      "They can cost hundreds or thousands of dollars per pound"
+    ]
+  },
+  {
+    "id": "q168",
+    "answer": "Gazpacho",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This cold soup originated in southern Spain",
+      "Tomatoes are typically the main ingredient",
+      "It's served cold and is popular in summer",
+      "Traditional versions include bread, olive oil, and vinegar",
+      "Andalusia is the region most associated with this dish"
+    ]
+  },
+  {
+    "id": "q169",
+    "answer": "Matcha",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This green powder is made from ground tea leaves",
+      "It's central to the Japanese tea ceremony",
+      "The tea plants are shade-grown for several weeks",
+      "It has a distinctive bitter, umami flavor",
+      "It's used in desserts, lattes, and ice cream"
+    ]
+  },
+  {
+    "id": "q170",
+    "answer": "Sourdough",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This type of bread is made using natural fermentation",
+      "A 'starter' culture is maintained and fed regularly",
+      "It has a characteristic tangy flavor",
+      "San Francisco is famous for its version of this bread",
+      "The fermentation process can take days or weeks"
+    ]
+  },
+  {
+    "id": "q171",
+    "answer": "Día de los Muertos",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Mexican holiday honors deceased family members",
+      "It's celebrated on November 1st and 2nd",
+      "Families create colorful altars called ofrendas",
+      "Sugar skulls and marigolds are traditional decorations",
+      "It translates to 'Day of the Dead' in English"
+    ]
+  },
+  {
+    "id": "q172",
+    "answer": "Holi",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Hindu festival is known as the Festival of Colors",
+      "People throw colored powder and water at each other",
+      "It celebrates the arrival of spring and victory of good over evil",
+      "It's associated with the legend of Krishna and Radha",
+      "It's primarily celebrated in India and Nepal"
+    ]
+  },
+  {
+    "id": "q173",
+    "answer": "Carnival",
+    "category": "Culture",
+    "difficulty": "easy",
+    "hints": [
+      "This celebration occurs before Lent in Christian tradition",
+      "Rio de Janeiro hosts one of the most famous versions",
+      "It features elaborate costumes, parades, and dancing",
+      "Venice is known for its elegant masked balls during this time",
+      "New Orleans calls their version Mardi Gras"
+    ]
+  },
+  {
+    "id": "q174",
+    "answer": "Kabuki",
+    "category": "Culture",
+    "difficulty": "hard",
+    "hints": [
+      "This traditional Japanese theater art form began in the early 17th century",
+      "It features elaborate makeup, costumes, and stylized movements",
+      "All roles are traditionally performed by male actors",
+      "The name comes from a verb meaning 'to lean' or 'to be unusual'",
+      "UNESCO recognized it as an Intangible Cultural Heritage"
+    ]
+  },
+  {
+    "id": "q175",
+    "answer": "Flamenco",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This art form originated in Andalusia, southern Spain",
+      "It combines singing, guitar playing, dancing, and handclaps",
+      "Dancers often wear colorful ruffled dresses",
+      "The guitar technique involves complex fingerpicking called rasgueado",
+      "UNESCO declared it a Masterpiece of Oral and Intangible Heritage"
+    ]
+  },
+  {
+    "id": "q176",
+    "answer": "Chinese New Year",
+    "category": "Culture",
+    "difficulty": "easy",
+    "hints": [
+      "This celebration marks the beginning of the lunar calendar",
+      "It's also known as the Spring Festival",
+      "Each year is associated with one of twelve zodiac animals",
+      "Red envelopes with money are given as gifts",
+      "Dragon and lion dances are traditional performances"
+    ]
+  },
+  {
+    "id": "q177",
+    "answer": "Oktoberfest",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This German festival takes place annually in Munich",
+      "It originally celebrated the marriage of Crown Prince Ludwig",
+      "Despite its name, it actually begins in September",
+      "Visitors wear traditional Bavarian clothing like lederhosen and dirndls",
+      "It's the world's largest beer festival"
+    ]
+  },
+  {
+    "id": "q178",
+    "answer": "Aboriginal Dreamtime",
+    "category": "Culture",
+    "difficulty": "hard",
+    "hints": [
+      "This is a sacred era in Australian Aboriginal mythology",
+      "It refers to the time when ancestral spirits walked the Earth",
+      "Stories from this period explain the creation of the landscape",
+      "It's both a creation period and an ongoing spiritual realm",
+      "These stories are passed down through oral tradition and art"
+    ]
+  },
+  {
+    "id": "q179",
+    "answer": "Diwali",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Hindu festival is known as the Festival of Lights",
+      "It celebrates the victory of light over darkness",
+      "People light oil lamps called diyas",
+      "Families exchange sweets and gifts",
+      "Fireworks displays are common during this five-day celebration"
+    ]
+  },
+  {
+    "id": "q180",
+    "answer": "Origami",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This Japanese art form involves folding paper into decorative shapes",
+      "No cutting or gluing is allowed in traditional versions",
+      "The crane is one of the most iconic designs",
+      "The word comes from 'ori' (folding) and 'kami' (paper)",
+      "Complex designs can require hundreds of folds"
+    ]
+  },
+  {
+    "id": "q181",
+    "answer": "The Starry Night",
+    "category": "Art",
+    "difficulty": "easy",
+    "hints": [
+      "This famous painting was created by Vincent van Gogh",
+      "It depicts a swirling night sky over a village",
+      "It was painted in 1889 while the artist was in an asylum",
+      "The painting is housed in the Museum of Modern Art in New York",
+      "The cypress tree in the foreground is a prominent feature"
+    ]
+  },
+  {
+    "id": "q182",
+    "answer": "Michelangelo",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This Renaissance artist painted the ceiling of the Sistine Chapel",
+      "He sculpted the famous statue of David",
+      "His full name was Michelangelo di Lodovico Buonarroti Simoni",
+      "He also designed the dome of St. Peter's Basilica",
+      "He lived from 1475 to 1564"
+    ]
+  },
+  {
+    "id": "q183",
+    "answer": "The Scream",
+    "category": "Art",
+    "difficulty": "easy",
+    "hints": [
+      "This expressionist painting was created by Edvard Munch",
+      "It depicts a figure with an agonized expression against a tumultuous sky",
+      "The artist created several versions of this image",
+      "It has become an icon of anxiety and existential angst",
+      "One version was stolen from a museum in 2004"
+    ]
+  },
+  {
+    "id": "q184",
+    "answer": "Salvador Dalí",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This surrealist artist was known for his melting clocks painting",
+      "He had a distinctive upturned mustache",
+      "His painting 'The Persistence of Memory' is world-famous",
+      "He was born in Catalonia, Spain",
+      "He was known for his eccentric personality and publicity stunts"
+    ]
+  },
+  {
+    "id": "q185",
+    "answer": "Frida Kahlo",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This Mexican artist was known for her self-portraits",
+      "She was married to fellow artist Diego Rivera",
+      "She suffered from polio as a child and was injured in a bus accident",
+      "Her work often explored themes of identity and pain",
+      "Her iconic unibrow was a prominent feature in her self-portraits"
+    ]
+  },
+  {
+    "id": "q186",
+    "answer": "Andy Warhol",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This pop artist was famous for his Campbell's Soup can paintings",
+      "He created multiple portraits of Marilyn Monroe",
+      "His studio was called 'The Factory'",
+      "He was a leading figure in the pop art movement",
+      "He famously said everyone would be famous for 15 minutes"
+    ]
+  },
+  {
+    "id": "q187",
+    "answer": "Guernica",
+    "category": "Art",
+    "difficulty": "hard",
+    "hints": [
+      "This painting by Pablo Picasso depicts the horrors of war",
+      "It was inspired by the bombing of a Basque town during the Spanish Civil War",
+      "It's painted in black, white, and gray",
+      "It measures about 11 by 25 feet",
+      "It's housed in the Museo Reina Sofía in Madrid"
+    ]
+  },
+  {
+    "id": "q188",
+    "answer": "Jackson Pollock",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This American artist was known for his drip painting technique",
+      "He was a major figure in the abstract expressionist movement",
+      "His painting 'No. 5, 1948' sold for a record price",
+      "He laid his canvases on the floor and poured paint over them",
+      "He died in a car accident at age 44"
+    ]
+  },
+  {
+    "id": "q189",
+    "answer": "The Thinker",
+    "category": "Art",
+    "difficulty": "easy",
+    "hints": [
+      "This bronze sculpture was created by Auguste Rodin",
+      "It depicts a nude male figure sitting on a rock",
+      "The figure rests his chin on his hand in a contemplative pose",
+      "It was originally part of a larger work called 'The Gates of Hell'",
+      "Multiple casts of this sculpture exist in museums worldwide"
+    ]
+  },
+  {
+    "id": "q190",
+    "answer": "Banksy",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This anonymous street artist is based in England",
+      "Their work often contains political and social commentary",
+      "They use stenciling technique for many of their pieces",
+      "One of their works self-destructed after being sold at auction",
+      "Their identity remains unknown to the public"
+    ]
+  },
+  {
+    "id": "q191",
+    "answer": "Impressionism",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This art movement originated in 19th century France",
+      "Artists focused on capturing light and its changing qualities",
+      "Claude Monet was a leading figure in this movement",
+      "Paintings were often created outdoors (en plein air)",
+      "The name came from Monet's painting 'Impression, Sunrise'"
+    ]
+  },
+  {
+    "id": "q192",
+    "answer": "The Venus de Milo",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This ancient Greek sculpture is housed in the Louvre Museum",
+      "It depicts the goddess Aphrodite (Venus in Roman mythology)",
+      "The sculpture is missing its arms",
+      "It was discovered on the Greek island of Milos in 1820",
+      "It dates to approximately 130-100 BCE"
+    ]
+  },
+  {
+    "id": "q193",
+    "answer": "Georgia O'Keeffe",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This American artist was known for her flower paintings",
+      "She was married to photographer Alfred Stieglitz",
+      "Many of her works featured close-up views of flowers and plants",
+      "She lived and worked in New Mexico for many years",
+      "She's often called the 'Mother of American Modernism'"
+    ]
+  },
+  {
+    "id": "q194",
+    "answer": "Pop Art",
+    "category": "Art",
+    "difficulty": "easy",
+    "hints": [
+      "This art movement emerged in the 1950s and 1960s",
+      "It incorporated imagery from popular culture and mass media",
+      "Andy Warhol and Roy Lichtenstein were prominent artists in this movement",
+      "Commercial printing techniques were often used",
+      "It challenged traditional fine art by using everyday subjects"
+    ]
+  },
+  {
+    "id": "q195",
+    "answer": "The Last Supper",
+    "category": "Art",
+    "difficulty": "easy",
+    "hints": [
+      "This fresco was painted by Leonardo da Vinci",
+      "It depicts Jesus Christ's final meal with his disciples",
+      "It's located in a convent in Milan, Italy",
+      "The painting shows the moment Jesus announces his betrayal",
+      "It took da Vinci about four years to complete"
+    ]
+  },
+  {
+    "id": "q196",
+    "answer": "Cubism",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This art movement was pioneered by Pablo Picasso and Georges Braque",
+      "It broke objects down into geometric shapes and fragments",
+      "Multiple perspectives of the same object were shown simultaneously",
+      "It revolutionized European painting and sculpture",
+      "The name came from a critic's description of 'little cubes'"
+    ]
+  },
+  {
+    "id": "q197",
+    "answer": "Rodin",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This French sculptor created 'The Thinker' and 'The Kiss'",
+      "His full name was François Auguste René",
+      "He was considered the father of modern sculpture",
+      "The Rodin Museum in Paris houses many of his works",
+      "He often left his sculptures with rough, unfinished surfaces"
+    ]
+  },
+  {
+    "id": "q198",
+    "answer": "Abstract Expressionism",
+    "category": "Art",
+    "difficulty": "hard",
+    "hints": [
+      "This art movement developed in New York in the 1940s",
+      "It emphasized spontaneous, automatic, or subconscious creation",
+      "Jackson Pollock and Mark Rothko were key figures",
+      "It was the first American art movement to achieve international influence",
+      "Two main styles were action painting and color field painting"
+    ]
+  },
+  {
+    "id": "q199",
+    "answer": "The Birth of Venus",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This Renaissance painting was created by Sandro Botticelli",
+      "It depicts the Roman goddess Venus emerging from the sea",
+      "She stands on a shell being blown to shore by wind gods",
+      "It's housed in the Uffizi Gallery in Florence, Italy",
+      "It was painted in the mid-1480s"
+    ]
+  },
+  {
+    "id": "q200",
+    "answer": "Surrealism",
+    "category": "Art",
+    "difficulty": "medium",
+    "hints": [
+      "This artistic movement began in the early 1920s",
+      "It sought to release the creative potential of the unconscious mind",
+      "Salvador Dalí and René Magritte were prominent artists in this movement",
+      "Dream-like and fantastical imagery was common",
+      "André Breton wrote the movement's manifesto"
+    ]
+  },
+  {
+    "id": "q201",
+    "answer": "The French Revolution",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This event began in 1789 and ended the monarchy in France",
+      "The storming of the Bastille marked its beginning",
+      "Marie Antoinette and King Louis XVI were executed",
+      "Robespierre led the Reign of Terror period",
+      "It established the First French Republic"
+    ]
+  },
+  {
+    "id": "q202",
+    "answer": "The American Civil War",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This conflict lasted from 1861 to 1865",
+      "It was fought between the Union and Confederate states",
+      "Slavery was the central issue that caused this war",
+      "Abraham Lincoln was president during this conflict",
+      "The Battle of Gettysburg was a turning point"
+    ]
+  },
+  {
+    "id": "q203",
+    "answer": "Cleopatra VII",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This Egyptian queen was the last pharaoh of ancient Egypt",
+      "She had relationships with Julius Caesar and Mark Antony",
+      "She spoke nine languages and was highly educated",
+      "She died by snake bite in 30 BCE",
+      "Elizabeth Taylor famously portrayed her in a 1963 film"
+    ]
+  },
+  {
+    "id": "q204",
+    "answer": "The Berlin Wall",
+    "category": "History",
+    "difficulty": "easy",
+    "hints": [
+      "This barrier divided East and West Berlin from 1961 to 1989",
+      "It was built by East Germany to prevent defections",
+      "President Reagan famously said 'Tear down this wall!'",
+      "Its fall in 1989 symbolized the end of the Cold War",
+      "Pieces of it are now displayed in museums worldwide"
+    ]
+  },
+  {
+    "id": "q205",
+    "answer": "Pearl Harbor",
+    "category": "History",
+    "difficulty": "easy",
+    "hints": [
+      "This surprise attack occurred on December 7, 1941",
+      "Japan attacked this US naval base in Hawaii",
+      "It led to America's entry into World War II",
+      "President Roosevelt called it 'a date which will live in infamy'",
+      "Over 2,400 Americans were killed in this attack"
+    ]
+  },
+  {
+    "id": "q206",
+    "answer": "The Renaissance",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This cultural movement began in Italy in the 14th century",
+      "It marked the transition from medieval to modern times",
+      "Leonardo da Vinci and Michelangelo were key figures",
+      "It emphasized humanism and classical learning",
+      "The word means 'rebirth' in French"
+    ]
+  },
+  {
+    "id": "q207",
+    "answer": "The Titanic",
+    "category": "History",
+    "difficulty": "easy",
+    "hints": [
+      "This 'unsinkable' ship sank on its maiden voyage in 1912",
+      "It hit an iceberg in the North Atlantic Ocean",
+      "Over 1,500 people died in this maritime disaster",
+      "The phrase 'women and children first' was famously used",
+      "James Cameron made a blockbuster movie about this tragedy"
+    ]
+  },
+  {
+    "id": "q208",
+    "answer": "Napoleon Bonaparte",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This French military leader became Emperor in 1804",
+      "He was defeated at the Battle of Waterloo in 1815",
+      "He was exiled to the island of Elba, then Saint Helena",
+      "He created the Napoleonic Code of laws",
+      "He was known for his short stature, though this was exaggerated"
+    ]
+  },
+  {
+    "id": "q209",
+    "answer": "The Black Death",
+    "category": "History",
+    "difficulty": "hard",
+    "hints": [
+      "This pandemic swept through Europe in the 14th century",
+      "It was a form of bubonic plague spread by fleas on rats",
+      "It killed an estimated one-third of Europe's population",
+      "It led to major social and economic upheaval",
+      "Some towns were completely abandoned due to this disease"
+    ]
+  },
+  {
+    "id": "q210",
+    "answer": "The Crusades",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "These were religious wars fought between 1095 and 1291",
+      "Christian armies sought to recapture the Holy Land",
+      "They were fought primarily against Muslim forces",
+      "Richard the Lionheart was a famous leader of these campaigns",
+      "Jerusalem was the ultimate prize sought by these expeditions"
+    ]
+  },
+  {
+    "id": "q211",
+    "answer": "The Prohibition",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This period in US history lasted from 1920 to 1933",
+      "The sale and production of alcohol was banned",
+      "It led to the rise of organized crime and bootlegging",
+      "Al Capone became famous during this era",
+      "The 21st Amendment ended this policy"
+    ]
+  },
+  {
+    "id": "q212",
+    "answer": "The Great Depression",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This economic crisis began with the stock market crash of 1929",
+      "Unemployment reached 25% in the United States",
+      "The Dust Bowl made conditions worse for farmers",
+      "Franklin D. Roosevelt's New Deal helped address it",
+      "It lasted throughout most of the 1930s"
+    ]
+  },
+  {
+    "id": "q213",
+    "answer": "The Holocaust",
+    "category": "History",
+    "difficulty": "hard",
+    "hints": [
+      "This systematic persecution occurred during World War II",
+      "Nazi Germany murdered six million Jewish people",
+      "Concentration camps like Auschwitz were used",
+      "The Nuremberg Trials prosecuted war criminals afterward",
+      "January 27th is International Holocaust Remembrance Day"
+    ]
+  },
+  {
+    "id": "q214",
+    "answer": "The Silk Road",
+    "category": "History",
+    "difficulty": "medium",
+    "hints": [
+      "This ancient trade route connected East and West",
+      "It facilitated trade between China and Europe",
+      "Marco Polo traveled along these routes",
+      "Silk, spices, and precious stones were commonly traded",
+      "It played a crucial role in cultural exchange"
+    ]
+  },
+  {
+    "id": "q215",
+    "answer": "The Fall of Constantinople",
+    "category": "History",
+    "difficulty": "hard",
+    "hints": [
+      "This event occurred on May 29, 1453",
+      "It marked the end of the Byzantine Empire",
+      "Ottoman Sultan Mehmed II conquered the city",
+      "It ended over 1,000 years of Byzantine rule",
+      "The city became Istanbul under Ottoman control"
+    ]
+  },
+  {
+    "id": "q216",
+    "answer": "The Great Wall of China",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This fortification stretches over 13,000 miles across northern China",
+      "It was built over many centuries to protect against invasions",
+      "Contrary to myth, it's not visible from space with the naked eye",
+      "Much of the existing wall was built during the Ming Dynasty",
+      "It's one of the most visited tourist attractions in the world"
+    ]
+  },
+  {
+    "id": "q217",
+    "answer": "The Sahara Desert",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This is the largest hot desert in the world",
+      "It covers most of North Africa",
+      "It's roughly the size of the entire United States",
+      "The name means 'desert' in Arabic",
+      "It experiences extreme temperature variations between day and night"
+    ]
+  },
+  {
+    "id": "q218",
+    "answer": "Mount Everest",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This is the world's highest mountain peak at 29,029 feet",
+      "It's located on the border between Nepal and Tibet",
+      "Edmund Hillary and Tenzing Norgay first climbed it in 1953",
+      "It's known as Sagarmatha in Nepali and Chomolungma in Tibetan",
+      "The 'Death Zone' above 26,247 feet is extremely dangerous"
+    ]
+  },
+  {
+    "id": "q219",
+    "answer": "The Mariana Trench",
+    "category": "Geography",
+    "difficulty": "hard",
+    "hints": [
+      "This is the deepest part of the world's oceans",
+      "It's located in the western Pacific Ocean",
+      "Its deepest point is called Challenger Deep",
+      "It reaches depths of nearly 36,000 feet below sea level",
+      "Only three people have ever descended to its deepest point"
+    ]
+  },
+  {
+    "id": "q220",
+    "answer": "The Nile River",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "This is traditionally considered the world's longest river",
+      "It flows through northeastern Africa",
+      "Ancient Egyptian civilization developed along its banks",
+      "It has two main tributaries: the Blue and White branches",
+      "The Aswan High Dam controls its flow in Egypt"
+    ]
+  },
+  {
+    "id": "q221",
+    "answer": "Yellowstone National Park",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This was the world's first national park, established in 1872",
+      "It's located primarily in Wyoming, USA",
+      "It sits on top of a supervolcano caldera",
+      "Old Faithful is its most famous geyser",
+      "It's home to bison, wolves, and grizzly bears"
+    ]
+  },
+  {
+    "id": "q222",
+    "answer": "The Great Barrier Reef",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This is the world's largest coral reef system",
+      "It's located off the coast of Queensland, Australia",
+      "It's composed of over 2,900 individual reefs",
+      "It can be seen from outer space",
+      "Climate change and coral bleaching threaten its survival"
+    ]
+  },
+  {
+    "id": "q223",
+    "answer": "Antarctica",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This continent is almost entirely covered by ice",
+      "It's the coldest, windiest, and driest continent",
+      "No permanent human residents live here",
+      "Research stations from various countries operate here",
+      "It contains about 90% of the world's ice and 70% of its fresh water"
+    ]
+  },
+  {
+    "id": "q224",
+    "answer": "The Galápagos Islands",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "These volcanic islands belong to Ecuador",
+      "They're located about 600 miles off the coast of South America",
+      "Charles Darwin studied evolution here",
+      "Giant tortoises are native to these islands",
+      "Each island has unique species that evolved in isolation"
+    ]
+  },
+  {
+    "id": "q225",
+    "answer": "The Alps",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This mountain range extends across eight countries in Europe",
+      "Mont Blanc is its highest peak",
+      "They separate Northern and Southern Europe",
+      "Popular destinations for skiing and mountaineering",
+      "The Rhine and Rhône rivers originate here"
+    ]
+  },
+  {
+    "id": "q226",
+    "answer": "The Matterhorn",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This pyramid-shaped mountain straddles the Swiss-Italian border",
+      "It's one of the most photographed mountains in the world",
+      "Its distinctive shape makes it an iconic Alpine peak",
+      "It rises to 14,692 feet above sea level",
+      "The Toblerone chocolate bar logo was inspired by its shape"
+    ]
+  },
+  {
+    "id": "q227",
+    "answer": "Niagara Falls",
+    "category": "Geography",
+    "difficulty": "easy",
+    "hints": [
+      "These waterfalls are located on the border of Canada and the USA",
+      "They consist of three waterfalls: Horseshoe, American, and Bridal Veil",
+      "Over 6 million cubic feet of water go over them every minute",
+      "They're a popular honeymoon destination",
+      "Hydroelectric power plants harness their energy"
+    ]
+  },
+  {
+    "id": "q228",
+    "answer": "The Andes Mountains",
+    "category": "Geography",
+    "difficulty": "medium",
+    "hints": [
+      "This is the world's longest continental mountain range",
+      "It extends along the western coast of South America",
+      "It stretches through seven countries",
+      "Aconcagua is its highest peak",
+      "The ancient Inca civilization thrived in these mountains"
+    ]
+  },
+  {
+    "id": "q229",
+    "answer": "The Bering Strait",
+    "category": "Geography",
+    "difficulty": "hard",
+    "hints": [
+      "This narrow waterway separates Russia and Alaska",
+      "It's only about 55 miles wide at its narrowest point",
+      "Early humans likely crossed here during the Ice Age",
+      "It connects the Pacific and Arctic oceans",
+      "In winter, it sometimes freezes over"
+    ]
+  },
+  {
+    "id": "q230",
+    "answer": "The Atacama Desert",
+    "category": "Geography",
+    "difficulty": "hard",
+    "hints": [
+      "This desert is located in northern Chile",
+      "It's considered the driest non-polar desert in the world",
+      "Some weather stations here have never recorded rainfall",
+      "NASA uses it to test Mars rovers due to its Mars-like conditions",
+      "Despite its aridity, it supports some unique plant and animal life"
+    ]
+  },
+  {
+    "id": "q231",
+    "answer": "Netflix",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This streaming service was founded by Reed Hastings in 1997",
+      "It originally started as a DVD-by-mail rental service",
+      "It revolutionized how people watch TV shows and movies",
+      "It produces original content like 'House of Cards' and 'Stranger Things'",
+      "Its stock symbol is NFLX"
+    ]
+  },
+  {
+    "id": "q232",
+    "answer": "Disney",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This entertainment company was founded by Walt Disney in 1923",
+      "Mickey Mouse is its most famous character",
+      "It owns theme parks in Florida, California, and other locations worldwide",
+      "It acquired Marvel, Pixar, and Star Wars franchises",
+      "Its streaming service is called Disney+"
+    ]
+  },
+  {
+    "id": "q233",
+    "answer": "The Beatles",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This British rock band formed in Liverpool in 1960",
+      "The four members were John, Paul, George, and Ringo",
+      "They're often called 'the Fab Four'",
+      "Hit songs include 'Hey Jude' and 'Let It Be'",
+      "They disbanded in 1970 but remain culturally influential"
+    ]
+  },
+  {
+    "id": "q234",
+    "answer": "Hollywood",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This district in Los Angeles is the center of the American film industry",
+      "The famous sign overlooks the city from Mount Lee",
+      "The Walk of Fame honors entertainment celebrities",
+      "Major film studios like Universal and Warner Bros are located here",
+      "The Academy Awards ceremony is often held here"
+    ]
+  },
+  {
+    "id": "q235",
+    "answer": "Elvis Presley",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This singer was known as 'The King of Rock and Roll'",
+      "He was born in Tupelo, Mississippi, in 1935",
+      "Graceland in Memphis was his home",
+      "Hit songs include 'Hound Dog' and 'Can't Help Myself'",
+      "He died in 1977 at age 42"
+    ]
+  },
+  {
+    "id": "q236",
+    "answer": "Star Wars",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This science fiction franchise was created by George Lucas",
+      "The first film was released in 1977",
+      "Characters include Luke Skywalker, Princess Leia, and Darth Vader",
+      "The phrase 'May the Force be with you' comes from this series",
+      "Disney acquired the franchise for $4 billion in 2012"
+    ]
+  },
+  {
+    "id": "q237",
+    "answer": "Spotify",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This music streaming service was founded in Sweden in 2006",
+      "It uses a freemium business model with ads and premium subscriptions",
+      "Users can create and share playlists",
+      "It has over 400 million active users worldwide",
+      "Its logo is a green circle with black curved lines"
+    ]
+  },
+  {
+    "id": "q238",
+    "answer": "YouTube",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This video-sharing platform was founded in 2005",
+      "Google acquired it for $1.65 billion in 2006",
+      "Users can upload, view, and share videos",
+      "The first video uploaded was 'Me at the zoo'",
+      "It's the second most visited website in the world"
+    ]
+  },
+  {
+    "id": "q239",
+    "answer": "The Oscars",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "These awards honor excellence in cinematic achievements",
+      "They're presented annually by the Academy of Motion Picture Arts and Sciences",
+      "The golden statuette is nicknamed after a supposed resemblance to someone's uncle",
+      "Best Picture is the most prestigious award category",
+      "The ceremony is one of the most-watched award shows globally"
+    ]
+  },
+  {
+    "id": "q240",
+    "answer": "Madonna",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "This pop icon is often called 'The Queen of Pop'",
+      "She rose to fame in the 1980s with hits like 'Like a Virgin'",
+      "She's known for constantly reinventing her image",
+      "She's sold over 300 million records worldwide",
+      "She was born Madonna Louise Ciccone"
+    ]
+  },
+  {
+    "id": "q241",
+    "answer": "Friends",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This sitcom ran from 1994 to 2004 on NBC",
+      "It followed six friends living in New York City",
+      "The main characters were Rachel, Monica, Phoebe, Ross, Chandler, and Joey",
+      "Central Perk was their favorite coffee shop hangout",
+      "The theme song was 'I'll Be There for You' by The Rembrandts"
+    ]
+  },
+  {
+    "id": "q242",
+    "answer": "Fortnite",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This battle royale video game became a global phenomenon",
+      "Players fight to be the last person standing on an island",
+      "It's free-to-play but generates revenue through cosmetic purchases",
+      "It features building mechanics alongside shooting",
+      "Epic Games developed this popular game"
+    ]
+  },
+  {
+    "id": "q243",
+    "answer": "The Super Mario Bros",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This video game franchise features an Italian plumber",
+      "The main character jumps on enemies and collects coins",
+      "Princess Peach is frequently kidnapped by Bowser",
+      "Luigi is the main character's brother",
+      "Nintendo created this iconic gaming series"
+    ]
+  },
+  {
+    "id": "q244",
+    "answer": "Michael Jackson",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This pop star was known as 'The King of Pop'",
+      "He was famous for the moonwalk dance move",
+      "The album 'Thriller' is one of the best-selling albums ever",
+      "He wore a single sequined glove as part of his signature look",
+      "He died in 2009 at age 50"
+    ]
+  },
+  {
+    "id": "q245",
+    "answer": "Instagram",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This photo and video sharing social media platform launched in 2010",
+      "Facebook acquired it for $1 billion in 2012",
+      "Stories feature allows 24-hour temporary posts",
+      "Influencers use it to monetize their followings",
+      "Its camera logo is instantly recognizable"
+    ]
+  },
+  {
+    "id": "q246",
+    "answer": "Cristiano Ronaldo",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This Portuguese soccer player has won five Ballon d'Or awards",
+      "He's played for Manchester United, Real Madrid, and Juventus",
+      "He's the all-time top scorer for his national team",
+      "His trademark celebration is jumping and shouting 'Sii!'",
+      "He's one of the most followed people on social media"
+    ]
+  },
+  {
+    "id": "q247",
+    "answer": "The FIFA World Cup",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This tournament is held every four years for national soccer teams",
+      "Brazil has won it the most times with five victories",
+      "The Jules Rimet Trophy was the original prize",
+      "32 teams compete in the main tournament",
+      "It's the most watched sporting event in the world"
+    ]
+  },
+  {
+    "id": "q248",
+    "answer": "LeBron James",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This basketball player has won four NBA championships",
+      "He's played for the Cavaliers, Heat, and Lakers",
+      "He's often compared to Michael Jordan in GOAT debates",
+      "He was nicknamed 'The King' early in his career",
+      "He won Olympic gold medals in 2008 and 2012"
+    ]
+  },
+  {
+    "id": "q249",
+    "answer": "Tom Brady",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This quarterback won seven Super Bowl championships",
+      "He played for the New England Patriots for 20 seasons",
+      "He won his final Super Bowl with the Tampa Bay Buccaneers",
+      "He's married to supermodel Gisele Bündchen",
+      "He retired and unretired multiple times before finally retiring"
+    ]
+  },
+  {
+    "id": "q250",
+    "answer": "Muhammad Ali",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This heavyweight boxer was originally named Cassius Clay",
+      "He famously said 'Float like a butterfly, sting like a bee'",
+      "He refused military service during the Vietnam War",
+      "He won the heavyweight title three separate times",
+      "He lit the Olympic torch at the 1996 Atlanta Games"
+    ]
+  },
+  {
+    "id": "q251",
+    "answer": "The Boston Celtics",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This NBA team has won the most championships in league history",
+      "Their home court is in Boston, Massachusetts",
+      "Their traditional rival is the Los Angeles Lakers",
+      "Red Auerbach was their legendary coach and executive",
+      "Their team colors are green and white"
+    ]
+  },
+  {
+    "id": "q252",
+    "answer": "Wayne Gretzky",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This ice hockey player is known as 'The Great One'",
+      "He holds numerous NHL scoring records",
+      "He wore jersey number 99, which is retired league-wide",
+      "He played for teams including the Edmonton Oilers and Los Angeles Kings",
+      "He's considered the greatest hockey player of all time"
+    ]
+  },
+  {
+    "id": "q253",
+    "answer": "The Masters Tournament",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This golf tournament is held annually in Augusta, Georgia",
+      "The winner receives a green jacket",
+      "It's the first major championship of the golf calendar year",
+      "Augusta National Golf Club hosts this prestigious event",
+      "Amen Corner refers to holes 11, 12, and 13"
+    ]
+  },
+  {
+    "id": "q254",
+    "answer": "Kobe Bryant",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This Lakers legend won five NBA championships",
+      "He wore jersey numbers 8 and 24 during his career",
+      "His nickname was 'The Black Mamba'",
+      "He scored 81 points in a single game in 2006",
+      "He tragically died in a helicopter crash in 2020"
+    ]
+  },
+  {
+    "id": "q255",
+    "answer": "The New York Yankees",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This baseball team has won the most World Series championships",
+      "Their home stadium is in the Bronx, New York",
+      "They're known for their pinstripe uniforms",
+      "Babe Ruth was one of their most famous players",
+      "Their traditional rival is the Boston Red Sox"
+    ]
+  },
+  {
+    "id": "q256",
+    "answer": "Simone Biles",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This American gymnast has won multiple Olympic gold medals",
+      "She's known for her incredible power and athleticism",
+      "Several gymnastics moves are named after her",
+      "She withdrew from events at the 2020 Olympics citing mental health",
+      "She's considered one of the greatest gymnasts of all time"
+    ]
+  },
+  {
+    "id": "q257",
+    "answer": "The Kentucky Derby",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This horse race is held annually at Churchill Downs",
+      "It's known as 'The Most Exciting Two Minutes in Sports'",
+      "The winning horse receives a blanket of roses",
+      "Mint juleps are the traditional drink of this event",
+      "It's the first leg of horse racing's Triple Crown"
+    ]
+  },
+  {
+    "id": "q258",
+    "answer": "Rafael Nadal",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This Spanish tennis player is known as 'The King of Clay'",
+      "He's won the French Open a record 14 times",
+      "He's left-handed but plays with a two-handed backhand",
+      "His traditional rival is Roger Federer",
+      "He's from the island of Mallorca"
+    ]
+  },
+  {
+    "id": "q259",
+    "answer": "The Chicago Bulls",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This NBA team won six championships in the 1990s",
+      "Michael Jordan led them to all their championships",
+      "Phil Jackson was their coach during their championship runs",
+      "Their home arena is the United Center",
+      "Their team colors are red, black, and white"
+    ]
+  },
+  {
+    "id": "q260",
+    "answer": "Poker",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This card game involves betting and bluffing",
+      "Texas Hold'em is the most popular variant",
+      "The World Series of this game is held annually in Las Vegas",
+      "Players try to make the best five-card hand",
+      "A 'royal flush' is the highest possible hand"
+    ]
+  },
+  {
+    "id": "q261",
+    "answer": "Peking Duck",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This is a famous dish from Beijing, China",
+      "The duck is roasted until the skin becomes crispy",
+      "It's traditionally served with thin pancakes, scallions, and hoisin sauce",
+      "The preparation process can take several days",
+      "It dates back to the Imperial era of China"
+    ]
+  },
+  {
+    "id": "q262",
+    "answer": "Paella",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This rice dish originated in Valencia, Spain",
+      "Saffron gives it its distinctive yellow color",
+      "Traditional versions include rabbit, chicken, and beans",
+      "Seafood versions are popular in coastal areas",
+      "It's cooked in a wide, shallow pan called a paellera"
+    ]
+  },
+  {
+    "id": "q263",
+    "answer": "Foie Gras",
+    "category": "Food",
+    "difficulty": "hard",
+    "hints": [
+      "This controversial delicacy is made from duck or goose liver",
+      "The birds are force-fed to enlarge their livers",
+      "It's considered one of the finest delicacies in French cuisine",
+      "It has been banned in several cities and countries",
+      "The name literally means 'fatty liver' in French"
+    ]
+  },
+  {
+    "id": "q264",
+    "answer": "Wagyu Beef",
+    "category": "Food",
+    "difficulty": "hard",
+    "hints": [
+      "This premium beef comes from specific cattle breeds in Japan",
+      "It's known for its exceptional marbling and tenderness",
+      "Kobe beef is a famous type of this premium meat",
+      "The cattle receive special care and feeding",
+      "It can cost hundreds of dollars per pound"
+    ]
+  },
+  {
+    "id": "q265",
+    "answer": "Ramen",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This Japanese noodle soup has many regional variations",
+      "The broth can be made from pork, chicken, or vegetables",
+      "Toppings often include sliced pork, eggs, and nori seaweed",
+      "Instant versions became popular worldwide",
+      "Different regions have distinct styles like tonkotsu and miso"
+    ]
+  },
+  {
+    "id": "q266",
+    "answer": "Oktoberfest Beer",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This type of beer is traditionally served at Munich's famous festival",
+      "It's a märzen-style lager with an amber color",
+      "Only six Munich breweries can serve their beer at the festival",
+      "It's served in one-liter glass mugs called Mass",
+      "The brewing follows strict German beer purity laws"
+    ]
+  },
+  {
+    "id": "q267",
+    "answer": "Dim Sum",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "These small plates are a Cantonese tradition",
+      "They're typically served with tea during brunch hours",
+      "Items are often steamed in bamboo baskets",
+      "Popular items include har gow shrimp dumplings and siu mai",
+      "The phrase means 'touch the heart' in Chinese"
+    ]
+  },
+  {
+    "id": "q268",
+    "answer": "Gelato",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This frozen dessert is the Italian version of ice cream",
+      "It has a denser texture and more intense flavor than regular ice cream",
+      "It's served at a slightly warmer temperature than ice cream",
+      "Popular flavors include pistachio, stracciatella, and amaretto",
+      "It traditionally uses more milk than cream"
+    ]
+  },
+  {
+    "id": "q269",
+    "answer": "Tandoori Chicken",
+    "category": "Food",
+    "difficulty": "medium",
+    "hints": [
+      "This Indian dish is marinated in yogurt and spices",
+      "It gets its distinctive red color from tandoori masala",
+      "It's traditionally cooked in a clay oven called a tandoor",
+      "The high heat gives it a distinctive smoky flavor",
+      "It's often served with naan bread and mint chutney"
+    ]
+  },
+  {
+    "id": "q270",
+    "answer": "Croissant",
+    "category": "Food",
+    "difficulty": "easy",
+    "hints": [
+      "This buttery, flaky pastry originated in France",
+      "It's made using a laminated dough technique",
+      "The crescent shape is its most recognizable feature",
+      "It's often eaten for breakfast with coffee",
+      "Pain au chocolat is a popular variation with chocolate"
+    ]
+  },
+  {
+    "id": "q271",
+    "answer": "Fibonacci Sequence",
+    "category": "Science",
+    "difficulty": "hard",
+    "hints": [
+      "This mathematical sequence starts with 0 and 1",
+      "Each number is the sum of the two preceding ones",
+      "It appears frequently in nature, like flower petals and pinecones",
+      "The golden ratio is related to this sequence",
+      "Leonardo of Pisa introduced it to Western European mathematics"
+    ]
+  },
+  {
+    "id": "q272",
+    "answer": "The Speed of Light",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This fundamental constant is approximately 299,792,458 meters per second",
+      "Einstein's theory states that nothing can travel faster than this",
+      "It's denoted by the letter 'c' in physics equations",
+      "It's the same in all inertial reference frames",
+      "It defines the relationship between space and time"
+    ]
+  },
+  {
+    "id": "q273",
+    "answer": "DNA",
+    "category": "Science",
+    "difficulty": "easy",
+    "hints": [
+      "This molecule carries genetic information in all living organisms",
+      "It has a double helix structure discovered by Watson and Crick",
+      "The four bases are adenine, thymine, guanine, and cytosine",
+      "It's found in the nucleus of every cell",
+      "It stands for deoxyribonucleic acid"
+    ]
+  },
+  {
+    "id": "q274",
+    "answer": "The Periodic Table",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "This chart organizes all known chemical elements",
+      "Dmitri Mendeleev is credited with creating the modern version",
+      "Elements are arranged by atomic number",
+      "It has 18 columns called groups and 7 rows called periods",
+      "It can predict the properties of undiscovered elements"
+    ]
+  },
+  {
+    "id": "q275",
+    "answer": "Black Holes",
+    "category": "Science",
+    "difficulty": "medium",
+    "hints": [
+      "These are regions of spacetime with gravity so strong nothing can escape",
+      "They're formed when massive stars collapse",
+      "The Event Horizon Telescope captured the first image of one",
+      "The point of no return is called the event horizon",
+      "Hawking radiation allows them to slowly evaporate"
+    ]
+  },
+  {
+    "id": "q276",
+    "answer": "Zulu",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This is one of the official languages of South Africa",
+      "It belongs to the Bantu language family",
+      "About 12 million people speak this language",
+      "It uses click consonants borrowed from Khoisan languages",
+      "Nelson Mandela spoke this language fluently"
+    ]
+  },
+  {
+    "id": "q277",
+    "answer": "The Tango",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "This passionate dance originated in Argentina and Uruguay",
+      "It developed in the working-class neighborhoods of Buenos Aires",
+      "Partners dance in close embrace with dramatic poses",
+      "The bandoneón is the characteristic instrument for this music",
+      "UNESCO declared it an Intangible Cultural Heritage"
+    ]
+  },
+  {
+    "id": "q278",
+    "answer": "Haiku",
+    "category": "Literature",
+    "difficulty": "medium",
+    "hints": [
+      "This traditional Japanese form of poetry has three lines",
+      "The syllable pattern is typically 5-7-5",
+      "It often captures a moment in nature",
+      "Matsuo Bashō was a master of this poetic form",
+      "It traditionally includes a seasonal reference called kigo"
+    ]
+  },
+  {
+    "id": "q279",
+    "answer": "Broadway",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This theater district is located in Manhattan, New York",
+      "It's considered the pinnacle of American musical theater",
+      "Shows must have at least 500 seats to be considered part of this category",
+      "The Tony Awards honor excellence in these productions",
+      "Famous shows include 'The Lion King' and 'Hamilton'"
+    ]
+  },
+  {
+    "id": "q280",
+    "answer": "The Renaissance Fair",
+    "category": "Culture",
+    "difficulty": "medium",
+    "hints": [
+      "These events recreate the atmosphere of medieval and Renaissance periods",
+      "Participants often dress in period costumes",
+      "They feature jousting, crafts, and period entertainment",
+      "Turkey legs are a popular food at these events",
+      "They combine education with entertainment in an immersive experience"
+    ]
+  },
+  {
+    "id": "q281",
+    "answer": "Jazz",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "This music genre originated in New Orleans in the late 19th century",
+      "It's characterized by improvisation, syncopation, and swing",
+      "Louis Armstrong was one of its most influential early performers",
+      "Bebop, cool, and fusion are subgenres of this music",
+      "The Harlem Renaissance helped popularize this musical style"
+    ]
+  },
+  {
+    "id": "q282",
+    "answer": "Stand-up Comedy",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "This form of entertainment features a comedian performing alone on stage",
+      "The Comedy Cellar in New York is a famous venue for this art form",
+      "Performers often use observational humor and personal anecdotes",
+      "Open mic nights allow amateur performers to practice this craft",
+      "Many successful actors and writers started in this field"
+    ]
+  },
+  {
+    "id": "q283",
+    "answer": "Rock and Roll",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This music genre emerged in the United States in the 1950s",
+      "It combined elements of blues, country, and rhythm and blues",
+      "Chuck Berry and Little Richard were early pioneers",
+      "The electric guitar became its signature instrument",
+      "It sparked a cultural revolution among young people"
+    ]
+  },
+  {
+    "id": "q284",
+    "answer": "Comic Books",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "These publications combine sequential art with narrative text",
+      "Superman first appeared in Action Comics #1 in 1938",
+      "Marvel and DC are the two largest publishers in this medium",
+      "The golden, silver, and bronze ages mark different eras",
+      "Many blockbuster movies are now based on these publications"
+    ]
+  },
+  {
+    "id": "q285",
+    "answer": "Woodstock",
+    "category": "Entertainment",
+    "difficulty": "medium",
+    "hints": [
+      "This famous music festival took place in August 1969",
+      "It was held on a dairy farm in Bethel, New York",
+      "Despite the name, it didn't actually take place in that town",
+      "Jimi Hendrix's performance of the national anthem was iconic",
+      "It became a symbol of the 1960s counterculture movement"
+    ]
+  },
+  {
+    "id": "q286",
+    "answer": "Coachella",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This annual music festival takes place in the California desert",
+      "It spans two weekends in April",
+      "Fashion and Instagram-worthy moments are as important as the music",
+      "It features multiple stages with diverse musical genres",
+      "Celebrities and influencers frequently attend this event"
+    ]
+  },
+  {
+    "id": "q287",
+    "answer": "Podcast",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This audio format allows people to create episodic content",
+      "Listeners can subscribe and download episodes automatically",
+      "Joe Rogan's show is one of the most popular in this medium",
+      "They cover everything from true crime to comedy to education",
+      "The name combines 'iPod' and 'broadcast'"
+    ]
+  },
+  {
+    "id": "q288",
+    "answer": "Anime",
+    "category": "Entertainment",
+    "difficulty": "easy",
+    "hints": [
+      "This style of animation originated in Japan",
+      "Popular series include 'Dragon Ball Z' and 'Naruto'",
+      "It often features distinctive art styles with large eyes",
+      "Studio Ghibli produces acclaimed films in this style",
+      "It has gained massive popularity worldwide in recent decades"
+    ]
+  },
+  {
+    "id": "q289",
+    "answer": "Video Streaming",
+    "category": "Technology",
+    "difficulty": "easy",
+    "hints": [
+      "This technology allows real-time transmission of video content",
+      "Platforms like Twitch and YouTube use this technology",
+      "It requires sufficient internet bandwidth to work smoothly",
+      "Content creators can interact with viewers in real-time",
+      "It has revolutionized entertainment and communication"
+    ]
+  },
+  {
+    "id": "q290",
+    "answer": "Virtual Reality",
+    "category": "Technology",
+    "difficulty": "medium",
+    "hints": [
+      "This technology creates immersive, computer-generated environments",
+      "Users typically wear special headsets to experience it",
+      "It's used for gaming, training, and therapeutic applications",
+      "Companies like Oculus and HTC produce consumer devices",
+      "It can cause motion sickness in some users"
+    ]
+  },
+  {
+    "id": "q291",
+    "answer": "E-sports",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This refers to competitive video gaming at a professional level",
+      "Popular games include League of Legends and Counter-Strike",
+      "Tournaments offer millions of dollars in prize money",
+      "South Korea was an early leader in developing this industry",
+      "Some colleges now offer scholarships for these competitions"
+    ]
+  },
+  {
+    "id": "q292",
+    "answer": "Mixed Martial Arts",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This combat sport combines techniques from various fighting disciplines",
+      "The Ultimate Fighting Championship (UFC) is the largest promotion",
+      "Fighters compete in an octagonal cage",
+      "It includes striking, grappling, and ground fighting",
+      "Conor McGregor is one of its biggest stars"
+    ]
+  },
+  {
+    "id": "q293",
+    "answer": "The Paralympics",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This multi-sport event is for athletes with physical disabilities",
+      "It takes place shortly after the Olympics in the same host city",
+      "Sir Ludwig Guttmann founded the precursor to these games",
+      "Athletes compete in categories based on their type of disability",
+      "It promotes inclusion and showcases extraordinary athletic achievement"
+    ]
+  },
+  {
+    "id": "q294",
+    "answer": "Skateboarding",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This sport involves performing tricks on a board with wheels",
+      "It originated in California in the 1950s",
+      "The X Games helped popularize this extreme sport",
+      "Tony Hawk is one of its most famous practitioners",
+      "It made its Olympic debut at the 2020 Tokyo Games"
+    ]
+  },
+  {
+    "id": "q295",
+    "answer": "Surfing",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This water sport involves riding waves on a board",
+      "It originated in ancient Polynesia",
+      "Hawaii is considered the birthplace of modern version of this sport",
+      "Pipeline and Mavericks are famous locations for this activity",
+      "It also debuted as an Olympic sport in Tokyo 2020"
+    ]
+  },
+  {
+    "id": "q296",
+    "answer": "The Tour de France",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This annual cycling race covers about 3,500 kilometers",
+      "It takes place over 23 days in July",
+      "The leader wears a distinctive yellow jersey",
+      "It includes flat stages, mountain stages, and time trials",
+      "Lance Armstrong won it seven consecutive times before being stripped of titles"
+    ]
+  },
+  {
+    "id": "q297",
+    "answer": "Cricket",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This bat-and-ball sport is popular in countries like India and Australia",
+      "Test matches can last up to five days",
+      "Players use a flat bat to hit a leather ball",
+      "The field has a 22-yard pitch in the center",
+      "The World Cup for this sport is held every four years"
+    ]
+  },
+  {
+    "id": "q298",
+    "answer": "The Winter Olympics",
+    "category": "Sports",
+    "difficulty": "easy",
+    "hints": [
+      "This multi-sport event features sports played on snow and ice",
+      "It takes place every four years, alternating with the Summer version",
+      "Events include skiing, ice hockey, and figure skating",
+      "Chamonix, France hosted the first edition in 1924",
+      "Norway has won the most medals in the history of these games"
+    ]
+  },
+  {
+    "id": "q299",
+    "answer": "Chess",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This strategy board game is played between two opponents",
+      "Each player starts with 16 pieces including a king and queen",
+      "The objective is to checkmate the opponent's king",
+      "World champions include Garry Kasparov and Magnus Carlsen",
+      "It's sometimes called 'the game of kings'"
+    ]
+  },
+  {
+    "id": "q300",
+    "answer": "The Boston Marathon",
+    "category": "Sports",
+    "difficulty": "medium",
+    "hints": [
+      "This annual race is held on Patriots' Day in April",
+      "It's one of the six World Marathon Majors",
+      "Runners must qualify with specific time standards",
+      "The course runs from Hopkinton to Boston",
+      "Heartbreak Hill is a famous challenging section of the course"
+    ]
+  }
+]

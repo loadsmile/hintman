@@ -1,612 +1,311 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Player } from '../../classes/Player.js';
 import { Question } from '../../classes/Question.js';
-import questionsData from '../../data/questions.json'; // Fixed import path
+import questionsData from '../../data/questions.json';
 import HintDisplay from '../game/HintDisplay';
 import GuessInput from '../game/GuessInput';
 import Timer from '../common/Timer';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 
-const OneVsOne = ({ playerName, onBackToMenu }) => {
-  const [gameState, setGameState] = useState('setup');
-  const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [player, setPlayer] = useState(null);
-  const [aiPlayer] = useState(new Player('ai', 'Agent 47', '🤖'));
-  const [hintTimer, setHintTimer] = useState(null);
-  const [gameResult, setGameResult] = useState(null);
-  const [shuffledQuestions, setShuffledQuestions] = useState([]);
-  const [maxTargets] = useState(5);
-  const [maxHints] = useState(5);
-  const [isProcessingNext, setIsProcessingNext] = useState(false);
-  const [revealedHints, setRevealedHints] = useState([]);
-  const [aiHasGuessed, setAiHasGuessed] = useState(false);
+const MAX_TARGETS = 5;
+const MAX_HINTS = 5;
+const ROUND_RESULT_DELAY_MS = 3000;
+const FIRST_HINT_DELAY_MS = 1000;
+const HINT_INTERVAL_MS = 15000;
+const QUESTION_TIME_SEC = 120;
 
-  const gameStateRef = useRef(gameState);
-  const isProcessingNextRef = useRef(isProcessingNext);
-  const aiHasGuessedRef = useRef(aiHasGuessed);
-  const revealedHintsRef = useRef(revealedHints);
-  const shuffledQuestionsRef = useRef([]);
+const damageByHint = (hintCount) => {
+  switch (hintCount) {
+    case 1: return 1000;
+    case 2: return 800;
+    case 3: return 600;
+    case 4: return 400;
+    case 5: return 200;
+    default: return 200;
+  }
+};
 
+const aiGuessChance = (hintCount) => {
+  switch (hintCount) {
+    case 1: return 0.15;
+    case 2: return 0.25;
+    case 3: return 0.50;
+    case 4: return 0.65;
+    case 5: return 0.80;
+    default: return 0.90;
+  }
+};
+
+export default function OneVsOne({ playerName, onBackToMenu }) {
+  // UI/game state
+  const [phase, setPhase] = useState('setup'); // setup | playing | finished
+  const [qIndex, setQIndex] = useState(0);
+  const [currentQ, setCurrentQ] = useState(null);
+  const [revealed, setRevealed] = useState([]);
+  const [result, setResult] = useState(null);
+  const [timerKey, setTimerKey] = useState(0);
+  const [human, setHuman] = useState(null);
+  const [ai] = useState(new Player('ai', 'Agent 47', '🤖'));
+
+  // Refs to avoid stale closures and for strict sequencing
+  const deckRef = useRef([]);            // selected 5 questions
+  const processingRef = useRef(false);   // true while transitioning
+  const hintTimerRef = useRef(null);     // setInterval id
+  const phaseRef = useRef(phase);
+  const aiGuessTimersRef = useRef([]);   // Track all AI guess timeouts
+  const roundCompleteRef = useRef(false); // Flag to prevent multiple AI guesses after round ends
+
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+
+  // Init player
   useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
+    if (!human && playerName) setHuman(new Player('human', playerName, '👤'));
+  }, [playerName, human]);
 
-  useEffect(() => {
-    isProcessingNextRef.current = isProcessingNext;
-  }, [isProcessingNext]);
-
-  useEffect(() => {
-    aiHasGuessedRef.current = aiHasGuessed;
-  }, [aiHasGuessed]);
-
-  useEffect(() => {
-    revealedHintsRef.current = revealedHints;
-  }, [revealedHints]);
-
-  useEffect(() => {
-    shuffledQuestionsRef.current = shuffledQuestions;
-  }, [shuffledQuestions]);
-
-  useEffect(() => {
-    if (!player && playerName) {
-      setPlayer(new Player('human', playerName, '👤'));
-    }
-  }, [playerName, player]);
-
-  const clearTimers = useCallback(() => {
-    if (hintTimer) {
-      clearInterval(hintTimer);
-      setHintTimer(null);
-    }
-  }, [hintTimer]);
-
+  // Cleanup
   useEffect(() => {
     return () => {
-      clearTimers();
+      clearHintTimer();
+      clearAllAIGuessTimers();
     };
-  }, [clearTimers]);
+  }, []);
 
-  const isPlayerAlive = (playerObj) => {
-    if (!playerObj) return false;
-
-    if (typeof playerObj.isAlive === 'function') {
-      return playerObj.isAlive();
+  const clearHintTimer = () => {
+    if (hintTimerRef.current) {
+      clearInterval(hintTimerRef.current);
+      hintTimerRef.current = null;
     }
-
-    return playerObj.health > 0;
   };
 
-  // Enhanced shuffle algorithm for better randomization
-  const shuffleArray = (array) => {
-    const shuffled = [...array];
-
-    // Use crypto random for better randomization if available
-    const getRandomValue = () => {
-      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-        const randomBuffer = new Uint32Array(1);
-        crypto.getRandomValues(randomBuffer);
-        return randomBuffer[0] / (0xFFFFFFFF + 1);
-      }
-      return Math.random();
-    };
-
-    // Multiple shuffle passes for better randomization
-    for (let pass = 0; pass < 3; pass++) {
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(getRandomValue() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-    }
-    return shuffled;
-  };
-
-  const initializeQuestions = useCallback(() => {
-    // Enhanced randomization - show selection from larger pool
-    const totalQuestions = questionsData.length;
-    console.log(`Total questions available: ${totalQuestions}`);
-
-    if (totalQuestions < maxTargets) {
-      console.error(`Not enough questions! Need ${maxTargets}, but only have ${totalQuestions}`);
-      return questionsData; // Return all available questions
-    }
-
-    // Create a thoroughly shuffled copy
-    const shuffled = shuffleArray([...questionsData]);
-
-    // Take from a random starting point to ensure variety
-    const maxStartIndex = Math.max(0, shuffled.length - maxTargets);
-    const startIndex = Math.floor(Math.random() * maxStartIndex);
-    const gameQuestions = shuffled.slice(startIndex, startIndex + maxTargets);
-
-    console.log(`Selected ${maxTargets} questions from index ${startIndex} to ${startIndex + maxTargets} out of ${totalQuestions} total`);
-    console.log('Game questions:', gameQuestions.map(q => q.answer));
-
-    return gameQuestions;
-  }, [maxTargets]);
-
-  const loadQuestion = useCallback((index, questionArray) => {
-    console.log(`Loading question ${index} from array of ${questionArray.length} questions`);
-
-    if (!questionArray || questionArray.length === 0) {
-      console.error('Question array is empty or undefined');
-      return null;
-    }
-
-    if (index < 0 || index >= questionArray.length) {
-      console.error(`Question index ${index} out of bounds (array length: ${questionArray.length})`);
-      return null;
-    }
-
-    const questionData = questionArray[index];
-    if (!questionData) {
-      console.error(`Question data at index ${index} is undefined`);
-      return null;
-    }
-
-    const question = new Question(questionData.id, questionData.answer, questionData.category, questionData.difficulty);
-
-    const hintsToUse = questionData.hints ? questionData.hints.slice(0, maxHints) : [];
-
-    hintsToUse.forEach((hint, hintIndex) => {
-      question.addHint(hint, hintIndex * 15);
+  const clearAllAIGuessTimers = () => {
+    aiGuessTimersRef.current.forEach(timerId => {
+      if (timerId) clearTimeout(timerId);
     });
-
-    question.start();
-    setCurrentQuestion(question);
-    setRevealedHints([]);
-    setAiHasGuessed(false);
-    return question;
-  }, [maxHints]);
-
-  const addRevealedHint = (hintText, hintIndex) => {
-    if (hintIndex >= maxHints) {
-      return;
-    }
-
-    const newHint = {
-      text: hintText,
-      index: hintIndex,
-      revealed: true
-    };
-    setRevealedHints(prev => {
-      const filtered = prev.filter(hint => hint.index !== hintIndex);
-      const updated = [...filtered, newHint];
-
-      if (updated.length > maxHints) {
-        return updated.slice(0, maxHints);
-      }
-
-      return updated;
-    });
+    aiGuessTimersRef.current = [];
   };
 
-  // Calculate damage based on which hint is currently shown
-  const calculateDamageByHintCount = (hintCount) => {
-    // 1st clue (hintCount = 1): 1000 damage
-    // 2nd clue (hintCount = 2): 800 damage
-    // 3rd clue (hintCount = 3): 600 damage
-    // 4th clue (hintCount = 4): 400 damage
-    // 5th clue (hintCount = 5): 200 damage
-    switch (hintCount) {
-      case 1: return 1000;
-      case 2: return 800;
-      case 3: return 600;
-      case 4: return 400;
-      case 5: return 200;
-      default: return 200; // Minimum damage for 5+ hints
+  const isAlive = (p) => !!p && (p.health ?? 0) > 0;
+
+  // Make a fresh 5-question deck with strong randomness
+  const buildDeck = () => {
+    const arr = [...questionsData];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+    const start = Math.floor(Math.random() * Math.max(1, arr.length - MAX_TARGETS));
+    const slice = arr.slice(start, start + MAX_TARGETS);
+    console.log(`Total questions available: ${questionsData.length}`);
+    console.log(`Selected 5 questions from index ${start}`);
+    console.log('Questions:', slice.map(q => q.answer));
+    deckRef.current = slice;
   };
 
-  // Enhanced AI decision making
-  const scheduleAIGuess = (question, hintIndex) => {
-    if (aiHasGuessedRef.current || !question) return;
+  // Load question model and mount hint mechanics
+  const mountQuestion = (index) => {
+    const data = deckRef.current[index];
+    if (!data) return null;
 
-    const currentHintCount = hintIndex + 1; // Convert index to count
+    console.log(`Starting question ${index + 1}/${MAX_TARGETS}: ${data.answer}`);
 
-    // AI gets more likely to guess with each hint
-    let guessChance;
-    switch (currentHintCount) {
-      case 1: guessChance = 0.15; // 15% chance after 1st hint
-      break;
-      case 2: guessChance = 0.25; // 25% chance after 2nd hint
-      break;
-      case 3: guessChance = 0.35; // 35% chance after 3rd hint
-      break;
-      case 4: guessChance = 0.50; // 50% chance after 4th hint
-      break;
-      case 5: guessChance = 0.70; // 70% chance after 5th hint
-      break;
-      default: guessChance = 0.80; // 80% chance after more hints
-    }
+    const q = new Question(data.id, data.answer, data.category, data.difficulty);
+    const hints = (data.hints || []).slice(0, MAX_HINTS);
+    hints.forEach((h, i) => q.addHint(h, i * 15));
+    q.start();
 
-    // Random delay before attempting guess (2-8 seconds after hint is revealed)
-    const delay = Math.random() * 6000 + 2000;
+    setCurrentQ(q);
+    setRevealed([]);
+    roundCompleteRef.current = false; // Reset round completion flag
 
+    // Clear any existing AI guess timers
+    clearAllAIGuessTimers();
+
+    // Timer remount
+    setTimerKey((k) => k + 1);
+
+    // Reveal first hint after 1s
     setTimeout(() => {
-      if (gameStateRef.current === 'playing' && !isProcessingNextRef.current && !aiHasGuessedRef.current) {
-        if (Math.random() < guessChance) {
-          handleAIGuess(question, currentHintCount);
-        }
+      if (phaseRef.current !== 'playing' || roundCompleteRef.current) return;
+      if (hints[0]) {
+        setRevealed([{ index: 0, text: hints[0], revealed: true }]);
+        scheduleAIGuess(q, 1);
       }
+    }, FIRST_HINT_DELAY_MS);
+
+    // Subsequent hints every 15s
+    clearHintTimer();
+    hintTimerRef.current = setInterval(() => {
+      if (phaseRef.current !== 'playing' || roundCompleteRef.current) return;
+      setRevealed((prev) => {
+        const nextIdx = prev.length;
+        if (nextIdx < Math.min(MAX_HINTS, hints.length)) {
+          const next = { index: nextIdx, text: hints[nextIdx], revealed: true };
+          scheduleAIGuess(q, nextIdx + 1);
+          return [...prev, next];
+        } else {
+          clearHintTimer();
+          return prev;
+        }
+      });
+    }, HINT_INTERVAL_MS);
+
+    return q;
+  };
+
+  // Centralized round advance to eliminate races
+  const advanceRound = (nextIndex) => {
+    // Single gate to prevent double transitions
+    if (processingRef.current) return;
+    processingRef.current = true;
+
+    // Mark round as complete to prevent further AI guesses
+    roundCompleteRef.current = true;
+
+    // Clear all timers immediately
+    clearHintTimer();
+    clearAllAIGuessTimers();
+
+    console.log(`Round ${qIndex + 1} complete, advancing to ${nextIndex + 1}`);
+
+    // After result banner, move on
+    setTimeout(() => {
+      const canContinue =
+        nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai) && phaseRef.current === 'playing';
+
+      if (!canContinue) {
+        console.log('Game ending - cannot continue');
+        setPhase('finished');
+        processingRef.current = false;
+        return;
+      }
+
+      setQIndex(nextIndex);
+      // Ensure React flushes qIndex first, then mount next q
+      setTimeout(() => {
+        mountQuestion(nextIndex);
+        processingRef.current = false;
+      }, 50);
+    }, ROUND_RESULT_DELAY_MS);
+  };
+
+  // AI guessing
+  const scheduleAIGuess = (q, hintCount) => {
+    if (roundCompleteRef.current) return; // Don't schedule if round is already complete
+
+    const delay = 2000 + Math.random() * 6000;
+    const timerId = setTimeout(() => {
+      // Check if round is still active and not processing
+      if (phaseRef.current !== 'playing' || processingRef.current || roundCompleteRef.current) {
+        return;
+      }
+
+      const chance = aiGuessChance(hintCount);
+      const ok = Math.random() < chance;
+      console.log(`AI guess with ${hintCount} hints: ${Math.round(chance * 100)}% -> ${ok ? 'CORRECT' : 'WRONG'}`);
+
+      if (!ok) return;
+
+      // AI got it right - end the round immediately
+      roundCompleteRef.current = true;
+      clearHintTimer();
+      clearAllAIGuessTimers();
+
+      const dmg = damageByHint(revealed.length || 1);
+      setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
+
+      setResult({
+        winner: 'ai',
+        correctAnswer: q.correctAnswer,
+        hintCount: revealed.length || 1,
+        healthLoss: dmg
+      });
+
+      advanceRound(qIndex + 1);
     }, delay);
+
+    // Store timer ID for cleanup
+    aiGuessTimersRef.current.push(timerId);
   };
 
-  const endGame = useCallback(() => {
-    console.log('Ending game');
-    clearTimers();
-    setIsProcessingNext(false);
-    setGameState('finished');
-  }, [clearTimers]);
+  // Player guess
+  const onGuess = (guess) => {
+    if (!currentQ || phase !== 'playing' || processingRef.current || roundCompleteRef.current) return;
 
-  const startQuestion = useCallback((index, questionArray) => {
-    console.log(`Starting question ${index + 1}/${maxTargets}`);
-    clearTimers();
-    setGameResult(null);
-
-    // Use the current shuffled questions if questionArray is not provided
-    const questionsToUse = questionArray || shuffledQuestionsRef.current;
-
-    console.log(`Using question array with ${questionsToUse.length} questions`);
-
-    const question = loadQuestion(index, questionsToUse);
-    if (!question) {
-      console.error('Failed to load question, ending game');
-      endGame();
+    const correct = currentQ.checkAnswer(guess);
+    if (!correct) {
+      setResult({ winner: null, playerGuess: guess, healthLoss: 0 });
+      setTimeout(() => setResult(null), 1200);
       return;
     }
 
-    // Reveal first hint after 1 second
-    setTimeout(() => {
-      if (gameStateRef.current === 'playing' && question.hints && question.hints.length > 0) {
-        const firstHint = question.hints[0];
-        addRevealedHint(firstHint.text, 0);
-        if (typeof question.revealNextHint === 'function') {
-          question.revealNextHint();
-        }
+    // Player got it right - end the round immediately
+    roundCompleteRef.current = true;
+    clearHintTimer();
+    clearAllAIGuessTimers();
 
-        // Schedule AI to potentially guess after first hint
-        scheduleAIGuess(question, 0);
-      }
-    }, 1000);
+    const dmg = damageByHint(revealed.length || 1);
+    ai.health = Math.max(0, ai.health - dmg);
 
-    // Timer to reveal subsequent hints
-    const timer = setInterval(() => {
-      if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) {
-        clearInterval(timer);
-        return;
-      }
+    setResult({
+      winner: 'human',
+      playerGuess: guess,
+      correctAnswer: currentQ.correctAnswer,
+      hintCount: revealed.length || 1,
+      healthLoss: dmg
+    });
 
-      const currentHintCount = revealedHintsRef.current.length;
+    advanceRound(qIndex + 1);
+  };
 
-      if (currentHintCount >= maxHints) {
-        clearInterval(timer);
-        return;
-      }
+  const onTimeUp = () => {
+    if (phase !== 'playing' || processingRef.current || roundCompleteRef.current) return;
 
-      const nextHintIndex = currentHintCount;
-      if (question.hints && nextHintIndex < question.hints.length && nextHintIndex < maxHints) {
-        const nextHint = question.hints[nextHintIndex];
+    // Time up - end the round
+    roundCompleteRef.current = true;
+    clearHintTimer();
+    clearAllAIGuessTimers();
 
-        addRevealedHint(nextHint.text, nextHintIndex);
-        if (typeof question.revealNextHint === 'function') {
-          question.revealNextHint();
-        }
+    setResult({
+      winner: 'timeout',
+      correctAnswer: currentQ?.correctAnswer,
+      hintCount: revealed.length,
+      healthLoss: 0
+    });
 
-        // Schedule AI to potentially guess after this hint
-        scheduleAIGuess(question, nextHintIndex);
+    advanceRound(qIndex + 1);
+  };
 
-        setPlayer(prevPlayer => ({ ...prevPlayer }));
-      } else {
-        clearInterval(timer);
-      }
-    }, 15000);
-
-    setHintTimer(timer);
-  }, [clearTimers, endGame, loadQuestion, maxTargets, maxHints]);
-
+  // Start/restart game
   const startGame = () => {
-    if (!player) return;
+    if (!human) return;
 
     console.log('Starting new game...');
 
-    if (typeof player.resetForNewGame === 'function') {
-      player.resetForNewGame();
-    } else {
-      player.health = player.maxHealth || 5000;
-      player.totalCorrect = 0;
-      player.totalQuestions = 0;
-      player.currentStreak = 0;
-    }
+    // Reset
+    human.health = 5000;
+    ai.health = 5000;
+    setQIndex(0);
+    setResult(null);
+    setRevealed([]);
+    processingRef.current = false;
+    roundCompleteRef.current = false;
 
-    if (typeof aiPlayer.resetForNewGame === 'function') {
-      aiPlayer.resetForNewGame();
-    } else {
-      aiPlayer.health = aiPlayer.maxHealth || 5000;
-      aiPlayer.totalCorrect = 0;
-      aiPlayer.totalQuestions = 0;
-      aiPlayer.currentStreak = 0;
-    }
+    // Clear all timers
+    clearHintTimer();
+    clearAllAIGuessTimers();
 
-    setQuestionIndex(0);
-    setIsProcessingNext(false);
-    setGameResult(null);
-    setRevealedHints([]);
+    buildDeck();
+    setPhase('playing');
 
-    const gameQuestions = initializeQuestions();
-    setShuffledQuestions(gameQuestions);
-    setGameState('playing');
-
+    // Mount first question after phase flips
     setTimeout(() => {
-      startQuestion(0, gameQuestions);
-    }, 100);
+      mountQuestion(0);
+    }, 50);
   };
 
-  const handleAIGuess = (question, hintCount) => {
-    if (gameStateRef.current !== 'playing' || isProcessingNextRef.current || aiHasGuessedRef.current) {
-      console.log('AI guess blocked - state check failed');
-      return;
-    }
-
-    console.log(`AI making guess attempt - processing: ${isProcessingNextRef.current}, hasGuessed: ${aiHasGuessedRef.current}`);
-    setAiHasGuessed(true);
-
-    // AI accuracy based on hint count
-    let correctChance;
-    switch (hintCount) {
-      case 1: correctChance = 0.20; // 20% chance with 1 hint
-      break;
-      case 2: correctChance = 0.35; // 35% chance with 2 hints
-      break;
-      case 3: correctChance = 0.50; // 50% chance with 3 hints
-      break;
-      case 4: correctChance = 0.65; // 65% chance with 4 hints
-      break;
-      case 5: correctChance = 0.80; // 80% chance with 5 hints
-      break;
-      default: correctChance = 0.90; // 90% chance with more hints
-    }
-    let rndCheckValue = Math.random();
-    const isCorrect = rndCheckValue < correctChance;
-
-    console.log(`AI attempting guess with ${hintCount} hints, rndCheckValue=${rndCheckValue}, correctChance=${correctChance}, ${Math.round(correctChance * 100)}% chance, result: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
-
-    if (isCorrect) {
-      // AI got it right - PLAYER loses health based on current hint count
-      const currentHintCount = revealedHintsRef.current.length;
-      const playerHealthLoss = calculateDamageByHintCount(currentHintCount);
-
-      console.log(`AI correct! Player loses ${playerHealthLoss} HP`);
-
-      // Apply damage to the PLAYER (not AI)
-      setPlayer(prevPlayer => {
-        const newPlayer = { ...prevPlayer };
-        newPlayer.health = Math.max(0, newPlayer.health - playerHealthLoss);
-        return newPlayer;
-      });
-
-      // Update AI stats but NO health changes for AI
-      aiPlayer.totalCorrect = (aiPlayer.totalCorrect || 0) + 1;
-      aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-
-      // Clear any timers immediately
-      clearTimers();
-
-      setGameResult({
-        winner: 'ai',
-        playerGuess: null,
-        aiGuess: question.correctAnswer,
-        correctAnswer: question.correctAnswer,
-        hintCount: currentHintCount,
-        healthLoss: playerHealthLoss
-      });
-
-      console.log('AI win - proceeding to next question');
-      // Immediately proceed to next question
-      proceedToNextQuestion();
-
-    } else {
-      console.log('AI wrong guess - can try again');
-      // AI got it wrong - NO PENALTIES AT ALL
-      aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-
-      // Reset AI guess status so it can try again after a short delay
-      setTimeout(() => {
-        if (gameStateRef.current === 'playing' && !isProcessingNextRef.current) {
-          setAiHasGuessed(false);
-        }
-      }, 3000); // Wait 3 seconds before allowing AI to guess again
-    }
-  };
-
-  const handlePlayerGuess = async (guess) => {
-    if (!currentQuestion || gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
-
-    const isCorrect = currentQuestion.checkAnswer ? currentQuestion.checkAnswer(guess) : false;
-    const currentHintCount = revealedHints.length;
-
-    if (isCorrect) {
-      player.totalCorrect = (player.totalCorrect || 0) + 1;
-      // Player got it right - AI loses health based on current hint count
-      const aiHealthLoss = calculateDamageByHintCount(currentHintCount);
-      aiPlayer.health = Math.max(0, aiPlayer.health - aiHealthLoss);
-
-      // Clear any timers immediately
-      clearTimers();
-    }
-    // NO PENALTIES for wrong answers - just update question count
-    player.totalQuestions = (player.totalQuestions || 0) + 1;
-
-    setPlayer(prevPlayer => ({ ...prevPlayer }));
-
-    if (isCorrect) {
-      const aiHealthLoss = calculateDamageByHintCount(currentHintCount);
-
-      setGameResult({
-        winner: 'human',
-        playerGuess: guess,
-        aiGuess: null,
-        correctAnswer: currentQuestion.correctAnswer,
-        hintCount: currentHintCount,
-        healthLoss: aiHealthLoss
-      });
-
-      proceedToNextQuestion();
-    } else {
-      setGameResult({
-        winner: null,
-        playerGuess: guess,
-        aiGuess: null,
-        correctAnswer: null,
-        healthLoss: 0
-      });
-
-      setTimeout(() => {
-        if (gameStateRef.current === 'playing') {
-          setGameResult(null);
-        }
-      }, 2000);
-    }
-  };
-
-  const handleTimeUp = () => {
-    if (gameStateRef.current !== 'playing' || isProcessingNextRef.current) return;
-
-    if (player && currentQuestion) {
-      // NO PENALTIES for timeout - just update question counts
-      player.totalQuestions = (player.totalQuestions || 0) + 1;
-
-      if (!aiHasGuessedRef.current) {
-        aiPlayer.totalQuestions = (aiPlayer.totalQuestions || 0) + 1;
-      }
-
-      setPlayer(prevPlayer => ({ ...prevPlayer }));
-
-      setGameResult({
-        winner: 'timeout',
-        playerGuess: null,
-        aiGuess: null,
-        correctAnswer: currentQuestion.correctAnswer,
-        healthLoss: 0
-      });
-    }
-
-    proceedToNextQuestion();
-  };
-
-  const proceedToNextQuestion = useCallback(() => {
-    if (isProcessingNextRef.current) {
-      console.log('Already processing next question, skipping');
-      return;
-    }
-
-    console.log(`Proceeding to next question: current=${questionIndex}, max=${maxTargets}`);
-    console.log(`Available questions: ${shuffledQuestionsRef.current.length}`);
-
-    setIsProcessingNext(true);
-    clearTimers();
-
-    // Immediate state update for next question
-    const nextIndex = questionIndex + 1;
-    console.log(`Next question index: ${nextIndex}`);
-
-    setTimeout(() => {
-      if (nextIndex < maxTargets && isPlayerAlive(player) && isPlayerAlive(aiPlayer)) {
-        console.log('Starting next question');
-        setQuestionIndex(nextIndex);
-        startQuestion(nextIndex); // Don't pass questionArray, let it use the ref
-        setIsProcessingNext(false);
-      } else {
-        console.log('Game should end - calling endGame()');
-        endGame();
-      }
-    }, 3000);
-  }, [clearTimers, endGame, startQuestion, questionIndex, maxTargets, player, aiPlayer]);
-
-  // Enhanced GeoGuessr-style Health Bar
-  const HealthBar = ({ player: p, playerName, isAI = false }) => {
-    if (!p) return null;
-
-    const maxHealth = p.maxHealth || 5000;
-    const currentHealth = p.health || 0;
-    const healthPercentage = (currentHealth / maxHealth) * 100;
-
-    const getHealthColor = () => {
-      if (healthPercentage > 75) return isAI ? 'bg-gradient-to-r from-red-500 to-red-400' : 'bg-gradient-to-r from-green-500 to-green-400';
-      if (healthPercentage > 50) return isAI ? 'bg-gradient-to-r from-purple-500 to-purple-400' : 'bg-gradient-to-r from-yellow-500 to-yellow-400';
-      if (healthPercentage > 25) return isAI ? 'bg-gradient-to-r from-pink-500 to-pink-400' : 'bg-gradient-to-r from-orange-500 to-orange-400';
-      return 'bg-gradient-to-r from-red-500 to-red-400';
-    };
-
-    const getHealthTextColor = () => {
-      return 'text-white';
-    };
-
-    const getBorderColor = () => {
-      if (isAI) return 'border-red-300';
-      return 'border-green-300';
-    };
-
-    return (
-      <div className="relative w-full">
-        {/* Player name above health bar */}
-        <div className="mb-2 text-center">
-          <span className={`text-sm font-bold ${isAI ? 'text-red-400' : 'text-green-400'}`}>
-            {playerName || p.name}
-          </span>
-        </div>
-
-        {/* Main health bar container - GeoGuessr style */}
-        <div className={`relative w-full h-12 bg-gray-800 rounded-lg border-2 ${getBorderColor()} overflow-hidden shadow-lg`}>
-          {/* Health fill with gradient */}
-          <div
-            className={`h-full transition-all duration-500 ease-out ${getHealthColor()} relative`}
-            style={{ width: `${healthPercentage}%` }}
-          >
-            {/* Inner glow effect */}
-            <div className="absolute inset-0 bg-white bg-opacity-20 rounded-lg"></div>
-
-            {/* Animated pulse effect for low health */}
-            {healthPercentage <= 25 && (
-              <div className="absolute inset-0 bg-white bg-opacity-30 rounded-lg animate-pulse"></div>
-            )}
-          </div>
-
-          {/* Health text centered in the bar */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={`text-lg font-bold ${getHealthTextColor()} drop-shadow-lg tracking-wider`}>
-              {currentHealth} HP
-            </span>
-          </div>
-
-          {/* Shine effect overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 transform -skew-x-12 animate-pulse"></div>
-        </div>
-
-        {/* Status indicators */}
-        <div className="flex justify-between items-center mt-1">
-          <div className="flex items-center space-x-2">
-            {currentHealth <= 0 && (
-              <span className="text-xs text-red-400 font-bold animate-bounce">💀 SHOT DOWN</span>
-            )}
-            {healthPercentage <= 25 && currentHealth > 0 && (
-              <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>
-            )}
-            {healthPercentage > 75 && (
-              <span className="text-xs text-green-400 font-bold">✨ EXCELLENT</span>
-            )}
-          </div>
-
-          <div className="text-xs text-gray-400">
-            {Math.round(healthPercentage)}%
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  if (gameState === 'setup') {
+  // Render
+  if (phase === 'setup') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
@@ -614,26 +313,23 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
             <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">MISSION BRIEFING</h2>
             <p className="text-lg mb-4 text-gray-800">Agent {playerName} vs Agent 47</p>
             <div className="bg-gray-800 p-4 rounded text-white text-sm">
-              <p className="mb-2">🎯 <strong>Survive {maxTargets} targets with Agent 47</strong></p>
+              <p className="mb-2">🎯 <strong>Survive {MAX_TARGETS} targets with Agent 47</strong></p>
               <p className="mb-2">💡 <strong>Hints are FREE!</strong> Wait for clues or answer fast</p>
-              <p className="mb-2">⚡ <strong>Speed matters:</strong> Early answers deal more damage to opponent</p>
+              <p className="mb-2">⚡ <strong>Speed matters:</strong> Earlier answers deal more damage</p>
               <p className="mb-2">❌ <strong>No penalties</strong> for wrong answers or time</p>
               <p>🏆 <strong>Win by having the most health remaining</strong></p>
             </div>
           </div>
-
           <div className="text-center">
-            <Button onClick={startGame} size="lg" className="px-12">
-              🎯 BEGIN MISSION
-            </Button>
+            <Button onClick={startGame} size="lg" className="px-12">🎯 BEGIN MISSION</Button>
           </div>
         </div>
       </div>
     );
   }
 
-  if (gameState === 'finished') {
-    const humanWon = player?.health > aiPlayer.health || (isPlayerAlive(player) && !isPlayerAlive(aiPlayer));
+  if (phase === 'finished') {
+    const humanWon = (human?.health ?? 0) > ai.health || (isAlive(human) && !isAlive(ai));
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-3xl w-full text-black border border-gray-200">
@@ -645,56 +341,22 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
               {humanWon ? `Congratulations Agent ${playerName}!` : 'Agent 47 completed the mission first.'}
             </p>
             <p className="text-sm text-gray-600 mb-4">
-              Completed {questionIndex + (gameResult ? 1 : 0)} out of {maxTargets} targets
+              Completed {qIndex + (result ? 1 : 0)} out of {MAX_TARGETS} targets
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div className={`p-4 rounded ${humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="font-spy text-lg">👤 {player?.name || 'Player'}</h3>
-                  {humanWon && <span className="text-sm text-green-600">🏆 Winner</span>}
-                  {!isPlayerAlive(player) && <span className="text-sm text-red-600">🔫 Shot Down</span>}
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-red-600">{player?.health || 0} HP</p>
-                  <p className="text-sm text-gray-600">{player?.totalCorrect || 0}/{player?.totalQuestions || 0} correct</p>
-                </div>
-              </div>
-              <HealthBar player={player} playerName={player?.name || playerName} isAI={false} />
-            </div>
-
-            <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="font-spy text-lg">🤖 Agent 47</h3>
-                  {!humanWon && <span className="text-sm text-green-600">🏆 Winner</span>}
-                  {!isPlayerAlive(aiPlayer) && <span className="text-sm text-red-600">🔫 Shot Down</span>}
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-red-600">{aiPlayer.health} HP</p>
-                  <p className="text-sm text-gray-600">{aiPlayer.totalCorrect}/{aiPlayer.totalQuestions} correct</p>
-                </div>
-              </div>
-              <HealthBar player={aiPlayer} playerName="Agent 47" isAI={true} />
-            </div>
-          </div>
+          <ScorePanels human={human} ai={ai} playerName={playerName} />
 
           <div className="flex space-x-4">
-            <Button onClick={startGame} variant="primary" className="flex-1">
-              🔄 NEW MISSION
-            </Button>
-            <Button onClick={onBackToMenu} variant="secondary" className="flex-1">
-              🏠 BACK TO HQ
-            </Button>
+            <Button onClick={startGame} variant="primary" className="flex-1">🔄 NEW MISSION</Button>
+            <Button onClick={onBackToMenu} variant="secondary" className="flex-1">🏠 BACK TO HQ</Button>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!currentQuestion || !player) {
+  if (!currentQ || !human) {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center">
         <LoadingSpinner size="lg" message="Preparing mission..." />
@@ -708,89 +370,146 @@ const OneVsOne = ({ playerName, onBackToMenu }) => {
         <div className="bg-black bg-opacity-90 p-6 rounded-lg mb-6 border border-red-600">
           <div className="flex justify-between items-center mb-6">
             <div className="text-white">
-              <h2 className="text-xl font-spy">TARGET: {questionIndex + 1} / {maxTargets}</h2>
-              <p className="text-sm text-gray-300">Category: {currentQuestion.category}</p>
+              <h2 className="text-xl font-spy">TARGET: {qIndex + 1} / {MAX_TARGETS}</h2>
+              <p className="text-sm text-gray-300">Category: {currentQ.category}</p>
               <p className="text-xs text-gray-400">
-                Hint {revealedHints.length}/{maxHints} • Damage: {calculateDamageByHintCount(revealedHints.length)} HP
+                Hint {revealed.length}/{MAX_HINTS} • Damage: {damageByHint(revealed.length || 1)} HP
               </p>
             </div>
             <Timer
-              duration={120}
-              onComplete={handleTimeUp}
-              isActive={gameState === 'playing' && !isProcessingNext}
-              key={`timer-${questionIndex}`}
+              duration={QUESTION_TIME_SEC}
+              onComplete={onTimeUp}
+              isActive={phase === 'playing' && !processingRef.current && !roundCompleteRef.current}
+              key={`timer-${timerKey}`}
             />
           </div>
 
-          {/* Enhanced GeoGuessr-style Health Bars */}
           <div className="grid grid-cols-2 gap-6 mb-6">
-            <div className="bg-gray-900 p-4 rounded-lg border-2 border-green-400">
-              <HealthBar
-                player={player}
-                playerName={player.name}
-                isAI={false}
-              />
-              <div className="mt-3 text-center">
-                <p className="text-xs text-gray-400">Streak: {player.currentStreak || 0}</p>
-              </div>
-            </div>
-            <div className="bg-gray-900 p-4 rounded-lg border-2 border-red-400">
-              <HealthBar
-                player={aiPlayer}
-                playerName="Agent 47"
-                isAI={true}
-              />
-              <div className="mt-3 text-center">
-                <p className="text-xs text-gray-400">Streak: {aiPlayer.currentStreak || 0}</p>
-              </div>
-            </div>
+            <Panel title={human.name} health={human.health} isAI={false} />
+            <Panel title="Agent 47" health={ai.health} isAI={true} />
           </div>
         </div>
 
-        {gameResult && (
-          <div className={`mb-6 p-4 rounded-lg border-2 ${
-            gameResult.winner === 'human' ? 'bg-green-900 border-green-500' :
-            gameResult.winner === 'ai' ? 'bg-red-900 border-red-500' :
-            gameResult.winner === 'timeout' ? 'bg-orange-900 border-orange-500' :
-            'bg-yellow-900 border-yellow-500'
-          }`}>
-            <div className="text-center text-white">
-              {gameResult.winner === 'human' && (
-                <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
-              )}
-              {gameResult.winner === 'ai' && (
-                <p className="text-lg font-bold">🔫 Agent 47 shot first! You lose {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
-              )}
-              {gameResult.winner === 'timeout' && (
-                <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped! No penalties.</p>
-              )}
-              {!gameResult.winner && gameResult.winner !== 'timeout' && (
-                <p className="text-lg font-bold">❌ Missed shot. No penalties - keep trying!</p>
-              )}
-              {gameResult.correctAnswer && (
-                <p className="text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
-              )}
-            </div>
-          </div>
+        {result && (
+          <ResultBanner result={result} />
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <HintDisplay
-            hints={revealedHints}
-            totalHints={Math.min(maxHints, currentQuestion.hints ? currentQuestion.hints.length : 0)}
-            key={`hints-${questionIndex}-${revealedHints.length}`}
+            hints={revealed}
+            totalHints={Math.min(MAX_HINTS, currentQ.hints ? currentQ.hints.length : 0)}
+            key={`hints-${qIndex}-${revealed.length}`}
           />
-
           <GuessInput
-            onSubmit={handlePlayerGuess}
-            disabled={gameState !== 'playing' || isProcessingNext || gameResult?.winner || !isPlayerAlive(player)}
+            onSubmit={onGuess}
+            disabled={phase !== 'playing' || processingRef.current || !!result || !isAlive(human) || roundCompleteRef.current}
             placeholder="Take your shot (be precise)..."
-            key={`input-${questionIndex}`}
+            key={`input-${qIndex}`}
           />
         </div>
       </div>
     </div>
   );
-};
+}
 
-export default OneVsOne;
+/* ---------- Small UI helpers ---------- */
+
+function Panel({ title, health, isAI }) {
+  const pct = Math.max(0, Math.min(100, Math.round((health / 5000) * 100)));
+  const color = pct > 75 ? (isAI ? 'from-red-500 to-red-400' : 'from-green-500 to-green-400')
+    : pct > 50 ? (isAI ? 'from-purple-500 to-purple-400' : 'from-yellow-500 to-yellow-400')
+    : pct > 25 ? (isAI ? 'from-pink-500 to-pink-400' : 'from-orange-500 to-orange-400')
+    : 'from-red-500 to-red-400';
+
+  return (
+    <div className={`bg-gray-900 p-4 rounded-lg border-2 ${isAI ? 'border-red-400' : 'border-green-400'}`}>
+      <div className="mb-2 text-center">
+        <span className={`text-sm font-bold ${isAI ? 'text-red-400' : 'text-green-400'}`}>{title}</span>
+      </div>
+      <div className="relative w-full h-12 bg-gray-800 rounded-lg border overflow-hidden shadow-lg">
+        <div className={`h-full transition-all duration-500 ease-out bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }}>
+          <div className="absolute inset-0 bg-white bg-opacity-20 rounded-lg"></div>
+          {pct <= 25 && pct > 0 && <div className="absolute inset-0 bg-white bg-opacity-30 rounded-lg animate-pulse"></div>}
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-lg font-bold text-white drop-shadow-lg tracking-wider">{Math.max(0, health)} HP</span>
+        </div>
+      </div>
+      <div className="flex justify-between items-center mt-1">
+        <div className="flex items-center space-x-2">
+          {health <= 0 && <span className="text-xs text-red-400 font-bold animate-bounce">💀 SHOT DOWN</span>}
+          {pct <= 25 && health > 0 && <span className="text-xs text-red-400 font-bold animate-pulse">⚠️ CRITICAL</span>}
+          {pct > 75 && <span className="text-xs text-green-400 font-bold">✨ EXCELLENT</span>}
+        </div>
+        <span className="text-xs text-gray-400">{pct}%</span>
+      </div>
+    </div>
+  );
+}
+
+function ScorePanels({ human, ai, playerName }) {
+  const humanWon = (human?.health ?? 0) > ai.health || ((human?.health ?? 0) > 0 && ai.health <= 0);
+
+  return (
+    <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className={`p-4 rounded ${humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="font-spy text-lg">👤 {human?.name || playerName}</h3>
+            {humanWon && <span className="text-sm text-green-600">🏆 Winner</span>}
+            {(human?.health ?? 0) <= 0 && <span className="text-sm text-red-600">🔫 Shot Down</span>}
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-red-600">{human?.health || 0} HP</p>
+            <p className="text-sm text-gray-600">{human?.totalCorrect || 0}/{human?.totalQuestions || 0} correct</p>
+          </div>
+        </div>
+        <Panel title={human?.name || playerName} health={human?.health || 0} isAI={false} />
+      </div>
+
+      <div className={`p-4 rounded ${!humanWon ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}`}>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="font-spy text-lg">🤖 Agent 47</h3>
+            {!humanWon && <span className="text-sm text-green-600">🏆 Winner</span>}
+            {ai.health <= 0 && <span className="text-sm text-red-600">🔫 Shot Down</span>}
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-red-600">{ai.health} HP</p>
+            <p className="text-sm text-gray-600">{ai.totalCorrect || 0}/{ai.totalQuestions || 0} correct</p>
+          </div>
+        </div>
+        <Panel title="Agent 47" health={ai.health} isAI={true} />
+      </div>
+    </div>
+  );
+}
+
+function ResultBanner({ result }) {
+  return (
+    <div className={`mb-6 p-4 rounded-lg border-2 ${
+      result.winner === 'human' ? 'bg-green-900 border-green-500' :
+      result.winner === 'ai' ? 'bg-red-900 border-red-500' :
+      result.winner === 'timeout' ? 'bg-orange-900 border-orange-500' :
+      'bg-yellow-900 border-yellow-500'
+    }`}>
+      <div className="text-center text-white">
+        {result.winner === 'human' && (
+          <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {result.healthLoss} HP (hint {result.hintCount})</p>
+        )}
+        {result.winner === 'ai' && (
+          <p className="text-lg font-bold">🔫 Agent 47 shot first! You lose {result.healthLoss} HP (hint {result.hintCount})</p>
+        )}
+        {result.winner === 'timeout' && (
+          <p className="text-lg font-bold">⏱️ TIME'S UP! Target escaped! No penalties.</p>
+        )}
+        {result.winner === null && (
+          <p className="text-lg font-bold">❌ Missed shot. No penalties - keep trying!</p>
+        )}
+        {result.correctAnswer && (
+          <p className="text-sm mt-2">The target was: <strong>{result.correctAnswer}</strong></p>
+        )}
+      </div>
+    </div>
+  );
+}
