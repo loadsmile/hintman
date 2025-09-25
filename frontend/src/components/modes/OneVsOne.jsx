@@ -53,6 +53,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   const processingRef = useRef(false); // Prevents overlapping advanceRound calls
   const hintTimerRef = useRef(null);
   const questionIdRef = useRef(0); // Unique ID for each question instance
+  const usedQuestionsRef = useRef(new Set()); // Track used questions across games
 
   // Main game loop driver: mounts a new question when qIndex changes
   useEffect(() => {
@@ -76,15 +77,87 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
 
   const isAlive = (p) => !!p && (p.health ?? 0) > 0;
 
-  // Build a new random deck of questions
+  // Enhanced deck building with better randomization and avoiding recently used questions
   const buildDeck = () => {
-    const arr = [...questionsData];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+    console.log(`Total questions available: ${questionsData.length}`);
+    console.log(`Questions used in previous games: ${usedQuestionsRef.current.size}`);
+
+    // If we've used more than 80% of questions, reset the used questions set
+    if (usedQuestionsRef.current.size > questionsData.length * 0.8) {
+      console.log('Resetting used questions pool for variety');
+      usedQuestionsRef.current.clear();
     }
-    const start = Math.floor(Math.random() * Math.max(1, arr.length - MAX_TARGETS));
-    deckRef.current = arr.slice(start, start + MAX_TARGETS);
+
+    // Filter out recently used questions
+    const availableQuestions = questionsData.filter(q => !usedQuestionsRef.current.has(q.id));
+
+    // If we don't have enough unused questions, use all questions
+    const questionPool = availableQuestions.length >= MAX_TARGETS ? availableQuestions : [...questionsData];
+
+    console.log(`Available questions for this game: ${questionPool.length}`);
+
+    // Enhanced Fisher-Yates shuffle for better randomization
+    const shuffled = [...questionPool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      // Use crypto.getRandomValues for better randomness if available
+      const randomValue = window.crypto && window.crypto.getRandomValues
+        ? window.crypto.getRandomValues(new Uint32Array(1))[0] / (0xFFFFFFFF + 1)
+        : Math.random();
+
+      const j = Math.floor(randomValue * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Select questions ensuring variety across categories and difficulties
+    const selectedQuestions = selectDiverseQuestions(shuffled, MAX_TARGETS);
+
+    // Mark these questions as used
+    selectedQuestions.forEach(q => usedQuestionsRef.current.add(q.id));
+
+    deckRef.current = selectedQuestions;
+
+    console.log('Selected questions for this game:');
+    selectedQuestions.forEach((q, i) => {
+      console.log(`  ${i + 1}. ${q.answer} (${q.category}, ${q.difficulty})`);
+    });
+  };
+
+  // Select questions with better category and difficulty distribution
+  const selectDiverseQuestions = (shuffledQuestions, count) => {
+    const selected = [];
+    const usedCategories = new Set();
+    const usedDifficulties = new Set();
+
+    // First pass: Try to get diverse categories and difficulties
+    for (const question of shuffledQuestions) {
+      if (selected.length >= count) break;
+
+      const categoryCount = Array.from(usedCategories).filter(cat => cat === question.category).length;
+      const difficultyCount = Array.from(usedDifficulties).filter(diff => diff === question.difficulty).length;
+
+      // Prefer questions from less used categories and difficulties
+      if (categoryCount < Math.ceil(count / 3) && difficultyCount < Math.ceil(count / 2)) {
+        selected.push(question);
+        usedCategories.add(question.category);
+        usedDifficulties.add(question.difficulty);
+      }
+    }
+
+    // Second pass: Fill remaining slots with any available questions
+    for (const question of shuffledQuestions) {
+      if (selected.length >= count) break;
+      if (!selected.includes(question)) {
+        selected.push(question);
+      }
+    }
+
+    // Final shuffle of selected questions
+    for (let i = selected.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [selected[i], selected[j]] = [selected[j], selected[i]];
+    }
+
+    return selected;
   };
 
   // Set up a new question and its timers
@@ -278,7 +351,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-center space-x-6">
+          <div className="text-center space-y-6">
             <Button
               onClick={startGame}
               size="lg"
@@ -293,7 +366,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
               size="lg"
               className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
             >
-              🏠 BACK TO HQ
+              🏠 BACK TO MENU
             </Button>
           </div>
         </div>
@@ -331,6 +404,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
                 : 'bg-red-900/80 border-red-500/60'
             }`}>
               <div className="text-center mb-6">
+                <div className="text-4xl mb-3 drop-shadow-lg">🕴</div>
                 <h3 className="text-2xl font-spy font-bold text-white drop-shadow-lg mb-2">
                   {human?.name || playerName}
                 </h3>
@@ -374,6 +448,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
                 : 'bg-red-900/80 border-red-500/60'
             }`}>
               <div className="text-center mb-6">
+                <div className="text-4xl mb-3 drop-shadow-lg">🤖</div>
                 <h3 className="text-2xl font-spy font-bold text-white drop-shadow-lg mb-2">
                   Agent 47
                 </h3>
@@ -412,7 +487,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
           </div>
 
           {/* Battle Summary - Floating Card */}
-          <div className="backdrop-blur-sm bg-black-40 border border-gray-600/60 rounded-xl p-6 mb-12 shadow-2xl">
+          <div className="backdrop-blur-sm bg-black/60 border border-gray-600/60 rounded-xl p-6 mb-12 shadow-2xl">
             <h4 className="text-lg font-bold text-white text-center mb-6 drop-shadow-lg">MISSION SUMMARY</h4>
             <div className="grid grid-cols-2 gap-8 text-center">
               <div>
@@ -437,7 +512,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-center space-x-6">
+          <div className="text-center space-y-6">
             <Button
               onClick={startGame}
               variant="primary"
