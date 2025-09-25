@@ -607,37 +607,97 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   if (gameState === 'matchmaking') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">
-              🎯 {getModeDisplayName().toUpperCase()}
-            </h2>
-            <p className="text-lg mb-4 text-gray-800">Agent {playerName}, ready for combat?</p>
-            <div className="bg-gray-800 p-4 rounded text-white text-sm">
-              <p className="mb-2">🎯 <strong>Mission Type:</strong> {getModeDisplayName()}</p>
-              {selectedMode === 'category' && selectedCategory && (
-                <p className="mb-2">🎭 <strong>Your Specialty:</strong> {selectedCategory.name}</p>
-              )}
-              <p className="mb-2">💡 <strong>Hints are FREE!</strong> Wait for clues or answer fast</p>
-              <p className="mb-2">⚡ <strong>Speed matters:</strong> Earlier answers deal more damage</p>
-              <p className="mb-2">❌ <strong>No penalties</strong> for wrong answers</p>
-              <p>🏆 <strong>Victory:</strong> Survive with the most health (or last agent standing)</p>
-            </div>
-          </div>
+      <div className="max-w-2xl w-full mx-4">
+        {/* Title Section */}
+        <div className="text-center mb-12">
+        <h2 className="text-6xl font-bold text-white mb-6 font-spy tracking-wider drop-shadow-2xl">
+          {getModeDisplayName().toUpperCase()}
+        </h2>
+        <p className="text-gray-200 text-xl drop-shadow-lg mb-8">
+          Agent {playerName}, ready for combat?
+        </p>
+        </div>
 
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-              <span className="text-sm text-green-600">Connected to {getServerDisplayName()}</span>
-            </div>
-            <Button onClick={findMatch} size="lg" className="px-12 mr-4">
-              🎯 FIND OPPONENT
-            </Button>
-            <Button onClick={handleBackToModeSelection} variant="secondary" size="lg" className="px-12">
-              🏠 Change Mission Type
-            </Button>
+        {/* Mission Rules - Pure Floating Text Elements */}
+        <div className="space-y-6 mb-12">
+        <div className="flex items-start space-x-4">
+          <span className="text-red-400 text-2xl drop-shadow-lg">🎯</span>
+          <div>
+          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Mission Type:</span>
+          <span className="text-white text-lg ml-3 drop-shadow-lg">{getModeDisplayName()}</span>
           </div>
         </div>
+
+        {selectedMode === 'category' && selectedCategory && (
+          <div className="flex items-start space-x-4">
+          <span className="text-red-400 text-2xl drop-shadow-lg">🎭</span>
+          <div>
+            <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Your Specialty:</span>
+            <span className="text-white text-lg ml-3 drop-shadow-lg">{selectedCategory.name}</span>
+          </div>
+          </div>
+        )}
+
+        <div className="flex items-start space-x-4">
+          <span className="text-red-400 text-2xl drop-shadow-lg">💡</span>
+          <div>
+          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Intelligence:</span>
+          <span className="text-white text-lg ml-3 drop-shadow-lg">Hints are FREE! Wait for clues or answer fast</span>
+          </div>
+        </div>
+
+        <div className="flex items-start space-x-4">
+          <span className="text-red-400 text-2xl drop-shadow-lg">⚡</span>
+          <div>
+          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Speed matters:</span>
+          <span className="text-white text-lg ml-3 drop-shadow-lg">Earlier answers deal more damage</span>
+          </div>
+        </div>
+
+        <div className="flex items-start space-x-4">
+          <span className="text-red-400 text-2xl drop-shadow-lg">❌</span>
+          <div>
+          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">No penalties</span>
+          <span className="text-white text-lg ml-3 drop-shadow-lg">for wrong answers</span>
+          </div>
+        </div>
+
+        <div className="flex items-start space-x-4">
+          <span className="text-red-400 text-2xl drop-shadow-lg">🏆</span>
+          <div>
+          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Victory:</span>
+          <span className="text-white text-lg ml-3 drop-shadow-lg">Survive with the most health (or last agent standing)</span>
+          </div>
+        </div>
+        </div>
+
+        {/* Connection Status and Buttons */}
+        <div className="text-center">
+        <div className="flex items-center justify-center mb-8">
+          <div className="w-3 h-3 bg-green-500 rounded-full mr-2 drop-shadow-lg"></div>
+          <span className="text-sm text-green-400 drop-shadow-lg">Connected to {getServerDisplayName()}</span>
+        </div>
+
+        <div className="flex justify-center space-x-6">
+          <Button
+          onClick={findMatch}
+          size="lg"
+          className="px-16 py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
+          >
+          🎯 FIND OPPONENT
+          </Button>
+
+          <Button
+          onClick={handleBackToModeSelection}
+          variant="secondary"
+          size="lg"
+          className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
+          >
+          🏠 Change Mission Type
+          </Button>
+        </div>
+        </div>
+      </div>
       </div>
     );
   }

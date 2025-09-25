@@ -440,18 +440,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
         <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
           <h2 className="text-2xl font-bold text-red-600 mb-4 font-spy">SURVIVAL HQ OFFLINE</h2>
           <p className="mb-4">Unable to establish connection to survival headquarters.</p>
-          <div className="bg-yellow-100 border border-yellow-300 rounded p-3 mb-6">
-            <p className="text-sm text-yellow-800">
-              <strong>⚠️ STATUS:</strong><br />
-              • Survival mode may not be implemented yet<br />
-              • Backend server might be offline<br />
-              • Try other game modes instead<br /><br />
-              <strong>ALTERNATIVES:</strong><br />
-              • Try 1v1 Duel mode<br />
-              • Try Training Mission<br />
-              • Check back later for Survival
-            </p>
-          </div>
+
           <div className="space-y-3">
             <Button onClick={() => window.location.reload()} variant="primary">
               🔄 RETRY CONNECTION
@@ -500,11 +489,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                 <p>💡 <strong>Strategy:</strong> Hints are free, but time is deadly</p>
                 <p>🏆 <strong>Victory:</strong> Survive until the end</p>
               </div>
-            </div>
-
-            {/* Note about backend support */}
-            <div className="bg-yellow-100 border border-yellow-300 rounded p-3 mt-4 text-xs text-yellow-800">
-              <p><strong>Note:</strong> If survival mode isn't fully implemented on the backend, this will fall back to regular 1v1 mode.</p>
             </div>
           </div>
 

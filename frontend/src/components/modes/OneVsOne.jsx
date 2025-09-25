@@ -223,20 +223,69 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
   if (phase === 'setup') {
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full text-black border border-gray-200">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-red-600 mb-4 font-spy">MISSION BRIEFING</h2>
-            <p className="text-lg mb-4 text-gray-800">Agent {playerName} vs Agent 47</p>
-            <div className="bg-gray-800 p-4 rounded text-white text-sm">
-              <p className="mb-2">🎯 <strong>Survive {MAX_TARGETS} targets with Agent 47</strong></p>
-              <p className="mb-2">💡 <strong>Hints are FREE!</strong> Wait for clues or answer fast</p>
-              <p className="mb-2">⚡ <strong>Speed matters:</strong> Earlier answers deal more damage</p>
-              <p className="mb-2">❌ <strong>No penalties</strong> for wrong answers</p>
-              <p>🏆 <strong>Win by having the most health remaining</strong></p>
+        <div className="max-w-2xl w-full mx-4">
+          {/* Title Section */}
+          <div className="text-center mb-12">
+            <h2 className="text-6xl font-bold text-white mb-6 font-spy tracking-wider drop-shadow-2xl">
+              MISSION BRIEFING
+            </h2>
+            <p className="text-gray-200 text-xl drop-shadow-lg mb-8">
+              Agent {playerName} vs Agent 47
+            </p>
+          </div>
+
+          {/* Mission Rules - Pure Floating Text Elements */}
+          <div className="space-y-6 mb-12">
+            <div className="flex items-start space-x-4">
+              <span className="text-red-400 text-2xl drop-shadow-lg">🎯</span>
+              <div>
+                <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Objective:</span>
+                <span className="text-white text-lg ml-3 drop-shadow-lg">Survive {MAX_TARGETS} targets with Agent 47</span>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <span className="text-red-400 text-2xl drop-shadow-lg">💡</span>
+              <div>
+                <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Intelligence:</span>
+                <span className="text-white text-lg ml-3 drop-shadow-lg">Hints are FREE! Wait for clues or answer fast</span>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <span className="text-red-400 text-2xl drop-shadow-lg">⚡</span>
+              <div>
+                <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Tactics:</span>
+                <span className="text-white text-lg ml-3 drop-shadow-lg">Speed matters - Earlier answers deal more damage</span>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <span className="text-red-400 text-2xl drop-shadow-lg">❌</span>
+              <div>
+                <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Protocol:</span>
+                <span className="text-white text-lg ml-3 drop-shadow-lg">No penalties for wrong answers</span>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <span className="text-red-400 text-2xl drop-shadow-lg">🏆</span>
+              <div>
+                <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Victory:</span>
+                <span className="text-white text-lg ml-3 drop-shadow-lg">Win by having the most health remaining</span>
+              </div>
             </div>
           </div>
+
+          {/* Begin Mission Button */}
           <div className="text-center">
-            <Button onClick={startGame} size="lg" className="px-12">🎯 BEGIN MISSION</Button>
+            <Button
+              onClick={startGame}
+              size="lg"
+              className="px-16 py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
+            >
+              🎯 BEGIN MISSION
+            </Button>
           </div>
         </div>
       </div>
