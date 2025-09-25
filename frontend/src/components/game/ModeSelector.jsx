@@ -90,9 +90,9 @@ const ModeSelector = ({ onModeSelect, onBack, playerName }) => {
             onClick={onBack}
             variant="secondary"
             size="lg"
-            className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl shadow-2xl hover:shadow-gray-900/30"
+            className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
           >
-            🏠 BACK TO MENU
+            🏠 BACK TO HQ
           </Button>
 
           <p className="text-gray-400 text-sm drop-shadow-lg">

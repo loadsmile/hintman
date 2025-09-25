@@ -277,14 +277,23 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
             </div>
           </div>
 
-          {/* Begin Mission Button */}
-          <div className="text-center">
+          {/* Action Buttons */}
+          <div className="flex justify-center space-x-6">
             <Button
               onClick={startGame}
               size="lg"
               className="px-16 py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
             >
               🎯 BEGIN MISSION
+            </Button>
+
+            <Button
+              onClick={onBackToMenu}
+              variant="secondary"
+              size="lg"
+              className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
+            >
+              🏠 BACK TO HQ
             </Button>
           </div>
         </div>
@@ -296,43 +305,151 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     const humanWon = (human?.health ?? 0) > ai.health || (isAlive(human) && !isAlive(ai));
     return (
       <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-gradient-to-br from-white to-gray-50 p-10 rounded-2xl shadow-2xl max-w-4xl w-full text-black border border-gray-200 backdrop-blur-sm">
-          {/* Header Section */}
-          <div className="text-center mb-8">
-            <div className="mb-4">
-              <div className="text-6xl mb-3">
-                {humanWon ? '🏆' : '☠️'}
-              </div>
-              <h1 className="text-4xl font-bold font-spy mb-2 bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
-                {humanWon ? 'MISSION ACCOMPLISHED' : 'MISSION FAILED'}
-              </h1>
-              <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-red-700 mx-auto rounded-full mb-4"></div>
+        <div className="max-w-4xl w-full mx-4">
+          {/* Title Section */}
+          <div className="text-center mb-12">
+            <div className="text-6xl mb-6 drop-shadow-2xl">
+              {humanWon ? '🏆' : '☠️'}
             </div>
-            <p className="text-2xl mb-3 text-gray-700 font-medium">
+            <h1 className="text-6xl font-bold text-white mb-6 font-spy tracking-wider drop-shadow-2xl">
+              {humanWon ? 'MISSION ACCOMPLISHED' : 'MISSION FAILED'}
+            </h1>
+            <p className="text-gray-200 text-2xl drop-shadow-lg mb-4">
               {humanWon ? `Congratulations Agent ${playerName}!` : 'Agent 47 completed the mission first.'}
             </p>
-            <div className="inline-flex items-center px-4 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-600">
-              <span className="mr-2">📊</span>
+            <p className="text-gray-300 drop-shadow-lg">
               Completed {qIndex + (result ? 1 : 0)} out of {MAX_TARGETS} targets
+            </p>
+          </div>
+
+          {/* Floating Score Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            {/* Human Player Card */}
+            <div className={`backdrop-blur-sm rounded-2xl p-6 shadow-2xl border-2 transition-all duration-300 hover:scale-105 ${
+              humanWon
+                ? 'bg-green-900/80 border-green-500/60'
+                : 'bg-red-900/80 border-red-500/60'
+            }`}>
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-spy font-bold text-white drop-shadow-lg mb-2">
+                  {human?.name || playerName}
+                </h3>
+                <div className="flex justify-center">
+                  {humanWon && (
+                    <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-green-200 bg-green-700/60 backdrop-blur-sm">
+                      🏆 VICTOR
+                    </span>
+                  )}
+                  {!humanWon && (
+                    <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-red-200 bg-red-700/60 backdrop-blur-sm">
+                      ☠️ ELIMINATED
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-4xl font-bold text-white drop-shadow-lg mb-2">
+                  {human?.health || 0} HP
+                </div>
+                <div className="text-gray-300 text-sm drop-shadow-lg">
+                  Final Health Points
+                </div>
+              </div>
+
+              {/* Health Bar Visualization */}
+              <div className="mt-4">
+                <FloatingHealthBar
+                  health={human?.health || 0}
+                  maxHealth={5000}
+                  isWinner={humanWon}
+                />
+              </div>
+            </div>
+
+            {/* AI Player Card */}
+            <div className={`backdrop-blur-sm rounded-2xl p-6 shadow-2xl border-2 transition-all duration-300 hover:scale-105 ${
+              !humanWon
+                ? 'bg-green-900/80 border-green-500/60'
+                : 'bg-red-900/80 border-red-500/60'
+            }`}>
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-spy font-bold text-white drop-shadow-lg mb-2">
+                  Agent 47
+                </h3>
+                <div className="flex justify-center">
+                  {!humanWon && (
+                    <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-green-200 bg-green-700/60 backdrop-blur-sm">
+                      🏆 VICTOR
+                    </span>
+                  )}
+                  {humanWon && (
+                    <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-red-200 bg-red-700/60 backdrop-blur-sm">
+                      ☠️ ELIMINATED
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-4xl font-bold text-white drop-shadow-lg mb-2">
+                  {ai.health} HP
+                </div>
+                <div className="text-gray-300 text-sm drop-shadow-lg">
+                  Final Health Points
+                </div>
+              </div>
+
+              {/* Health Bar Visualization */}
+              <div className="mt-4">
+                <FloatingHealthBar
+                  health={ai.health}
+                  maxHealth={5000}
+                  isWinner={!humanWon}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Enhanced Score Panels */}
-          <ScorePanels human={human} ai={ai} playerName={playerName} />
+          {/* Battle Summary - Floating Card */}
+          <div className="backdrop-blur-sm bg-black-40 border border-gray-600/60 rounded-xl p-6 mb-12 shadow-2xl">
+            <h4 className="text-lg font-bold text-white text-center mb-6 drop-shadow-lg">MISSION SUMMARY</h4>
+            <div className="grid grid-cols-2 gap-8 text-center">
+              <div>
+                <div className="text-white font-bold mb-2 drop-shadow-lg">
+                  {humanWon ? '🏆 WINNER' : '☠️ ELIMINATED'}
+                </div>
+                <div className="text-gray-300 drop-shadow-lg">{human?.name || playerName}</div>
+                <div className="text-2xl font-bold text-white mt-2 drop-shadow-lg">
+                  {human?.health || 0} HP
+                </div>
+              </div>
+              <div>
+                <div className="text-white font-bold mb-2 drop-shadow-lg">
+                  {!humanWon ? '🏆 WINNER' : '☠️ ELIMINATED'}
+                </div>
+                <div className="text-gray-300 drop-shadow-lg">Agent 47</div>
+                <div className="text-2xl font-bold text-white mt-2 drop-shadow-lg">
+                  {ai.health} HP
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-4 mt-8">
+          <div className="flex justify-center space-x-6">
             <Button
               onClick={startGame}
               variant="primary"
-              className="flex-1 py-4 text-lg font-semibold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg transform hover:scale-105 transition-all duration-200"
+              className="px-16 py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
             >
               🔄 NEW MISSION
             </Button>
+
             <Button
               onClick={onBackToMenu}
               variant="secondary"
-              className="flex-1 py-4 text-lg font-semibold bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 shadow-lg transform hover:scale-105 transition-all duration-200"
+              className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
             >
               🏠 BACK TO HQ
             </Button>
@@ -394,6 +511,28 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
 }
 
 /* ---------- UI Helpers ---------- */
+function FloatingHealthBar({ health, maxHealth, isWinner }) {
+  const percentage = Math.max(0, Math.min(100, (health / maxHealth) * 100));
+
+  return (
+    <div className="relative w-full h-4 bg-gray-700/60 rounded-full overflow-hidden backdrop-blur-sm">
+      <div
+        className={`h-full transition-all duration-700 ease-out ${
+          isWinner ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-red-500 to-red-400'
+        }`}
+        style={{ width: `${percentage}%` }}
+      >
+        <div className="absolute inset-0 bg-white bg-opacity-20 rounded-full"></div>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-xs font-bold text-white drop-shadow-lg">
+          {percentage.toFixed(0)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Panel({ title, health, isAI, isFinishedScreen = false }) {
   const pct = Math.max(0, Math.min(100, Math.round((health / 5000) * 100)));
   const color = pct > 75 ? (isAI ? 'from-red-500 to-red-400' : 'from-green-500 to-green-400')
@@ -427,92 +566,6 @@ function Panel({ title, health, isAI, isFinishedScreen = false }) {
           {pct > 75 && <span className="text-xs text-green-500 font-bold">✨ EXCELLENT</span>}
         </div>
         <span className={`text-sm font-medium ${percentageTextColor}`}>{pct}%</span>
-      </div>
-    </div>
-  );
-}
-
-function ScorePanels({ human, ai, playerName }) {
-  const humanWon = (human?.health ?? 0) > ai.health || ((human?.health ?? 0) > 0 && ai.health <= 0);
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-      {/* Human Player Panel */}
-      <div className={`p-6 rounded-2xl shadow-xl transform transition-all duration-300 hover:scale-105 border-3 ${
-        humanWon
-          ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-500 shadow-green-200/50'
-          : 'bg-gradient-to-br from-red-50 to-red-100 border-red-500 shadow-red-200/50'
-      }`}>
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-2xl">🕴</span>
-              <h3 className="font-spy text-2xl font-bold text-gray-800">{human?.name || playerName}</h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {humanWon && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-green-700 bg-green-200">
-                  🏆 Winner
-                </span>
-              )}
-              {!humanWon && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
-                  ⚫ Eliminated
-                </span>
-              )}
-              {(human?.health ?? 0) <= 0 && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
-                  ☠️ Terminated
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-4xl font-bold text-red-600 mb-1">{human?.health || 0}</p>
-            <p className="text-sm text-gray-500 font-medium">Health Points</p>
-            <p className="text-xs text-gray-400 mt-1">{human?.totalCorrect || 0}/{human?.totalQuestions || 0} correct</p>
-          </div>
-        </div>
-        <Panel title={human?.name || playerName} health={human?.health || 0} isAI={false} isFinishedScreen={true} />
-      </div>
-
-      {/* AI Player Panel */}
-      <div className={`p-6 rounded-2xl shadow-xl transform transition-all duration-300 hover:scale-105 border-3 ${
-        !humanWon
-          ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-500 shadow-green-200/50'
-          : 'bg-gradient-to-br from-red-50 to-red-100 border-red-500 shadow-red-200/50'
-      }`}>
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-2xl">🤖</span>
-              <h3 className="font-spy text-2xl font-bold text-gray-800">Agent 47</h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!humanWon && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-green-700 bg-green-200">
-                  🏆 Winner
-                </span>
-              )}
-              {humanWon && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
-                  ⚫ Eliminated
-                </span>
-              )}
-              {ai.health <= 0 && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold text-red-700 bg-red-200">
-                  ☠️ Terminated
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-4xl font-bold text-red-600 mb-1">{ai.health}</p>
-            <p className="text-sm text-gray-500 font-medium">Health Points</p>
-            <p className="text-xs text-gray-400 mt-1">{ai.totalCorrect || 0}/{ai.totalQuestions || 0} correct</p>
-          </div>
-        </div>
-        <Panel title="Agent 47" health={ai.health} isAI={true} isFinishedScreen={true} />
       </div>
     </div>
   );

@@ -415,7 +415,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
   };
 
   const handleCancel = () => {
-    console.log('🎯 Cancelling and going back to menu');
+    console.log('🎯 Cancelling and going BACK TO HQ');
     if (socketRef.current) {
       socketRef.current.removeAllListeners();
       socketRef.current.close();
@@ -446,7 +446,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               🔄 RETRY CONNECTION
             </Button>
             <Button onClick={onBackToMenu} variant="secondary">
-              🏠 BACK TO MENU
+              🏠 BACK TO HQ
             </Button>
           </div>
         </div>
@@ -463,7 +463,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
           <p className="mt-4 text-gray-600">Establishing secure channel...</p>
           <p className="mt-2 text-xs text-gray-500">Preparing for battle royale elimination protocol</p>
           <Button onClick={onBackToMenu} variant="secondary" className="mt-6">
-            🏠 Back to Menu
+            🏠 BACK TO HQ
           </Button>
         </div>
       </div>
@@ -501,7 +501,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               🎯 ENTER SURVIVAL MODE
             </Button>
             <Button onClick={onBackToMenu} variant="secondary" size="lg" className="px-12">
-              🏠 BACK TO MENU
+              🏠 BACK TO HQ
             </Button>
           </div>
         </div>
