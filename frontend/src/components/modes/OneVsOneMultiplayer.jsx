@@ -18,7 +18,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [hints, setHints] = useState([]);
   const [gameResult, setGameResult] = useState(null);
   const [health, setHealth] = useState({});
-  const [finalHealth, setFinalHealth] = useState({}); // Store final health values
+  const [finalHealth, setFinalHealth] = useState({});
   const [connectionError, setConnectionError] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
@@ -88,12 +88,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     return (
       <div className="relative w-full">
         <div className="mb-2 text-center">
-          <span className={`text-sm font-bold ${isMe ? 'text-green-400' : 'text-red-400'}`}>
+          <span className={`text-xs sm:text-sm font-bold ${isMe ? 'text-green-400' : 'text-red-400'}`}>
             {playerName} {isMe && '(You)'}
           </span>
         </div>
 
-        <div className={`relative w-full h-12 bg-gray-800 rounded-lg border-2 ${getBorderColor()} overflow-hidden shadow-lg`}>
+        <div className={`relative w-full h-10 sm:h-12 bg-gray-800 rounded-lg border-2 ${getBorderColor()} overflow-hidden shadow-lg`}>
           <div
             className={`h-full transition-all duration-500 ease-out bg-gradient-to-r ${getHealthColor()}`}
             style={{ width: `${healthPercentage}%` }}
@@ -105,7 +105,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold text-white drop-shadow-lg tracking-wider">
+            <span className="text-sm sm:text-lg font-bold text-white drop-shadow-lg tracking-wider">
               {Math.max(0, currentHealth)} HP
             </span>
           </div>
@@ -307,7 +307,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
         if (mountedRef.current) {
           setGameResult(null);
         }
-      }, 3000); // Increased from 1000ms to 3000ms
+      }, 3000);
     });
 
     socket.on('playerEliminated', ({ eliminatedPlayer, eliminatedPlayerName, health: newHealth }) => {
@@ -525,12 +525,12 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
   if (connectionError || serverStatus === 'offline') {
     return (
-      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
-          <h2 className="text-2xl font-bold text-red-600 mb-4 font-spy">SERVER UNAVAILABLE</h2>
-          <p className="mb-4">No multiplayer servers are currently available.</p>
-          <div className="bg-yellow-100 border border-yellow-300 rounded p-3 mb-6">
-            <p className="text-sm text-yellow-800">
+      <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
+        <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-black text-center border border-gray-200">
+          <h2 className="text-lg sm:text-2xl font-bold text-red-600 mb-3 sm:mb-4 font-spy">SERVER UNAVAILABLE</h2>
+          <p className="mb-3 sm:mb-4 text-sm sm:text-base">No multiplayer servers are currently available.</p>
+          <div className="bg-yellow-100 border border-yellow-300 rounded p-2 sm:p-3 mb-4 sm:mb-6">
+            <p className="text-xs sm:text-sm text-yellow-800">
               <strong>🚨 Servers Checked:</strong><br />
               • Local Development (localhost:10000)<br />
               • Production (hintman-backend.onrender.com)<br /><br />
@@ -541,8 +541,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </p>
           </div>
           {selectedMode && (
-            <div className="mb-4 p-3 bg-gray-100 rounded-lg">
-              <p className="text-sm text-gray-700">
+            <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-gray-100 rounded-lg">
+              <p className="text-xs sm:text-sm text-gray-700">
                 Selected Mode: <strong>{getModeDisplayName()}</strong>
                 {selectedCategory && selectedMode === 'category' && (
                   <>
@@ -553,15 +553,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               </p>
             </div>
           )}
-          <div className="space-y-3">
-            <Button onClick={retryConnection} variant="primary">
-              🔄 Retry Connection
+          <div className="space-y-2 sm:space-y-3">
+            <Button onClick={retryConnection} variant="primary" className="w-full text-sm sm:text-base py-2 sm:py-3">
+              Retry Connection
             </Button>
-            <Button onClick={handleBackToModeSelection} variant="secondary">
-              🏠 Back to Mode Selection
+            <Button onClick={handleBackToModeSelection} variant="secondary" className="w-full text-sm sm:text-base py-2 sm:py-3">
+              Back to Mode Selection
             </Button>
-            <Button onClick={onBackToMenu} variant="secondary">
-              🎮 Try Single Player
+            <Button onClick={onBackToMenu} variant="secondary" className="w-full text-sm sm:text-base py-2 sm:py-3">
+              Try Single Player
             </Button>
           </div>
         </div>
@@ -571,15 +571,15 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
   if (gameState === 'connecting' || serverStatus === 'checking') {
     return (
-      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
+      <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
+        <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message={serverStatus === 'checking' ? 'Finding best server...' : `Connecting to ${getServerDisplayName()}...`} />
-          <p className="mt-4 text-gray-600">
+          <p className="mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base">
             {serverStatus === 'checking' ? 'Testing localhost and production servers...' : 'Establishing secure connection...'}
           </p>
           {selectedMode && (
-            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-              <p className="text-sm text-gray-700">
+            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-100 rounded-lg">
+              <p className="text-xs sm:text-sm text-gray-700">
                 <strong>{getModeDisplayName()}</strong>
                 {selectedCategory && selectedMode === 'category' && (
                   <>
@@ -596,7 +596,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               🔗 Using: {getServerDisplayName()}
             </div>
           )}
-          <Button onClick={handleBackToModeSelection} variant="secondary" className="mt-4">
+          <Button onClick={handleBackToModeSelection} variant="secondary" className="mt-3 sm:mt-4 w-full text-sm sm:text-base py-2 sm:py-3">
             Cancel
           </Button>
         </div>
@@ -606,111 +606,111 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
   if (gameState === 'matchmaking') {
     return (
-      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-      <div className="max-w-2xl w-full mx-4">
-        {/* Title Section */}
-        <div className="text-center mb-12">
-        <h2 className="text-6xl font-bold text-white mb-6 font-spy tracking-wider drop-shadow-2xl">
-          {getModeDisplayName().toUpperCase()}
-        </h2>
-        <p className="text-gray-200 text-xl drop-shadow-lg mb-8">
-          Agent {playerName}, ready for combat?
-        </p>
-        </div>
+      <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
+        <div className="max-w-xl sm:max-w-2xl w-full mx-2 sm:mx-4">
+          {/* Title Section */}
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 font-spy tracking-wider drop-shadow-2xl">
+              {getModeDisplayName().toUpperCase()}
+            </h2>
+            <p className="text-gray-200 text-lg sm:text-xl drop-shadow-lg mb-6 sm:mb-8 px-2">
+              Agent {playerName}, ready for combat?
+            </p>
+          </div>
 
-        {/* Mission Rules - Pure Floating Text Elements */}
-        <div className="space-y-6 mb-12">
-        <div className="flex items-start space-x-4">
-          <span className="text-red-400 text-2xl drop-shadow-lg">🎯</span>
-          <div>
-          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Mission Type:</span>
-          <span className="text-white text-lg ml-3 drop-shadow-lg">{getModeDisplayName()}</span>
+          {/* Mission Rules - Pure Floating Text Elements */}
+          <div className="space-y-4 sm:space-y-6 mb-8 sm:mb-12 px-2">
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <span className="text-red-400 text-xl sm:text-2xl drop-shadow-lg flex-shrink-0">🎯</span>
+              <div className="min-w-0">
+                <span className="font-semibold text-red-400 text-base sm:text-lg drop-shadow-lg">Mission Type:</span>
+                <span className="text-white text-base sm:text-lg ml-2 sm:ml-3 drop-shadow-lg break-words">{getModeDisplayName()}</span>
+              </div>
+            </div>
+
+            {selectedMode === 'category' && selectedCategory && (
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                <span className="text-red-400 text-xl sm:text-2xl drop-shadow-lg flex-shrink-0">🎭</span>
+                <div className="min-w-0">
+                  <span className="font-semibold text-red-400 text-base sm:text-lg drop-shadow-lg">Your Specialty:</span>
+                  <span className="text-white text-base sm:text-lg ml-2 sm:ml-3 drop-shadow-lg break-words">{selectedCategory.name}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <span className="text-red-400 text-xl sm:text-2xl drop-shadow-lg flex-shrink-0">💡</span>
+              <div className="min-w-0">
+                <span className="font-semibold text-red-400 text-base sm:text-lg drop-shadow-lg">Intelligence:</span>
+                <span className="text-white text-base sm:text-lg ml-2 sm:ml-3 drop-shadow-lg break-words">Hints are FREE! Wait for clues or answer fast</span>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <span className="text-red-400 text-xl sm:text-2xl drop-shadow-lg flex-shrink-0">⚡</span>
+              <div className="min-w-0">
+                <span className="font-semibold text-red-400 text-base sm:text-lg drop-shadow-lg">Speed matters:</span>
+                <span className="text-white text-base sm:text-lg ml-2 sm:ml-3 drop-shadow-lg break-words">Earlier answers deal more damage</span>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <span className="text-red-400 text-xl sm:text-2xl drop-shadow-lg flex-shrink-0">❌</span>
+              <div className="min-w-0">
+                <span className="font-semibold text-red-400 text-base sm:text-lg drop-shadow-lg">No penalties</span>
+                <span className="text-white text-base sm:text-lg ml-2 sm:ml-3 drop-shadow-lg break-words">for wrong answers</span>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <span className="text-red-400 text-xl sm:text-2xl drop-shadow-lg flex-shrink-0">🏆</span>
+              <div className="min-w-0">
+                <span className="font-semibold text-red-400 text-base sm:text-lg drop-shadow-lg">Victory:</span>
+                <span className="text-white text-base sm:text-lg ml-2 sm:ml-3 drop-shadow-lg break-words">Survive with the most health (or last agent standing)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Connection Status and Buttons */}
+          <div className="text-center px-2">
+            <div className="flex items-center justify-center mb-6 sm:mb-8">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-2 drop-shadow-lg"></div>
+              <span className="text-sm text-green-400 drop-shadow-lg">Connected to {getServerDisplayName()}</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+              <Button
+                onClick={findMatch}
+                size="lg"
+                className="w-full sm:w-auto px-8 sm:px-16 py-3 sm:py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-base sm:text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
+              >
+                🎯 FIND OPPONENT
+              </Button>
+
+              <Button
+                onClick={handleBackToModeSelection}
+                variant="secondary"
+                size="lg"
+                className="w-full sm:w-auto px-8 sm:px-16 py-3 sm:py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-base sm:text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
+              >
+                🏠 Change Mission Type
+              </Button>
+            </div>
           </div>
         </div>
-
-        {selectedMode === 'category' && selectedCategory && (
-          <div className="flex items-start space-x-4">
-          <span className="text-red-400 text-2xl drop-shadow-lg">🎭</span>
-          <div>
-            <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Your Specialty:</span>
-            <span className="text-white text-lg ml-3 drop-shadow-lg">{selectedCategory.name}</span>
-          </div>
-          </div>
-        )}
-
-        <div className="flex items-start space-x-4">
-          <span className="text-red-400 text-2xl drop-shadow-lg">💡</span>
-          <div>
-          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Intelligence:</span>
-          <span className="text-white text-lg ml-3 drop-shadow-lg">Hints are FREE! Wait for clues or answer fast</span>
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-4">
-          <span className="text-red-400 text-2xl drop-shadow-lg">⚡</span>
-          <div>
-          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Speed matters:</span>
-          <span className="text-white text-lg ml-3 drop-shadow-lg">Earlier answers deal more damage</span>
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-4">
-          <span className="text-red-400 text-2xl drop-shadow-lg">❌</span>
-          <div>
-          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">No penalties</span>
-          <span className="text-white text-lg ml-3 drop-shadow-lg">for wrong answers</span>
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-4">
-          <span className="text-red-400 text-2xl drop-shadow-lg">🏆</span>
-          <div>
-          <span className="font-semibold text-red-400 text-lg drop-shadow-lg">Victory:</span>
-          <span className="text-white text-lg ml-3 drop-shadow-lg">Survive with the most health (or last agent standing)</span>
-          </div>
-        </div>
-        </div>
-
-        {/* Connection Status and Buttons */}
-        <div className="text-center">
-        <div className="flex items-center justify-center mb-8">
-          <div className="w-3 h-3 bg-green-500 rounded-full mr-2 drop-shadow-lg"></div>
-          <span className="text-sm text-green-400 drop-shadow-lg">Connected to {getServerDisplayName()}</span>
-        </div>
-
-        <div className="flex justify-center space-x-6">
-          <Button
-          onClick={findMatch}
-          size="lg"
-          className="px-16 py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
-          >
-          🎯 FIND OPPONENT
-          </Button>
-
-          <Button
-          onClick={handleBackToModeSelection}
-          variant="secondary"
-          size="lg"
-          className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
-          >
-          🏠 Change Mission Type
-          </Button>
-        </div>
-        </div>
-      </div>
       </div>
     );
   }
 
   if (gameState === 'waiting') {
     return (
-      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-black text-center border border-gray-200">
+      <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
+        <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Searching for opponent..." />
-          <p className="mt-4 text-gray-600">Finding another {getModeDisplayName()} player...</p>
+          <p className="mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base">Finding another {getModeDisplayName()} player...</p>
           {selectedMode && (
-            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-              <p className="text-sm text-gray-700">
+            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-100 rounded-lg">
+              <p className="text-xs sm:text-sm text-gray-700">
                 <strong>{getModeDisplayName()}</strong>
                 {selectedCategory && selectedMode === 'category' && (
                   <>
@@ -722,7 +722,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               </p>
             </div>
           )}
-          <Button onClick={() => setGameState('matchmaking')} variant="secondary" className="mt-6">
+          <Button onClick={() => setGameState('matchmaking')} variant="secondary" className="mt-4 sm:mt-6 w-full text-sm sm:text-base py-2 sm:py-3">
             Cancel Search
           </Button>
         </div>
@@ -745,20 +745,20 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const loserFinalHealth = loser ? (getFinalHealthForPlayer(loser.id) || loser.health || 0) : 0;
 
     return (
-      <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-2xl max-w-4xl w-full text-black border border-gray-200">
+      <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
+        <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-sm sm:max-w-4xl w-full text-black border border-gray-200">
           {/* Header Section */}
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">
               {isWinner ? '🏆' : '☠️'}
             </div>
-            <h1 className="text-4xl font-bold text-red-600 mb-2 font-spy">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-red-600 mb-2 font-spy">
               {isWinner ? 'MISSION ACCOMPLISHED' : 'MISSION FAILED'}
             </h1>
-            <p className="text-xl mb-2 text-gray-800">
+            <p className="text-lg sm:text-xl mb-2 text-gray-800">
               {isWinner ? `Congratulations Agent ${playerName}!` : `Agent ${winner?.name} completed the mission.`}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600">
               <strong>{getModeDisplayName()}</strong>
               {selectedCategory && selectedMode === 'category' && (
                 <>
@@ -770,16 +770,16 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           </div>
 
           {/* Results Section - OneVsOne Style with Green Victor Card */}
-          <div className="bg-gray-900 rounded-lg p-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-900 rounded-lg p-3 sm:p-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {/* Winner - Green Card */}
               <div className="text-center">
-                <div className="text-4xl mb-2">🏆</div>
-                <h3 className="text-2xl font-bold text-green-400 mb-2 font-spy">VICTOR</h3>
-                <div className="bg-green-500 text-white rounded-lg p-4">
-                  <h4 className="text-xl font-bold">{winner?.name || getPlayerNameById(winner?.id) || 'Unknown'}</h4>
-                  <div className="text-3xl font-bold mt-2">{winnerFinalHealth} HP</div>
-                  <div className="text-sm mt-2">
+                <div className="text-3xl sm:text-4xl mb-2">🏆</div>
+                <h3 className="text-xl sm:text-2xl font-bold text-green-400 mb-2 font-spy">VICTOR</h3>
+                <div className="bg-green-500 text-white rounded-lg p-3 sm:p-4">
+                  <h4 className="text-lg sm:text-xl font-bold">{winner?.name || getPlayerNameById(winner?.id) || 'Unknown'}</h4>
+                  <div className="text-2xl sm:text-3xl font-bold mt-2">{winnerFinalHealth} HP</div>
+                  <div className="text-xs sm:text-sm mt-2">
                     ✅ {winner?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers} correct
                     • ❌ {winner?.name === playerName ? myStats.mistakes : opponentStats.mistakes} mistakes
                   </div>
@@ -788,45 +788,14 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
               {/* Loser - Red Card */}
               <div className="text-center">
-                <div className="text-4xl mb-2">☠️</div>
-                <h3 className="text-2xl font-bold text-red-400 mb-2 font-spy">ELIMINATED</h3>
-                <div className="bg-red-600 text-white rounded-lg p-4">
-                  <h4 className="text-xl font-bold">{loser?.name || getPlayerNameById(loser?.id) || 'Opponent'}</h4>
-                  <div className="text-3xl font-bold mt-2">{loserFinalHealth} HP</div>
-                  <div className="text-sm mt-2">
+                <div className="text-3xl sm:text-4xl mb-2">☠️</div>
+                <h3 className="text-xl sm:text-2xl font-bold text-red-400 mb-2 font-spy">ELIMINATED</h3>
+                <div className="bg-red-600 text-white rounded-lg p-3 sm:p-4">
+                  <h4 className="text-lg sm:text-xl font-bold">{loser?.name || getPlayerNameById(loser?.id) || 'Opponent'}</h4>
+                  <div className="text-2xl sm:text-3xl font-bold mt-2">{loserFinalHealth} HP</div>
+                  <div className="text-xs sm:text-sm mt-2">
                     ✅ {loser?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers} correct
                     • ❌ {loser?.name === playerName ? myStats.mistakes : opponentStats.mistakes} mistakes
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Battle Summary */}
-            <div className="mt-6 pt-6 border-t border-gray-700">
-              <h4 className="text-lg font-bold text-white text-center mb-4">BATTLE SUMMARY</h4>
-              <div className="grid grid-cols-2 gap-4 text-white text-sm">
-                <div className="text-center">
-                  <div className="text-green-400 font-bold">{playerName === winner?.name ? 'YOU' : 'OPPONENT'}</div>
-                  <div>{winner?.name || getPlayerNameById(winner?.id) || 'Unknown'}</div>
-                  <div className="mt-2">
-                    <div className="bg-green-600 px-2 py-1 rounded inline-block mr-2">
-                      ✅ {winner?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers}
-                    </div>
-                    <div className="bg-red-600 px-2 py-1 rounded inline-block">
-                      ❌ {winner?.name === playerName ? myStats.mistakes : opponentStats.mistakes}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-red-400 font-bold">{playerName !== winner?.name ? 'YOU' : 'OPPONENT'}</div>
-                  <div>{loser?.name || getPlayerNameById(loser?.id) || 'Opponent'}</div>
-                  <div className="mt-2">
-                    <div className="bg-green-600 px-2 py-1 rounded inline-block mr-2">
-                      ✅ {loser?.name === playerName ? myStats.correctAnswers : opponentStats.correctAnswers}
-                    </div>
-                    <div className="bg-red-600 px-2 py-1 rounded inline-block">
-                      ❌ {loser?.name === playerName ? myStats.mistakes : opponentStats.mistakes}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -834,7 +803,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
             <Button onClick={() => {
               if (socketRef.current) {
                 socketRef.current.removeAllListeners();
@@ -843,11 +812,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               }
               initializedRef.current = false;
               handleBackToModeSelection();
-            }} variant="primary" className="flex-1">
-              🔄 NEW MATCH
+            }} variant="primary" className="flex-1 text-sm sm:text-base py-2 sm:py-3">
+              NEW MATCH
             </Button>
-            <Button onClick={handleCancel} variant="secondary" className="flex-1">
-              🏠 BACK TO HQ
+            <Button onClick={handleCancel} variant="secondary" className="flex-1 text-sm sm:text-base py-2 sm:py-3">
+              BACK TO HQ
             </Button>
           </div>
         </div>
@@ -863,13 +832,14 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     const opponentStats = playerStats[opponent?.id] || { correctAnswers: 0, mistakes: 0 };
 
     return (
-      <div className="relative z-20 min-h-[calc(100vh-120px)] p-4">
+      <div className="relative z-20 min-h-screen p-2 sm:p-4">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-black bg-opacity-90 p-6 rounded-lg mb-6 border border-red-600">
-            <div className="flex justify-between items-center mb-6">
-              <div className="text-white">
-                <h2 className="text-xl font-spy">TARGET: {currentTarget.targetIndex} / {currentTarget.totalTargets}</h2>
-                <p className="text-sm text-gray-300">
+          {/* Game Header */}
+          <div className="bg-black bg-opacity-90 p-3 sm:p-6 rounded-lg mb-4 sm:mb-6 border border-red-600">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+              <div className="text-white text-sm sm:text-base">
+                <h2 className="text-lg sm:text-xl font-spy">TARGET: {currentTarget.targetIndex} / {currentTarget.totalTargets}</h2>
+                <p className="text-xs sm:text-sm text-gray-300">
                   {currentTarget.category} • {getModeDisplayName()}
                   {selectedCategory && selectedMode === 'category' && (
                     <> • Your specialty: {selectedCategory.icon} {selectedCategory.name}</>
@@ -882,22 +852,25 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                   Hint {hints.length}/{5} • Damage: {damageByHint(hints.length || 1)} HP
                 </p>
               </div>
-              <Timer
-                duration={120}
-                isActive={true}
-                key={`timer-${currentTarget.targetIndex}`}
-              />
+              <div className="w-full sm:w-auto flex justify-center">
+                <Timer
+                  duration={120}
+                  isActive={true}
+                  key={`timer-${currentTarget.targetIndex}`}
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div className="bg-gray-900 p-4 rounded-lg border-2 border-green-400">
+            {/* Health Panels */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900 p-3 sm:p-4 rounded-lg border-2 border-green-400">
                 <HealthBar
                   playerId={players.find(p => p.name === playerName)?.id}
                   playerName={playerName}
                   isMe={true}
                 />
               </div>
-              <div className="bg-gray-900 p-4 rounded-lg border-2 border-red-400">
+              <div className="bg-gray-900 p-3 sm:p-4 rounded-lg border-2 border-red-400">
                 <HealthBar
                   playerId={opponent?.id}
                   playerName={opponent?.name || 'Opponent'}
@@ -906,7 +879,8 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Mission Trackers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <MissionTracker
                 correctAnswers={myStats.correctAnswers}
                 mistakes={myStats.mistakes}
@@ -922,11 +896,11 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </div>
           </div>
 
-          {/* Fixed Position Result Message - No more movement! */}
-          <div className="relative mb-6">
-            <div className="h-20"> {/* Fixed height container to prevent layout shift */}
+          {/* Fixed Position Result Message */}
+          <div className="relative mb-4 sm:mb-6">
+            <div className="h-16 sm:h-20">
               {gameResult && (
-                <div className={`absolute top-0 left-0 right-0 p-4 rounded-lg border-2 transition-all duration-300 ease-in-out ${
+                <div className={`absolute top-0 left-0 right-0 p-3 sm:p-4 rounded-lg border-2 transition-all duration-300 ease-in-out ${
                   gameResult.winner === players.find(p => p.name === playerName)?.id ? 'bg-green-900 border-green-500' :
                   gameResult.winner && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' ? 'bg-red-900 border-red-500' :
                   gameResult.winner === 'disconnect' ? 'bg-blue-900 border-blue-500' :
@@ -936,25 +910,25 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                 }`}>
                   <div className="text-center text-white">
                     {gameResult.winner === players.find(p => p.name === playerName)?.id && (
-                      <p className="text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
+                      <p className="text-sm sm:text-lg font-bold">🎯 PERFECT SHOT! Opponent loses {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
                     )}
                     {gameResult.winner && gameResult.winner !== players.find(p => p.name === playerName)?.id && gameResult.winner !== 'disconnect' && gameResult.winner !== 'elimination' && (
-                      <p className="text-lg font-bold">🎯 {gameResult.winnerName} shot the target first! You lose {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
+                      <p className="text-sm sm:text-lg font-bold">🎯 {gameResult.winnerName} shot the target first! You lose {gameResult.healthLoss} HP (hint {gameResult.hintCount})</p>
                     )}
                     {gameResult.winner === 'disconnect' && (
-                      <p className="text-lg font-bold">🏆 {gameResult.message}</p>
+                      <p className="text-sm sm:text-lg font-bold">🏆 {gameResult.message}</p>
                     )}
                     {gameResult.winner === 'elimination' && (
-                      <p className="text-lg font-bold">☠️ {gameResult.message}</p>
+                      <p className="text-sm sm:text-lg font-bold">☠️ {gameResult.message}</p>
                     )}
                     {gameResult.isWrongAnswer && gameResult.incorrectGuess && (
-                      <p className="text-lg font-bold">❌ {gameResult.incorrectPlayer} missed shot: "{gameResult.incorrectGuess}" - No penalties!</p>
+                      <p className="text-sm sm:text-lg font-bold">❌ {gameResult.incorrectPlayer} missed shot: "{gameResult.incorrectGuess}" - No penalties!</p>
                     )}
                     {!gameResult.winner && gameResult.incorrectGuess && !gameResult.isWrongAnswer && (
-                      <p className="text-lg font-bold">❌ Missed shot: "{gameResult.incorrectGuess}" - No penalties, keep trying!</p>
+                      <p className="text-sm sm:text-lg font-bold">❌ Missed shot: "{gameResult.incorrectGuess}" - No penalties, keep trying!</p>
                     )}
                     {gameResult.correctAnswer && (
-                      <p className="text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
+                      <p className="text-xs sm:text-sm mt-2">The target was: <strong>{gameResult.correctAnswer}</strong></p>
                     )}
                   </div>
                 </div>
@@ -962,19 +936,23 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <HintDisplay
-              hints={hints}
-              totalHints={5}
-              key={`hints-${currentTarget.targetIndex}-${hints.length}`}
-            />
-
-            <GuessInput
-              onSubmit={submitGuess}
-              disabled={gameResult?.winner && gameResult.winner !== 'disconnect' || myHealth <= 0}
-              placeholder={myHealth <= 0 ? "You have been eliminated..." : "Take your shot (be precise)..."}
-              key={`input-${currentTarget.targetIndex}`}
-            />
+          {/* Game Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <div className="order-2 lg:order-1">
+              <HintDisplay
+                hints={hints}
+                totalHints={5}
+                key={`hints-${currentTarget.targetIndex}-${hints.length}`}
+              />
+            </div>
+            <div className="order-1 lg:order-2">
+              <GuessInput
+                onSubmit={submitGuess}
+                disabled={gameResult?.winner && gameResult.winner !== 'disconnect' || myHealth <= 0}
+                placeholder={myHealth <= 0 ? "You have been eliminated..." : "Take your shot (be precise)..."}
+                key={`input-${currentTarget.targetIndex}`}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -982,7 +960,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   }
 
   return (
-    <div className="relative z-20 flex min-h-[calc(100vh-120px)] items-center justify-center">
+    <div className="relative z-20 flex min-h-screen items-center justify-center">
       <LoadingSpinner size="lg" message="Initializing multiplayer..." />
     </div>
   );
