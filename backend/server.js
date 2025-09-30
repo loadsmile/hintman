@@ -243,11 +243,6 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('✅ GameManager ready');
   }
 
-  console.log('📝 Sample questions loaded:');
-  questionsData.slice(0, 3).forEach((q, i) => {
-    console.log(`   ${i + 1}. ${q.answer} (${q.category})`);
-  });
-
   console.log('🎯 Server ready to accept connections!');
 }).on('error', (err) => {
   console.error('❌ Failed to start server:', err);

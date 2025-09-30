@@ -8,7 +8,7 @@ import Timer from '../common/Timer';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 
-const MAX_TARGETS = 5;
+const MAX_TARGETS = 10;
 const MAX_HINTS = 5;
 const ROUND_RESULT_DELAY_MS = 3000;
 const FIRST_HINT_DELAY_MS = 1000;
@@ -17,12 +17,12 @@ const QUESTION_TIME_SEC = 120;
 
 const damageByHint = (hintCount) => {
   switch (hintCount) {
-    case 1: return 1000;
-    case 2: return 800;
-    case 3: return 600;
-    case 4: return 400;
-    case 5: return 200;
-    default: return 200;
+    case 1: return 500;
+    case 2: return 400;
+    case 3: return 300;
+    case 4: return 200;
+    case 5: return 100;
+    default: return 100;
   }
 };
 
@@ -39,7 +39,7 @@ const aiGuessChance = (hintCount) => {
 
 export default function OneVsOne({ playerName, onBackToMenu }) {
   // Core game state
-  const [phase, setPhase] = useState('setup'); // setup | playing | finished
+  const [phase, setPhase] = useState('setup');
   const [qIndex, setQIndex] = useState(0);
   const [currentQ, setCurrentQ] = useState(null);
   const [revealed, setRevealed] = useState([]);
@@ -50,10 +50,10 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
 
   // Refs for internal logic that doesn't trigger re-renders
   const deckRef = useRef([]);
-  const processingRef = useRef(false); // Prevents overlapping advanceRound calls
+  const processingRef = useRef(false);
   const hintTimerRef = useRef(null);
-  const questionIdRef = useRef(0); // Unique ID for each question instance
-  const usedQuestionsRef = useRef(new Set()); // Track used questions across games
+  const questionIdRef = useRef(0);
+  const usedQuestionsRef = useRef(new Set());
 
   // Main game loop driver: mounts a new question when qIndex changes
   useEffect(() => {
@@ -79,12 +79,8 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
 
   // Enhanced deck building with better randomization and avoiding recently used questions
   const buildDeck = () => {
-    console.log(`Total questions available: ${questionsData.length}`);
-    console.log(`Questions used in previous games: ${usedQuestionsRef.current.size}`);
-
     // If we've used more than 80% of questions, reset the used questions set
     if (usedQuestionsRef.current.size > questionsData.length * 0.8) {
-      console.log('Resetting used questions pool for variety');
       usedQuestionsRef.current.clear();
     }
 
@@ -94,12 +90,9 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     // If we don't have enough unused questions, use all questions
     const questionPool = availableQuestions.length >= MAX_TARGETS ? availableQuestions : [...questionsData];
 
-    console.log(`Available questions for this game: ${questionPool.length}`);
-
     // Enhanced Fisher-Yates shuffle for better randomization
     const shuffled = [...questionPool];
     for (let i = shuffled.length - 1; i > 0; i--) {
-      // Use crypto.getRandomValues for better randomness if available
       const randomValue = window.crypto && window.crypto.getRandomValues
         ? window.crypto.getRandomValues(new Uint32Array(1))[0] / (0xFFFFFFFF + 1)
         : Math.random();
@@ -115,11 +108,6 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     selectedQuestions.forEach(q => usedQuestionsRef.current.add(q.id));
 
     deckRef.current = selectedQuestions;
-
-    console.log('Selected questions for this game:');
-    selectedQuestions.forEach((q, i) => {
-      console.log(`  ${i + 1}. ${q.answer} (${q.category}, ${q.difficulty})`);
-    });
   };
 
   // Select questions with better category and difficulty distribution
@@ -166,7 +154,6 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     if (!data) return;
 
     const questionId = ++questionIdRef.current;
-    console.log(`Mounting question ${index + 1}: ${data.answer} (ID: ${questionId})`);
 
     const q = new Question(data.id, data.answer, data.category, data.difficulty);
     const hints = (data.hints || []).slice(0, MAX_HINTS);
@@ -175,7 +162,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     // Reset state for the new round
     setCurrentQ(q);
     setRevealed([]);
-    setResult(null); // Clear result from previous round
+    setResult(null);
     setTimerKey(k => k + 1);
     clearHintTimer();
 
@@ -183,7 +170,8 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     setTimeout(() => {
       if (questionIdRef.current !== questionId) return;
       if (hints[0]) {
-        setRevealed([{ index: 0, text: hints[0], revealed: true }]);
+        // Add first hint to the beginning (newest at top)
+        setRevealed([{ index: 0, text: hints[0] }]);
         scheduleAIGuess(q, 1, questionId, index);
       }
     }, FIRST_HINT_DELAY_MS);
@@ -197,9 +185,10 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
       setRevealed((prev) => {
         const nextIdx = prev.length;
         if (nextIdx < Math.min(MAX_HINTS, hints.length)) {
-          const next = { index: nextIdx, text: hints[nextIdx], revealed: true };
+          // Add new hints to the beginning of the array (newest first)
+          const next = { index: nextIdx, text: hints[nextIdx] };
           scheduleAIGuess(q, nextIdx + 1, questionId, index);
-          return [...prev, next];
+          return [next, ...prev];
         } else {
           clearHintTimer();
           return prev;
@@ -214,12 +203,11 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
     processingRef.current = true;
 
     clearHintTimer();
-    console.log(`Advancing to round ${nextIndex + 1}...`);
 
     setTimeout(() => {
       if (nextIndex < MAX_TARGETS && isAlive(human) && isAlive(ai)) {
-        setResult(null); // Clear result before updating index
-        setQIndex(nextIndex); // This triggers the useEffect to call mountQuestion
+        setResult(null);
+        setQIndex(nextIndex);
       } else {
         setPhase('finished');
       }
@@ -234,20 +222,17 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
       if (questionIdRef.current !== questionId || processingRef.current || result) return;
 
       if (Math.random() < aiGuessChance(hintCount)) {
-        console.log(`AI guess CORRECT for question ID ${questionId}`);
         const dmg = damageByHint(hintCount);
         setHuman((prev) => ({ ...prev, health: Math.max(0, (prev.health ?? 0) - dmg) }));
         setResult({ winner: 'ai', correctAnswer: q.correctAnswer, hintCount, healthLoss: dmg });
         advanceRound(index + 1);
-      } else {
-        console.log(`AI guess WRONG for question ID ${questionId}`);
       }
     }, delay);
   };
 
   // Human guess logic
   const onGuess = (guess) => {
-    if (result && result.winner !== null) return; // Already a final result
+    if (result && result.winner !== null) return;
 
     const correct = currentQ.checkAnswer(guess);
     if (correct) {
@@ -274,7 +259,6 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
 
   // Start a new game
   const startGame = () => {
-    console.log('Starting new game...');
     human.health = 5000;
     ai.health = 5000;
     processingRef.current = false;
@@ -357,7 +341,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
               size="lg"
               className="px-16 py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
             >
-              🎯 BEGIN MISSION
+              BEGIN MISSION
             </Button>
 
             <Button
@@ -366,7 +350,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
               size="lg"
               className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
             >
-              🏠 BACK TO HQ
+              BACK TO HQ
             </Button>
           </div>
         </div>
@@ -404,7 +388,6 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
                 : 'bg-red-900/80 border-red-500/60'
             }`}>
               <div className="text-center mb-6">
-                <div className="text-4xl mb-3 drop-shadow-lg">🕴</div>
                 <h3 className="text-2xl font-spy font-bold text-white drop-shadow-lg mb-2">
                   {human?.name || playerName}
                 </h3>
@@ -448,7 +431,6 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
                 : 'bg-red-900/80 border-red-500/60'
             }`}>
               <div className="text-center mb-6">
-                <div className="text-4xl mb-3 drop-shadow-lg">🤖</div>
                 <h3 className="text-2xl font-spy font-bold text-white drop-shadow-lg mb-2">
                   Agent 47
                 </h3>
@@ -486,39 +468,14 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
             </div>
           </div>
 
-          {/* Battle Summary - Floating Card */}
-          <div className="backdrop-blur-sm bg-black/60 border border-gray-600/60 rounded-xl p-6 mb-12 shadow-2xl">
-            <h4 className="text-lg font-bold text-white text-center mb-6 drop-shadow-lg">MISSION SUMMARY</h4>
-            <div className="grid grid-cols-2 gap-8 text-center">
-              <div>
-                <div className="text-white font-bold mb-2 drop-shadow-lg">
-                  {humanWon ? '🏆 WINNER' : '☠️ ELIMINATED'}
-                </div>
-                <div className="text-gray-300 drop-shadow-lg">{human?.name || playerName}</div>
-                <div className="text-2xl font-bold text-white mt-2 drop-shadow-lg">
-                  {human?.health || 0} HP
-                </div>
-              </div>
-              <div>
-                <div className="text-white font-bold mb-2 drop-shadow-lg">
-                  {!humanWon ? '🏆 WINNER' : '☠️ ELIMINATED'}
-                </div>
-                <div className="text-gray-300 drop-shadow-lg">Agent 47</div>
-                <div className="text-2xl font-bold text-white mt-2 drop-shadow-lg">
-                  {ai.health} HP
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Action Buttons */}
-          <div className="text-center space-y-6">
+          <div className="flex justify-center space-x-6">
             <Button
               onClick={startGame}
               variant="primary"
               className="px-16 py-4 bg-red-800/90 hover:bg-red-700/90 backdrop-blur-sm border border-red-700/60 hover:border-red-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-red-900/30"
             >
-              🔄 NEW MISSION
+              NEW MISSION
             </Button>
 
             <Button
@@ -526,7 +483,7 @@ export default function OneVsOne({ playerName, onBackToMenu }) {
               variant="secondary"
               className="px-16 py-4 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm border border-gray-700/60 hover:border-gray-600/80 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-gray-900/30"
             >
-              🏠 BACK TO HQ
+              BACK TO HQ
             </Button>
           </div>
         </div>
@@ -615,7 +572,6 @@ function Panel({ title, health, isAI, isFinishedScreen = false }) {
     : pct > 25 ? (isAI ? 'from-pink-500 to-pink-400' : 'from-orange-500 to-orange-400')
     : 'from-red-500 to-red-400';
 
-  // Use light background for finished screen, dark background for gameplay
   const backgroundClass = isFinishedScreen ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-gray-900';
   const healthBarBgClass = isFinishedScreen ? 'bg-gray-300' : 'bg-gray-800';
   const percentageTextColor = isFinishedScreen ? 'text-gray-700' : 'text-gray-400';
@@ -635,11 +591,6 @@ function Panel({ title, health, isAI, isFinishedScreen = false }) {
         </div>
       </div>
       <div className="flex justify-between items-center mt-2">
-        <div className="flex items-center space-x-2">
-          {health <= 0 && <span className="text-xs text-red-500 font-bold animate-bounce">☠️ ELIMINATED</span>}
-          {pct <= 25 && health > 0 && <span className="text-xs text-red-500 font-bold animate-pulse">⚠️ CRITICAL</span>}
-          {pct > 75 && <span className="text-xs text-green-500 font-bold">✨ EXCELLENT</span>}
-        </div>
         <span className={`text-sm font-medium ${percentageTextColor}`}>{pct}%</span>
       </div>
     </div>
