@@ -41,8 +41,21 @@ const generateCodename = (name, index) => {
 
 // Agent List Component
 const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus }) => {
-  const alivePlayers = players.filter(p => (health[p.id] || 0) > 0);
-  const deadPlayers = players.filter(p => (health[p.id] || 0) <= 0);
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      const aHealth = health[a.id] ?? MAX_HEALTH;
+      const bHealth = health[b.id] ?? MAX_HEALTH;
+      const aAlive = aHealth > 0;
+      const bAlive = bHealth > 0;
+
+      if (aAlive && !bAlive) return -1;
+      if (!aAlive && bAlive) return 1;
+
+      return bHealth - aHealth;
+    });
+  }, [players, health]);
+
+  const alivePlayers = sortedPlayers.filter(p => (health[p.id] || 0) > 0);
 
   return (
     <div className="bg-gray-900 rounded-lg p-4 mb-6">
@@ -54,17 +67,22 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
       </div>
 
       <div className="space-y-2">
-        {players.map((player, index) => {
+        {sortedPlayers.map((player, index) => {
           const playerHealth = health[player.id] ?? MAX_HEALTH;
           const healthStatus = getHealthStatus(playerHealth);
           const isMe = player.id === myPlayerId;
           const playerReady = readyPlayers.has(player.id);
+          const isEliminated = playerHealth <= 0;
 
           return (
             <div
               key={player.id}
               className={`flex items-center justify-between p-3 rounded-lg border-2 ${
-                isMe ? 'bg-blue-900 border-blue-400' : 'bg-gray-800 border-gray-600'
+                isEliminated
+                  ? 'bg-red-900/50 border-red-600'
+                  : isMe
+                    ? 'bg-blue-900 border-blue-400'
+                    : 'bg-gray-800 border-gray-600'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -72,7 +90,7 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
                   {showReadyStatus ? (playerReady ? '✅' : '⏳') : healthStatus.icon}
                 </span>
                 <div>
-                  <div className="font-bold text-white">
+                  <div className={`font-bold ${isEliminated ? 'text-red-300 line-through' : 'text-white'}`}>
                     {generateCodename(player.name, index)}
                     {isMe && <span className="text-blue-400 ml-2">(YOU)</span>}
                   </div>
@@ -90,10 +108,15 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all duration-500 ${
-                        healthStatus.status === 'healthy' ? 'bg-green-500' :
-                        healthStatus.status === 'injured' ? 'bg-yellow-500' :
-                        healthStatus.status === 'wounded' ? 'bg-orange-500' :
-                        'bg-red-500'
+                        isEliminated
+                          ? 'bg-red-600'
+                          : healthStatus.status === 'healthy'
+                            ? 'bg-green-500'
+                            : healthStatus.status === 'injured'
+                              ? 'bg-yellow-500'
+                              : healthStatus.status === 'wounded'
+                                ? 'bg-orange-500'
+                                : 'bg-red-500'
                       }`}
                       style={{ width: `${(playerHealth / MAX_HEALTH) * 100}%` }}
                     />
@@ -104,22 +127,6 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
           );
         })}
       </div>
-
-      {!showReadyStatus && deadPlayers.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-700">
-          <h4 className="text-sm font-bold text-red-400 mb-2">ELIMINATED AGENTS</h4>
-          <div className="space-y-1">
-            {deadPlayers.map((player) => (
-              <div key={player.id} className="flex items-center space-x-3 p-2 bg-red-900 rounded">
-                <span className="text-lg">☠️</span>
-                <span className="text-red-300 line-through">
-                  {generateCodename(player.name, players.indexOf(player))}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -145,6 +152,19 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
+
+  // Helper function to merge health updates while preserving eliminated players
+  const mergeHealthState = useCallback((currentHealth, newHealth) => {
+    const merged = { ...currentHealth };
+
+    if (newHealth) {
+      Object.keys(newHealth).forEach(playerId => {
+        merged[playerId] = newHealth[playerId];
+      });
+    }
+
+    return merged;
+  }, []);
 
   // Computed values
   const alivePlayers = useMemo(
@@ -260,31 +280,63 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       setHints([]);
       setGameResult(null);
       setSurvivalRound(round);
-      if (newHealth) setHealth(newHealth);
+
+      if (newHealth) {
+        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
+      }
     });
 
     socket.on('hintRevealed', ({ index, text, health: newHealth }) => {
       if (!mountedRef.current) return;
       setHints(prev => [{ index, text }, ...prev]);
-      if (newHealth) setHealth(newHealth);
+
+      if (newHealth) {
+        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
+      }
     });
 
-    socket.on('questionResult', ({ winner, winnerName, correctAnswer, health: newHealth }) => {
+    // Handle timeout separately from correct answer
+    socket.on('questionResult', ({ winner, winnerName, correctAnswer, health: newHealth, isTimeout, timeoutPenalty }) => {
       if (!mountedRef.current) return;
-      if (newHealth) setHealth(newHealth);
-      setGameResult({ winner, winnerName, correctAnswer, type: 'correct' });
+
+      if (newHealth) {
+        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
+      }
+
+      if (isTimeout) {
+        setGameResult({
+          type: 'timeout',
+          correctAnswer,
+          timeoutPenalty,
+          message: 'Time\'s up! No one answered correctly'
+        });
+      } else {
+        setGameResult({ winner, winnerName, correctAnswer, type: 'correct' });
+      }
     });
 
     socket.on('wrongAnswer', ({ playerId, playerName: pName, guess, damage, health: newHealth }) => {
       if (!mountedRef.current) return;
-      if (newHealth) setHealth(newHealth);
+
+      if (newHealth) {
+        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
+      }
+
       setGameResult({ type: 'wrong', playerId, playerName: pName, guess, damage });
       setTimeout(() => mountedRef.current && setGameResult(null), 3000);
     });
 
-    socket.on('playerEliminated', ({ eliminatedPlayerName, health: newHealth, playersRemaining }) => {
+    socket.on('playerEliminated', ({ eliminatedPlayerId, eliminatedPlayerName, health: newHealth, playersRemaining }) => {
       if (!mountedRef.current) return;
-      if (newHealth) setHealth(newHealth);
+
+      setHealth(prevHealth => {
+        const updatedHealth = mergeHealthState(prevHealth, newHealth);
+        if (eliminatedPlayerId && updatedHealth[eliminatedPlayerId] !== 0) {
+          updatedHealth[eliminatedPlayerId] = 0;
+        }
+        return updatedHealth;
+      });
+
       setGameResult({ type: 'elimination', eliminatedPlayerName, playersRemaining });
       setTimeout(() => mountedRef.current && setGameResult(null), 3000);
     });
@@ -295,11 +347,23 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       setGameData({ winner, results });
     });
 
-    socket.on('playerDisconnected', ({ disconnectedPlayer, playersRemaining }) => {
+    socket.on('playerDisconnected', ({ disconnectedPlayer, disconnectedPlayerId, playersRemaining }) => {
       if (!mountedRef.current) return;
-      setGameResult({ type: 'disconnect', message: `Agent ${disconnectedPlayer} disconnected`, playersRemaining });
+
+      if (disconnectedPlayerId) {
+        setHealth(prevHealth => ({
+          ...prevHealth,
+          [disconnectedPlayerId]: 0
+        }));
+      }
+
+      setGameResult({
+        type: 'disconnect',
+        message: `Agent ${disconnectedPlayer} disconnected`,
+        playersRemaining
+      });
     });
-  }, []);
+  }, [mergeHealthState]);
 
   // Initialize socket connection
   const initializeSocket = useCallback(async () => {
@@ -642,6 +706,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
             />
           </div>
 
+          {/* Game Result Display */}
           <div className="relative mb-4 sm:mb-6">
             <div className="h-16 sm:h-20">
               {gameResult && (
@@ -649,6 +714,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                   gameResult.type === 'correct' ? 'bg-green-900 border-green-500' :
                   gameResult.type === 'wrong' ? 'bg-red-900 border-red-500' :
                   gameResult.type === 'elimination' ? 'bg-purple-900 border-purple-500' :
+                  gameResult.type === 'timeout' ? 'bg-yellow-900 border-yellow-500' :
                   'bg-blue-900 border-blue-500'
                 }`}>
                   <div className="text-center text-white">
@@ -657,6 +723,14 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                     )}
                     {gameResult.type === 'wrong' && (
                       <p className="text-sm sm:text-lg font-bold">💥 Agent {gameResult.playerName} missed: "{gameResult.guess}" (-{gameResult.damage} HP)</p>
+                    )}
+                    {gameResult.type === 'timeout' && (
+                      <div>
+                        <p className="text-sm sm:text-lg font-bold">⏱️ TIME'S UP! No one answered correctly</p>
+                        <p className="text-xs sm:text-sm mt-1 sm:mt-2">
+                          The answer was: <strong>{gameResult.correctAnswer}</strong> • All agents lost {gameResult.timeoutPenalty} HP
+                        </p>
+                      </div>
                     )}
                     {gameResult.type === 'elimination' && (
                       <div>
@@ -667,7 +741,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                     {gameResult.type === 'disconnect' && (
                       <p className="text-sm sm:text-lg font-bold">📡 {gameResult.message} ({gameResult.playersRemaining} remaining)</p>
                     )}
-                    {gameResult.correctAnswer && (
+                    {gameResult.correctAnswer && gameResult.type === 'correct' && (
                       <p className="text-xs sm:text-sm mt-1 sm:mt-2">The intel was: <strong>{gameResult.correctAnswer}</strong></p>
                     )}
                   </div>

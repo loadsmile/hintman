@@ -18,7 +18,7 @@ class SurvivalRoom {
     this.health = {};
     this.startTime = null;
     this.questionAnswered = false;
-    this.questionsPerGame = 20; // Longer game for survival
+    this.questionsPerGame = 20;
     this.createdAt = Date.now();
     this.questionsData = questionsData;
     this.playerCategories = [];
@@ -28,28 +28,25 @@ class SurvivalRoom {
     this.MAX_HEALTH = 10000;
   }
 
-  // Balanced damage system for 10,000 HP pool
   getSurvivalDamage(playersRemaining, isWrongAnswer = false) {
     if (isWrongAnswer) {
-      // FIXED: Balanced wrong answer damage (400-900 HP)
       switch (playersRemaining) {
         case 6: return 400;
         case 5: return 500;
         case 4: return 600;
         case 3: return 700;
         case 2: return 800;
-        default: return 900; // 1 remaining
+        default: return 900;
       }
     }
 
-    // Time/hint penalties (per hint or time tick)
     switch (playersRemaining) {
       case 6: return 30;
       case 5: return 50;
       case 4: return 70;
       case 3: return 90;
       case 2: return 110;
-      default: return 130; // 1 remaining
+      default: return 130;
     }
   }
 
@@ -59,24 +56,23 @@ class SurvivalRoom {
     const player = {
       id: socket.id,
       name: playerName,
-      health: this.MAX_HEALTH, // FIXED: Start with 10,000 HP
+      health: this.MAX_HEALTH,
       gameMode: gameMode,
       personalCategory: personalCategory,
       socket: socket,
       isEliminated: false,
       correctAnswers: 0,
       mistakes: 0,
-      isReady: false // NEW: Ready state
+      isReady: false
     };
 
     this.players.push(player);
-    this.health[socket.id] = this.MAX_HEALTH; // FIXED: Start with 10,000 HP
+    this.health[socket.id] = this.MAX_HEALTH;
     this.playerCategories.push(personalCategory);
 
     console.log(`🎯 Agent ${playerName} joined survival room ${this.id} (${socket.id}) - Health: ${this.MAX_HEALTH}`);
     console.log(`🎯 Room ${this.id}: ${this.players.length}/${this.maxPlayers} agents ready`);
 
-    // Prepare questions when we have at least 2 players
     if (this.players.length >= 2 && this.questions.length === 0) {
       this.questions = this.prepareGameQuestions();
       console.log(`🎯 Survival room ${this.id} prepared with ${this.questions.length} questions`);
@@ -85,7 +81,6 @@ class SurvivalRoom {
     return true;
   }
 
-  // NEW: Handle player ready state
   setPlayerReady(socketId, isReady) {
     const player = this.players.find(p => p.id === socketId);
     if (!player) return false;
@@ -103,7 +98,6 @@ class SurvivalRoom {
     return true;
   }
 
-  // NEW: Check if all players are ready
   areAllPlayersReady() {
     if (this.players.length < 2) return false;
     const allReady = this.players.length === this.readyPlayers.size;
@@ -111,13 +105,11 @@ class SurvivalRoom {
     return allReady;
   }
 
-  // NEW: Get list of ready player IDs
   getReadyPlayerIds() {
     return Array.from(this.readyPlayers);
   }
 
   prepareGameQuestions() {
-    // Mix questions from all categories for variety
     const shuffled = this.shuffleArray([...this.questionsData]);
     const selected = shuffled.slice(0, this.questionsPerGame);
     return selected.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
@@ -137,10 +129,8 @@ class SurvivalRoom {
     if (player) {
       console.log(`🎯 Agent ${player.name} disconnected from survival room ${this.id}`);
 
-      // Remove from ready players
       this.readyPlayers.delete(socketId);
 
-      // If game is active, treat as elimination
       if (this.gameState === 'playing' && !player.isEliminated) {
         this.eliminatePlayer(socketId, 'disconnection');
       }
@@ -159,7 +149,6 @@ class SurvivalRoom {
   updatePlayerHealth(socketId, healthChange, reason = 'unknown') {
     if (this.health[socketId] !== undefined) {
       const oldHealth = this.health[socketId];
-      // FIXED: Health capped at 10,000
       this.health[socketId] = Math.max(0, Math.min(this.MAX_HEALTH, this.health[socketId] + healthChange));
 
       const player = this.players.find(p => p.id === socketId);
@@ -169,7 +158,6 @@ class SurvivalRoom {
 
       console.log(`🎯 Agent ${player?.name || socketId} health update: ${oldHealth} -> ${this.health[socketId]} (${healthChange >= 0 ? '+' : ''}${healthChange}) - ${reason}`);
 
-      // Check for elimination
       if (this.health[socketId] <= 0 && player && !player.isEliminated) {
         this.eliminatePlayer(socketId, reason);
       }
@@ -193,7 +181,6 @@ class SurvivalRoom {
     const alivePlayers = this.getAlivePlayersCount();
     console.log(`☠️ AGENT ${player.name} ELIMINATED! ${alivePlayers} agents remaining (reason: ${reason})`);
 
-    // Broadcast elimination
     this.broadcast('playerEliminated', {
       eliminatedPlayerId: socketId,
       eliminatedPlayerName: player.name,
@@ -202,11 +189,10 @@ class SurvivalRoom {
       reason: reason
     });
 
-    // Check if game should end
     if (alivePlayers <= 1) {
       setTimeout(() => {
         this.endGame();
-      }, 2000); // Brief delay to show elimination message
+      }, 2000);
     }
   }
 
@@ -220,7 +206,6 @@ class SurvivalRoom {
   }
 
   canStartGame() {
-    // FIXED: Require all players to be ready
     return this.players.length >= 2 && this.questions.length > 0 && this.areAllPlayersReady();
   }
 
@@ -237,16 +222,14 @@ class SurvivalRoom {
     this.currentQuestion = 0;
     this.round = 1;
 
-    // CRITICAL: Ensure all players have exactly 10,000 HP at game start
     this.players.forEach(player => {
       this.health[player.id] = this.MAX_HEALTH;
       player.health = this.MAX_HEALTH;
     });
 
-    // Broadcast game start with health confirmation
     this.broadcast('gameStart', {
       round: this.round,
-      health: this.health // Send health to ensure client syncs
+      health: this.health
     });
 
     setTimeout(() => {
@@ -286,19 +269,19 @@ class SurvivalRoom {
       }
     }, 1000);
 
-    // Subsequent hints every 12 seconds (faster pace for battle royale)
+    // Subsequent hints every 12 seconds
     this.hintTimer = setInterval(() => {
       if (this.gameState === 'playing' && !this.questionAnswered && this.getAlivePlayersCount() > 1) {
         this.revealHint();
       }
     }, 12000);
 
-    // Question timeout after 90 seconds (shorter for faster pace)
+    // FIXED: Question timeout after 120 seconds (2 minutes) to match frontend timer
     this.questionTimer = setTimeout(() => {
       if (this.gameState === 'playing' && !this.questionAnswered && this.getAlivePlayersCount() > 1) {
         this.handleQuestionTimeout();
       }
-    }, 90000);
+    }, 120000); // Changed from 90000 to 120000
   }
 
   revealHint() {
@@ -314,7 +297,6 @@ class SurvivalRoom {
 
     console.log(`🎯 Hint ${this.currentHintIndex + 1} revealed - ${timePenalty} HP penalty to ${alivePlayers} alive agents`);
 
-    // Apply time penalty to all alive players
     this.players.forEach(player => {
       if (this.isPlayerAlive(player.id)) {
         this.updatePlayerHealth(player.id, -timePenalty, `hint_${this.currentHintIndex + 1}_penalty`);
@@ -360,7 +342,6 @@ class SurvivalRoom {
 
       this.nextQuestion();
     } else {
-      // FIXED: Balanced wrong answer damage
       const wrongAnswerDamage = this.getSurvivalDamage(alivePlayers, true);
       player.mistakes++;
 
@@ -376,7 +357,6 @@ class SurvivalRoom {
         health: this.health
       });
 
-      // Check if this was the last player
       if (this.getAlivePlayersCount() <= 1) {
         this.questionAnswered = true;
         setTimeout(() => {
@@ -391,9 +371,9 @@ class SurvivalRoom {
 
     const question = this.questions[this.currentQuestion];
     const alivePlayers = this.getAlivePlayersCount();
-    const timeoutPenalty = this.getSurvivalDamage(alivePlayers, true) / 2; // Half damage for timeout
+    const timeoutPenalty = this.getSurvivalDamage(alivePlayers, true) / 2;
 
-    console.log(`🎯 SURVIVAL TIMEOUT - ${timeoutPenalty} HP penalty to ${alivePlayers} alive agents`);
+    console.log(`⏱️ SURVIVAL TIMEOUT - No one answered! ${timeoutPenalty} HP penalty to ${alivePlayers} alive agents`);
 
     // Apply timeout penalty to all alive players
     this.players.forEach(player => {
@@ -402,12 +382,15 @@ class SurvivalRoom {
       }
     });
 
+    // FIXED: Send timeout event with no winner
     this.broadcast('questionResult', {
       winner: null,
+      winnerName: null,
       correctAnswer: question.answer,
-      timeElapsed: 90,
+      timeElapsed: 120,
       health: this.health,
-      timeoutPenalty: timeoutPenalty
+      timeoutPenalty: timeoutPenalty,
+      isTimeout: true // NEW: Flag to indicate timeout
     });
 
     this.nextQuestion();
@@ -433,7 +416,6 @@ class SurvivalRoom {
 
     console.log(`🎯 SURVIVAL BATTLE ROYALE ended in room ${this.id}. Final health: ${JSON.stringify(this.health)}`);
 
-    // Create results with all players
     const results = this.players.map(p => ({
       id: p.id,
       name: p.name,
@@ -444,7 +426,6 @@ class SurvivalRoom {
       category: p.personalCategory,
       isEliminated: p.isEliminated
     })).sort((a, b) => {
-      // Sort by: alive first, then by health, then by correct answers
       if (a.isAlive && !b.isAlive) return -1;
       if (!a.isAlive && b.isAlive) return 1;
       if (a.health !== b.health) return b.health - a.health;
