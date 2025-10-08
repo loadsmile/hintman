@@ -24,30 +24,32 @@ class SurvivalRoom {
     this.playerCategories = [];
     this.eliminatedPlayers = [];
     this.round = 1;
+    this.readyPlayers = new Set();
+    this.MAX_HEALTH = 10000;
   }
 
-  // Survival mode damage system - escalates with fewer players
+  // Balanced damage system for 10,000 HP pool
   getSurvivalDamage(playersRemaining, isWrongAnswer = false) {
     if (isWrongAnswer) {
-      // Wrong answer penalties increase as players are eliminated
+      // FIXED: Balanced wrong answer damage (400-900 HP)
       switch (playersRemaining) {
-        case 6:
-        case 5: return 800;
-        case 4: return 1000;
-        case 3: return 1200;
-        case 2: return 1500;
-        default: return 2000;
+        case 6: return 400;
+        case 5: return 500;
+        case 4: return 600;
+        case 3: return 700;
+        case 2: return 800;
+        default: return 900; // 1 remaining
       }
     }
 
     // Time/hint penalties (per hint or time tick)
     switch (playersRemaining) {
-      case 6:
+      case 6: return 30;
       case 5: return 50;
-      case 4: return 75;
-      case 3: return 100;
-      case 2: return 150;
-      default: return 200;
+      case 4: return 70;
+      case 3: return 90;
+      case 2: return 110;
+      default: return 130; // 1 remaining
     }
   }
 
@@ -57,20 +59,21 @@ class SurvivalRoom {
     const player = {
       id: socket.id,
       name: playerName,
-      health: 5000,
+      health: this.MAX_HEALTH, // FIXED: Start with 10,000 HP
       gameMode: gameMode,
       personalCategory: personalCategory,
       socket: socket,
       isEliminated: false,
       correctAnswers: 0,
-      mistakes: 0
+      mistakes: 0,
+      isReady: false // NEW: Ready state
     };
 
     this.players.push(player);
-    this.health[socket.id] = 5000;
+    this.health[socket.id] = this.MAX_HEALTH; // FIXED: Start with 10,000 HP
     this.playerCategories.push(personalCategory);
 
-    console.log(`🎯 Agent ${playerName} joined survival room ${this.id} (${socket.id}) - Health: 5000`);
+    console.log(`🎯 Agent ${playerName} joined survival room ${this.id} (${socket.id}) - Health: ${this.MAX_HEALTH}`);
     console.log(`🎯 Room ${this.id}: ${this.players.length}/${this.maxPlayers} agents ready`);
 
     // Prepare questions when we have at least 2 players
@@ -80,6 +83,37 @@ class SurvivalRoom {
     }
 
     return true;
+  }
+
+  // NEW: Handle player ready state
+  setPlayerReady(socketId, isReady) {
+    const player = this.players.find(p => p.id === socketId);
+    if (!player) return false;
+
+    player.isReady = isReady;
+
+    if (isReady) {
+      this.readyPlayers.add(socketId);
+      console.log(`✅ Agent ${player.name} is READY (${this.readyPlayers.size}/${this.players.length})`);
+    } else {
+      this.readyPlayers.delete(socketId);
+      console.log(`⏳ Agent ${player.name} is NOT READY (${this.readyPlayers.size}/${this.players.length})`);
+    }
+
+    return true;
+  }
+
+  // NEW: Check if all players are ready
+  areAllPlayersReady() {
+    if (this.players.length < 2) return false;
+    const allReady = this.players.length === this.readyPlayers.size;
+    console.log(`🎯 Ready check: ${this.readyPlayers.size}/${this.players.length} - All ready: ${allReady}`);
+    return allReady;
+  }
+
+  // NEW: Get list of ready player IDs
+  getReadyPlayerIds() {
+    return Array.from(this.readyPlayers);
   }
 
   prepareGameQuestions() {
@@ -103,6 +137,9 @@ class SurvivalRoom {
     if (player) {
       console.log(`🎯 Agent ${player.name} disconnected from survival room ${this.id}`);
 
+      // Remove from ready players
+      this.readyPlayers.delete(socketId);
+
       // If game is active, treat as elimination
       if (this.gameState === 'playing' && !player.isEliminated) {
         this.eliminatePlayer(socketId, 'disconnection');
@@ -122,7 +159,8 @@ class SurvivalRoom {
   updatePlayerHealth(socketId, healthChange, reason = 'unknown') {
     if (this.health[socketId] !== undefined) {
       const oldHealth = this.health[socketId];
-      this.health[socketId] = Math.max(0, Math.min(5000, this.health[socketId] + healthChange));
+      // FIXED: Health capped at 10,000
+      this.health[socketId] = Math.max(0, Math.min(this.MAX_HEALTH, this.health[socketId] + healthChange));
 
       const player = this.players.find(p => p.id === socketId);
       if (player) {
@@ -182,26 +220,40 @@ class SurvivalRoom {
   }
 
   canStartGame() {
-    return this.players.length >= 2 && this.questions.length > 0;
+    // FIXED: Require all players to be ready
+    return this.players.length >= 2 && this.questions.length > 0 && this.areAllPlayersReady();
   }
 
   startGame() {
     if (!this.canStartGame()) {
-      console.warn(`SurvivalRoom ${this.id}: Cannot start game - need at least 2 players`);
-      return;
+      console.warn(`SurvivalRoom ${this.id}: Cannot start game - need at least 2 players and all must be ready`);
+      console.warn(`Players: ${this.players.length}, Ready: ${this.readyPlayers.size}, Questions: ${this.questions.length}`);
+      return false;
     }
 
-    console.log(`🎯 Starting SURVIVAL BATTLE ROYALE in room ${this.id} with ${this.players.length} agents`);
+    console.log(`🎯 Starting SURVIVAL BATTLE ROYALE in room ${this.id} with ${this.players.length} agents (ALL READY)`);
+    console.log(`🎯 All players starting with ${this.MAX_HEALTH} HP`);
     this.gameState = 'playing';
     this.currentQuestion = 0;
     this.round = 1;
 
-    // Brief delay before first question
-    this.broadcast('gameStart', { round: this.round });
+    // CRITICAL: Ensure all players have exactly 10,000 HP at game start
+    this.players.forEach(player => {
+      this.health[player.id] = this.MAX_HEALTH;
+      player.health = this.MAX_HEALTH;
+    });
+
+    // Broadcast game start with health confirmation
+    this.broadcast('gameStart', {
+      round: this.round,
+      health: this.health // Send health to ensure client syncs
+    });
 
     setTimeout(() => {
       this.startQuestion();
     }, 3000);
+
+    return true;
   }
 
   startQuestion() {
@@ -308,7 +360,7 @@ class SurvivalRoom {
 
       this.nextQuestion();
     } else {
-      // Wrong answer - massive damage in survival mode
+      // FIXED: Balanced wrong answer damage
       const wrongAnswerDamage = this.getSurvivalDamage(alivePlayers, true);
       player.mistakes++;
 
@@ -424,6 +476,7 @@ class SurvivalRoom {
 
   cleanup() {
     this.clearTimers();
+    this.readyPlayers.clear();
     console.log(`🗑️ Survival room ${this.id} cleaned up`);
   }
 
@@ -453,6 +506,9 @@ class SurvivalRoom {
       playersHealth: this.health,
       alivePlayersCount: this.getAlivePlayersCount(),
       eliminatedCount: this.eliminatedPlayers.length,
+      readyPlayersCount: this.readyPlayers.size,
+      allPlayersReady: this.areAllPlayersReady(),
+      maxHealth: this.MAX_HEALTH,
       createdAt: this.createdAt
     };
   }

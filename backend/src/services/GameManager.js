@@ -32,6 +32,15 @@ class GameManager {
       this.findSurvivalMatch(socket, playerData);
     });
 
+    // NEW: Ready system handlers for survival mode
+    socket.on('playerReady', () => {
+      this.handlePlayerReady(socket);
+    });
+
+    socket.on('playerUnready', () => {
+      this.handlePlayerUnready(socket);
+    });
+
     socket.on('submitGuess', ({ guess }) => {
       this.handleGuess(socket, guess);
     });
@@ -47,6 +56,15 @@ class GameManager {
         if (room) {
           console.log(`🎯 Removing player from survival room: ${playerInfo.currentRoom}`);
           room.removePlayer(socket.id);
+
+          // Broadcast updated ready status after player leaves
+          if (room.players.length > 0) {
+            room.broadcast('playerUnready', {
+              playerId: socket.id,
+              readyPlayers: room.getReadyPlayerIds()
+            });
+          }
+
           if (room.players.length === 0) {
             this.survivalRooms.delete(playerInfo.currentRoom);
             console.log(`🎯 Deleted empty survival room: ${playerInfo.currentRoom}`);
@@ -69,6 +87,76 @@ class GameManager {
     }
 
     this.connectedPlayers.delete(socket.id);
+  }
+
+  // NEW: Handle player ready
+  handlePlayerReady(socket) {
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    if (!playerInfo || !playerInfo.currentRoom || playerInfo.roomType !== 'survival') {
+      console.log(`❌ Player ${socket.id} tried to ready but not in survival room`);
+      return;
+    }
+
+    const room = this.survivalRooms.get(playerInfo.currentRoom);
+    if (!room) {
+      console.log(`❌ Room not found for player ${socket.id}`);
+      return;
+    }
+
+    // Set player as ready
+    const success = room.setPlayerReady(socket.id, true);
+    if (!success) {
+      console.log(`❌ Failed to set player ${socket.id} as ready`);
+      return;
+    }
+
+    // Broadcast updated ready status to all players in room
+    room.broadcast('playerReady', {
+      playerId: socket.id,
+      readyPlayers: room.getReadyPlayerIds()
+    });
+
+    console.log(`✅ Player ${socket.id} is ready (${room.readyPlayers.size}/${room.players.length})`);
+
+    // Check if all players are ready
+    if (room.areAllPlayersReady()) {
+      console.log(`🚀 ALL PLAYERS READY in room ${room.id} - Starting game!`);
+
+      // Notify all players that everyone is ready
+      room.broadcast('allPlayersReady');
+
+      // Start game after brief delay
+      setTimeout(() => {
+        if (room.canStartGame() && room.gameState === 'waiting') {
+          const started = room.startGame();
+          if (!started) {
+            console.error(`❌ Failed to start game in room ${room.id}`);
+          }
+        }
+      }, 3000);
+    }
+  }
+
+  // NEW: Handle player unready
+  handlePlayerUnready(socket) {
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    if (!playerInfo || !playerInfo.currentRoom || playerInfo.roomType !== 'survival') {
+      return;
+    }
+
+    const room = this.survivalRooms.get(playerInfo.currentRoom);
+    if (!room) return;
+
+    // Set player as not ready
+    room.setPlayerReady(socket.id, false);
+
+    // Broadcast updated ready status to all players in room
+    room.broadcast('playerUnready', {
+      playerId: socket.id,
+      readyPlayers: room.getReadyPlayerIds()
+    });
+
+    console.log(`⏳ Player ${socket.id} is NOT ready (${room.readyPlayers.size}/${room.players.length})`);
   }
 
   findMatch(socket, playerData) {
@@ -175,7 +263,6 @@ class GameManager {
     }
   }
 
-  // New survival match method
   findSurvivalMatch(socket, playerData) {
     const {
       playerName,
@@ -207,48 +294,26 @@ class GameManager {
 
         console.log(`🎯 Player ${playerName} joined survival room ${availableRoom.id} (${availableRoom.players.length}/${availableRoom.maxPlayers})`);
 
-        // Notify about room status
-        socket.emit('waitingForMatch', {
-          roomId: availableRoom.id,
-          playersInRoom: availableRoom.players.length,
-          maxPlayers: availableRoom.maxPlayers
+        // Build players array for matchFound
+        const players = availableRoom.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          gameMode: p.gameMode,
+          personalCategory: p.personalCategory
+        }));
+
+        // Send matchFound to all players in room (moves them to lobby)
+        availableRoom.broadcast('matchFound', {
+          players,
+          gameMode: 'survival',
+          categoryInfo: {
+            questionsPerGame: 20,
+            mixStrategy: 'Mixed categories for survival challenge',
+            gameType: 'Battle Royale'
+          }
         });
 
-        // Notify all players in room about updated count
-        availableRoom.broadcast('waitingForMatch', {
-          roomId: availableRoom.id,
-          playersInRoom: availableRoom.players.length,
-          maxPlayers: availableRoom.maxPlayers
-        });
-
-        // If we have enough players, start the game
-        if (availableRoom.players.length >= 2) {
-          console.log(`🎯 Survival room ${availableRoom.id} has ${availableRoom.players.length} players, starting game...`);
-
-          const players = availableRoom.players.map(p => ({
-            id: p.id,
-            name: p.name,
-            gameMode: p.gameMode,
-            personalCategory: p.personalCategory
-          }));
-
-          availableRoom.broadcast('matchFound', {
-            players,
-            gameMode: 'survival',
-            categoryInfo: {
-              questionsPerGame: 20,
-              mixStrategy: 'Mixed categories for survival challenge',
-              gameType: 'Battle Royale'
-            }
-          });
-
-          // Start game after brief delay
-          setTimeout(() => {
-            if (availableRoom.canStartGame()) {
-              availableRoom.startGame();
-            }
-          }, 5000);
-        }
+        console.log(`🎯 Sent matchFound to ${availableRoom.players.length} players - they should be in lobby now`);
 
         return;
       }
@@ -290,7 +355,7 @@ class GameManager {
           });
           this.survivalRooms.delete(roomId);
         }
-      }, 300000); // 5 minutes
+      }, 300000);
     }
   }
 
@@ -352,7 +417,6 @@ class GameManager {
       roomStats.survival = (roomStats.survival || 0) + 1;
     }
 
-    // Log stats every now and then
     console.log(`📊 GameManager Stats: ${totalPlayers} players, ${totalRooms} rooms (${roomStats.survival} survival)`);
 
     return {
@@ -424,7 +488,6 @@ class GameManager {
     console.log('🔥 GameManager shutdown complete');
   }
 
-  // Debug methods
   getSurvivalRoomsInfo() {
     const roomsInfo = [];
     for (const [roomId, room] of this.survivalRooms.entries()) {
@@ -433,6 +496,7 @@ class GameManager {
         players: room.players.length,
         maxPlayers: room.maxPlayers,
         state: room.gameState,
+        readyCount: room.readyPlayers?.size || 0,
         playerNames: room.players.map(p => p.name)
       });
     }
@@ -448,7 +512,7 @@ class GameManager {
     if (this.survivalRooms.size > 0) {
       console.log('🎯 Survival Rooms Details:');
       this.getSurvivalRoomsInfo().forEach(room => {
-        console.log(`  - ${room.id}: ${room.players}/${room.maxPlayers} players (${room.state}) - [${room.playerNames.join(', ')}]`);
+        console.log(`  - ${room.id}: ${room.players}/${room.maxPlayers} players (${room.state}) - Ready: ${room.readyCount} - [${room.playerNames.join(', ')}]`);
       });
     }
     console.log('🎯 ================================');
