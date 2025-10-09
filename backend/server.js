@@ -1,8 +1,12 @@
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const redisAdapter = require('socket.io-redis');
+const url = require('url');
 
 // Import questions data
 let questionsData;
@@ -58,7 +62,31 @@ const io = socketIo(server, {
   pingInterval: 25000
 });
 
-// Initialize Game Manager
+// ---- REDIS ADAPTER AUTO-CONFIG ----
+
+/**
+ * Prefers REDIS_URL from env (i.e. in Render production)
+ * Otherwise, falls back to your provided URL, otherwise to localhost for local dev
+ */
+const PROD_REDIS_URL = 'redis://red-d3jnigvfte5s73fuedh0:6379';
+
+const REDIS_URL =
+  process.env.REDIS_URL ||
+  (process.env.NODE_ENV === 'production' ? PROD_REDIS_URL : 'redis://localhost:6379');
+
+const redisConn = url.parse(REDIS_URL);
+const redisOpts = {
+  host: redisConn.hostname,
+  port: redisConn.port ? parseInt(redisConn.port, 10) : 6379,
+};
+if (redisConn.auth) {
+  redisOpts.auth_pass = redisConn.auth.split(':')[1];
+}
+if (redisConn.protocol === 'rediss:') {
+  redisOpts.tls = {}; // For SSL, if using rediss://
+}
+io.adapter(redisAdapter(redisOpts));
+
 let gameManager;
 try {
   gameManager = new GameManager(questionsData);
@@ -225,7 +253,6 @@ process.on('unhandledRejection', (reason, promise) => {
   gracefulShutdown('unhandledRejection');
 });
 
-// Start server
 const PORT = process.env.PORT || 10000;
 
 server.listen(PORT, '0.0.0.0', () => {
