@@ -10,12 +10,8 @@ import CategoryService from '../../services/CategoryService';
 // Constants
 const MAX_HEALTH = 10000;
 const MAX_PLAYERS = 6;
-const SERVERS = [
-  'http://localhost:10000',
-  'https://hintman-backend.onrender.com'
-];
+const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:10000';
 
-// Damage calculation utilities
 const getDamageValues = (playersRemaining, isWrongAnswer = false) => {
   if (isWrongAnswer) {
     const wrongAnswerDamage = { 6: 400, 5: 500, 4: 600, 3: 700, 2: 800 };
@@ -39,22 +35,17 @@ const generateCodename = (name, index) => {
   return `${prefixes[index % prefixes.length]}-${name}`;
 };
 
-// Agent List Component
 const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus }) => {
-  const sortedPlayers = useMemo(() => {
-    return [...players].sort((a, b) => {
+  const sortedPlayers = useMemo(() =>
+    [...players].sort((a, b) => {
       const aHealth = health[a.id] ?? MAX_HEALTH;
       const bHealth = health[b.id] ?? MAX_HEALTH;
       const aAlive = aHealth > 0;
       const bAlive = bHealth > 0;
-
       if (aAlive && !bAlive) return -1;
       if (!aAlive && bAlive) return 1;
-
       return bHealth - aHealth;
-    });
-  }, [players, health]);
-
+    }), [players, health]);
   const alivePlayers = sortedPlayers.filter(p => (health[p.id] || 0) > 0);
 
   return (
@@ -65,7 +56,6 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
           {showReadyStatus ? `${players.length} AGENTS IN LOBBY` : `${alivePlayers.length} AGENTS REMAINING`}
         </div>
       </div>
-
       <div className="space-y-2">
         {sortedPlayers.map((player, index) => {
           const playerHealth = health[player.id] ?? MAX_HEALTH;
@@ -73,7 +63,6 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
           const isMe = player.id === myPlayerId;
           const playerReady = readyPlayers.has(player.id);
           const isEliminated = playerHealth <= 0;
-
           return (
             <div
               key={player.id}
@@ -83,8 +72,7 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
                   : isMe
                     ? 'bg-blue-900 border-blue-400'
                     : 'bg-gray-800 border-gray-600'
-              }`}
-            >
+              }`}>
               <div className="flex items-center space-x-3">
                 <span className="text-2xl">
                   {showReadyStatus ? (playerReady ? '✅' : '⏳') : healthStatus.icon}
@@ -95,14 +83,10 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
                     {isMe && <span className="text-blue-400 ml-2">(YOU)</span>}
                   </div>
                   <div className={`text-sm ${showReadyStatus ? 'text-gray-300' : healthStatus.color}`}>
-                    {showReadyStatus
-                      ? (playerReady ? 'READY' : 'WAITING')
-                      : `${playerHealth} HP • ${healthStatus.status.toUpperCase()}`
-                    }
+                    {showReadyStatus ? (playerReady ? 'READY' : 'WAITING') : `${playerHealth} HP • ${healthStatus.status.toUpperCase()}`}
                   </div>
                 </div>
               </div>
-
               {!showReadyStatus && (
                 <div className="w-24">
                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -118,8 +102,7 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
                                 ? 'bg-orange-500'
                                 : 'bg-red-500'
                       }`}
-                      style={{ width: `${(playerHealth / MAX_HEALTH) * 100}%` }}
-                    />
+                      style={{ width: `${(playerHealth / MAX_HEALTH) * 100}%` }} />
                   </div>
                 </div>
               )}
@@ -132,7 +115,6 @@ const AgentsList = ({ players, health, myPlayerId, readyPlayers, showReadyStatus
 };
 
 const CodenameSurvival = ({ playerName, onBackToMenu }) => {
-  // State management
   const [gameState, setGameState] = useState('connecting');
   const [players, setPlayers] = useState([]);
   const [currentTarget, setCurrentTarget] = useState(null);
@@ -141,87 +123,64 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
   const [health, setHealth] = useState({});
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [survivalRound, setSurvivalRound] = useState(1);
-  const [serverUrl, setServerUrl] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [readyPlayers, setReadyPlayers] = useState(new Set());
   const [connectionError, setConnectionError] = useState(false);
-  const [serverStatus, setServerStatus] = useState('checking');
   const [gameData, setGameData] = useState(null);
 
-  // Refs
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
 
-  // Helper function to merge health updates while preserving eliminated players
   const mergeHealthState = useCallback((currentHealth, newHealth) => {
     const merged = { ...currentHealth };
-
     if (newHealth) {
       Object.keys(newHealth).forEach(playerId => {
         merged[playerId] = newHealth[playerId];
       });
     }
-
     return merged;
   }, []);
 
-  // Computed values
-  const alivePlayers = useMemo(
-    () => players.filter(p => (health[p.id] || 0) > 0),
-    [players, health]
-  );
-
-  const myHealth = useMemo(
-    () => health[myPlayerId] ?? MAX_HEALTH,
-    [health, myPlayerId]
-  );
-
+  const alivePlayers = useMemo(() =>
+    players.filter(p => (health[p.id] || 0) > 0), [players, health]);
+  const myHealth = useMemo(() => health[myPlayerId] ?? MAX_HEALTH, [health, myPlayerId]);
   const isEliminated = myHealth <= 0;
   const allPlayersReady = players.length > 0 && players.length === readyPlayers.size;
 
-  const serverDisplayName = useMemo(() => {
-    if (!serverUrl) return 'Unknown';
-    return serverUrl.includes('localhost') ? 'Local Development' : 'Production';
-  }, [serverUrl]);
+  // --- SOCKET ---
+  const initializeSocket = useCallback(() => {
+    if (socketRef.current || initializedRef.current) return;
+    initializedRef.current = true;
+    setConnectionError(false);
 
-  // Server detection
-  const detectBestServer = useCallback(async () => {
-    for (const server of SERVERS) {
-      try {
-        const response = await fetch(`${server}/health`, {
-          method: 'GET',
-          signal: AbortSignal.timeout(3000),
-        });
-        if (response.ok) return server;
-      } catch {
-        continue;
-      }
-    }
-    return null;
-  }, []);
+    const socket = io(backendUrl, {
+      transports: ['polling', 'websocket'],
+      timeout: 30000,
+      forceNew: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 3000,
+      autoConnect: true
+    });
+    socketRef.current = socket;
 
-  // Socket event handlers
-  const setupSocketHandlers = useCallback((socket) => {
     socket.on('connect', () => {
       if (!mountedRef.current) return;
       setMyPlayerId(socket.id);
-      setConnectionError(false);
-      setServerStatus('online');
       setGameState('matchmaking');
+      setConnectionError(false);
     });
 
-    socket.on('disconnect', (reason) => {
-      if (!mountedRef.current || reason === 'io client disconnect') return;
+    socket.on('disconnect', () => {
+      if (!mountedRef.current) return;
       setConnectionError(true);
-      setServerStatus('offline');
       setGameState('connecting');
     });
 
     socket.on('connect_error', () => {
       if (!mountedRef.current) return;
       setConnectionError(true);
-      setServerStatus('offline');
       setGameState('connecting');
     });
 
@@ -235,7 +194,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       if (!mountedRef.current) return;
       setPlayers(matchedPlayers);
       setGameState('lobby');
-
       const initialHealth = {};
       matchedPlayers.forEach(player => {
         initialHealth[player.id] = MAX_HEALTH;
@@ -249,7 +207,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       if (!mountedRef.current) return;
       setReadyPlayers(new Set(allReadyPlayers));
     });
-
     socket.on('playerUnready', ({ readyPlayers: allReadyPlayers }) => {
       if (!mountedRef.current) return;
       setReadyPlayers(new Set(allReadyPlayers));
@@ -264,7 +221,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       if (!mountedRef.current) return;
       setSurvivalRound(round);
       setGameState('playing');
-
       if (gameHealth) {
         const verifiedHealth = {};
         Object.keys(gameHealth).forEach(playerId => {
@@ -280,29 +236,18 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       setHints([]);
       setGameResult(null);
       setSurvivalRound(round);
-
-      if (newHealth) {
-        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
-      }
+      if (newHealth) setHealth(prev => mergeHealthState(prev, newHealth));
     });
 
     socket.on('hintRevealed', ({ index, text, health: newHealth }) => {
       if (!mountedRef.current) return;
       setHints(prev => [{ index, text }, ...prev]);
-
-      if (newHealth) {
-        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
-      }
+      if (newHealth) setHealth(prev => mergeHealthState(prev, newHealth));
     });
 
-    // Handle timeout separately from correct answer
     socket.on('questionResult', ({ winner, winnerName, correctAnswer, health: newHealth, isTimeout, timeoutPenalty }) => {
       if (!mountedRef.current) return;
-
-      if (newHealth) {
-        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
-      }
-
+      if (newHealth) setHealth(prev => mergeHealthState(prev, newHealth));
       if (isTimeout) {
         setGameResult({
           type: 'timeout',
@@ -317,26 +262,20 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
 
     socket.on('wrongAnswer', ({ playerId, playerName: pName, guess, damage, health: newHealth }) => {
       if (!mountedRef.current) return;
-
-      if (newHealth) {
-        setHealth(prevHealth => mergeHealthState(prevHealth, newHealth));
-      }
-
+      if (newHealth) setHealth(prev => mergeHealthState(prev, newHealth));
       setGameResult({ type: 'wrong', playerId, playerName: pName, guess, damage });
       setTimeout(() => mountedRef.current && setGameResult(null), 3000);
     });
 
     socket.on('playerEliminated', ({ eliminatedPlayerId, eliminatedPlayerName, health: newHealth, playersRemaining }) => {
       if (!mountedRef.current) return;
-
-      setHealth(prevHealth => {
-        const updatedHealth = mergeHealthState(prevHealth, newHealth);
+      setHealth(prev => {
+        const updatedHealth = mergeHealthState(prev, newHealth);
         if (eliminatedPlayerId && updatedHealth[eliminatedPlayerId] !== 0) {
           updatedHealth[eliminatedPlayerId] = 0;
         }
         return updatedHealth;
       });
-
       setGameResult({ type: 'elimination', eliminatedPlayerName, playersRemaining });
       setTimeout(() => mountedRef.current && setGameResult(null), 3000);
     });
@@ -349,14 +288,12 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
 
     socket.on('playerDisconnected', ({ disconnectedPlayer, disconnectedPlayerId, playersRemaining }) => {
       if (!mountedRef.current) return;
-
       if (disconnectedPlayerId) {
-        setHealth(prevHealth => ({
-          ...prevHealth,
+        setHealth(prev => ({
+          ...prev,
           [disconnectedPlayerId]: 0
         }));
       }
-
       setGameResult({
         type: 'disconnect',
         message: `Agent ${disconnectedPlayer} disconnected`,
@@ -365,47 +302,26 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
     });
   }, [mergeHealthState]);
 
-  // Initialize socket connection
-  const initializeSocket = useCallback(async () => {
-    if (socketRef.current || initializedRef.current) return;
-
-    try {
-      const availableServer = await detectBestServer();
-      if (!availableServer) {
-        setConnectionError(true);
-        setServerStatus('offline');
-        return;
+  useEffect(() => {
+    mountedRef.current = true;
+    initializeSocket();
+    return () => {
+      mountedRef.current = false;
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.close();
+        socketRef.current = null;
       }
+      initializedRef.current = false;
+    };
+  }, [initializeSocket]);
 
-      setServerUrl(availableServer);
-      setServerStatus('online');
-      initializedRef.current = true;
-
-      const socket = io(availableServer, {
-        transports: ['polling', 'websocket'],
-        timeout: 30000,
-        forceNew: true,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 3000,
-        autoConnect: true
-      });
-
-      socketRef.current = socket;
-      setupSocketHandlers(socket);
-    } catch {
-      setConnectionError(true);
-      setServerStatus('offline');
-    }
-  }, [detectBestServer, setupSocketHandlers]);
-
-  // Action handlers
+  // Actions
   const findMatch = useCallback(() => {
     if (!socketRef.current?.connected) {
       setConnectionError(true);
       return;
     }
-
     const generalCategory = CategoryService.getGeneralCategory();
     socketRef.current.emit('findSurvivalMatch', {
       playerName,
@@ -413,7 +329,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       personalCategory: generalCategory?.id || 'general',
       personalCategoryName: generalCategory?.name || 'General Knowledge'
     });
-
     setGameState('waiting');
   }, [playerName]);
 
@@ -439,35 +354,19 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
     onBackToMenu();
   }, [onBackToMenu]);
 
-  // Initialize on mount
-  useEffect(() => {
-    mountedRef.current = true;
-    initializeSocket();
-
-    return () => {
-      mountedRef.current = false;
-      if (socketRef.current) {
-        socketRef.current.removeAllListeners();
-        socketRef.current.close();
-        socketRef.current = null;
-      }
-      initializedRef.current = false;
-    };
-  }, [initializeSocket]);
-
-  // Render screens
-  if (connectionError || serverStatus === 'offline') {
+  // UI Screens
+  if (connectionError) {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
         <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-black text-center border border-gray-200">
-          <h2 className="text-lg sm:text-2xl font-bold text-red-600 mb-3 sm:mb-4 font-spy">SURVIVAL HQ OFFLINE</h2>
-          <p className="mb-3 sm:mb-4 text-sm sm:text-base">Unable to establish connection to survival headquarters.</p>
+          <h2 className="text-lg sm:text-2xl font-bold text-red-600 mb-3 sm:mb-4 font-spy">SERVER UNAVAILABLE</h2>
+          <p className="mb-3 sm:mb-4 text-sm sm:text-base">Unable to establish a connection. Please try again shortly.</p>
           <div className="space-y-2 sm:space-y-3">
             <Button onClick={() => window.location.reload()} variant="primary" className="w-full text-sm sm:text-base py-2 sm:py-3">
-              🔄 RETRY CONNECTION
+              Retry Connection
             </Button>
             <Button onClick={onBackToMenu} variant="secondary" className="w-full text-sm sm:text-base py-2 sm:py-3">
-              🏠 BACK TO HQ
+              Back to Main Menu
             </Button>
           </div>
         </div>
@@ -475,15 +374,16 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  if (gameState === 'connecting' || serverStatus === 'checking') {
+  if (gameState === 'connecting') {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
         <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Connecting to Survival HQ..." />
-          <p className="mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base">Establishing secure channel...</p>
-          <p className="mt-2 text-xs text-gray-500">Preparing for battle royale elimination protocol</p>
+          <p className="mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base">
+            Establishing secure connection...
+          </p>
           <Button onClick={onBackToMenu} variant="secondary" className="mt-4 sm:mt-6 w-full text-sm sm:text-base py-2 sm:py-3">
-            🏠 BACK TO HQ
+            Back to Main Menu
           </Button>
         </div>
       </div>
@@ -497,32 +397,26 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
           <div className="text-center mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-3 sm:mb-4 font-spy">CODENAME: SURVIVAL</h2>
             <p className="text-base sm:text-lg mb-3 sm:mb-4 text-gray-800">Agent {playerName}, prepare for elimination protocol</p>
-
             <div className="bg-gray-900 p-3 sm:p-4 rounded text-white text-xs sm:text-sm">
               <h3 className="text-red-400 font-bold mb-2 sm:mb-3">⚠️ MISSION BRIEFING ⚠️</h3>
               <div className="text-left space-y-1 sm:space-y-2">
                 <p>🎯 <strong>Objective:</strong> Be the last agent standing</p>
-                <p>👥 <strong>Agents:</strong> Up to {MAX_PLAYERS} players maximum</p>
-                <p>💀 <strong>Health:</strong> {MAX_HEALTH.toLocaleString()} HP starting pool</p>
-                <p>⚡ <strong>Wrong Answer:</strong> 400-900 HP damage (scales with remaining agents)</p>
-                <p>⏱️ <strong>Time Penalty:</strong> 30-130 HP/sec (scales with remaining agents)</p>
-                <p>💡 <strong>Strategy:</strong> Hints are free, but time is deadly</p>
+                <p>👥 <strong>Agents:</strong> Up to {MAX_PLAYERS} players</p>
+                <p>💀 <strong>Health:</strong> {MAX_HEALTH.toLocaleString()} HP</p>
+                <p>⚡ <strong>Wrong Answer:</strong> 400-900 HP damage</p>
+                <p>⏱️ <strong>Time Penalty:</strong> 30-130 HP/sec</p>
+                <p>💡 <strong>Hints:</strong> Free, but time costs health</p>
                 <p>🏆 <strong>Victory:</strong> Survive until the end</p>
               </div>
             </div>
           </div>
-
           <div className="justify-center text-center">
-            <div className="flex items-center justify-center mb-3 sm:mb-4">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-              <span className="text-sm text-green-600">Connected to {serverDisplayName}</span>
-            </div>
             <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
               <Button onClick={findMatch} size="lg" className="w-full sm:w-auto px-6 sm:px-12 text-sm sm:text-base py-2 sm:py-3">
-                ENTER SURVIVAL MODE
+                Enter Survival Mode
               </Button>
               <Button onClick={onBackToMenu} variant="secondary" size="lg" className="w-full sm:w-auto px-6 sm:px-12 text-sm sm:text-base py-2 sm:py-3">
-                BACK TO HQ
+                Back to Main Menu
               </Button>
             </div>
           </div>
@@ -533,26 +427,21 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
 
   if (gameState === 'waiting') {
     const playersInRoom = gameData?.playersInRoom || 1;
-
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
         <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-black text-center border border-gray-200">
           <LoadingSpinner size="lg" message="Recruiting agents..." />
           <p className="mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base">Waiting for more agents to join</p>
-
           <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-100 rounded-lg">
             <div className="text-xl sm:text-2xl font-bold text-red-600">{playersInRoom}/{MAX_PLAYERS}</div>
             <div className="text-xs sm:text-sm text-gray-700">Agents in Lobby</div>
           </div>
-
-          <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-100 rounded-lg text-xs text-blue-800">
-            <p><strong>Mode:</strong> Battle Royale Survival</p>
-            <p><strong>Server:</strong> {serverDisplayName}</p>
+          <div className="mt-3 sm:mt-4 text-xs text-blue-800">
+            Mode: Survival Battle Royale
           </div>
-
-          <p className="mt-2 text-xs text-gray-500">All players must ready up to start (max {MAX_PLAYERS})</p>
+          <p className="mt-2 text-xs text-gray-500">All players must ready up to start</p>
           <Button onClick={onBackToMenu} variant="secondary" className="mt-4 sm:mt-6 w-full text-sm sm:text-base py-2 sm:py-3">
-            ABORT MISSION
+            Abort Mission
           </Button>
         </div>
       </div>
@@ -568,7 +457,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-red-500 mb-2 font-spy">MISSION: SURVIVAL</h1>
             <p className="text-lg sm:text-xl text-gray-300">Elimination Protocol Ready</p>
           </div>
-
           <AgentsList
             players={players}
             health={health}
@@ -576,7 +464,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
             readyPlayers={readyPlayers}
             showReadyStatus={true}
           />
-
           <div className="bg-red-900 p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
             <h3 className="text-base sm:text-lg font-bold text-red-300 mb-2 sm:mb-3">⚠️ SURVIVAL RULES ⚠️</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
@@ -592,7 +479,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               </div>
             </div>
           </div>
-
           <div className="text-center">
             <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4 mb-4 sm:mb-6">
               <Button
@@ -602,17 +488,15 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                   isReady ? 'bg-gray-600 hover:bg-gray-500' : 'bg-green-600 hover:bg-green-500'
                 }`}
               >
-                {isReady ? '⏳ CANCEL READY' : '✅ READY UP'}
+                {isReady ? 'Cancel Ready' : 'Ready Up'}
               </Button>
-
               <Button onClick={onBackToMenu} variant="secondary" className="w-full sm:w-auto px-8 sm:px-12 text-sm sm:text-base py-2 sm:py-3">
-                🏠 BACK TO HQ
+                Back to Main Menu
               </Button>
             </div>
-
             {allPlayersReady ? (
               <div className="animate-pulse text-green-500 font-bold text-sm sm:text-base">
-                🚀 ALL {players.length} AGENTS READY - STARTING MISSION...
+                All agents ready - starting mission...
               </div>
             ) : (
               <div className="space-y-2">
@@ -620,7 +504,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                   Waiting for all agents to ready up ({readyPlayers.size}/{players.length})
                 </p>
                 <p className="text-xs text-yellow-400">
-                  ⚠️ ALL players must click READY UP before the game can start
+                  All players must click ready to start
                 </p>
               </div>
             )}
@@ -639,7 +523,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-red-500 mb-2 font-spy">MISSION: SURVIVAL</h1>
             <p className="text-lg sm:text-xl text-gray-300">Elimination Protocol Activated</p>
           </div>
-
           <AgentsList
             players={players}
             health={health}
@@ -647,7 +530,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
             readyPlayers={readyPlayers}
             showReadyStatus={false}
           />
-
           <div className="bg-red-900 p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
             <h3 className="text-base sm:text-lg font-bold text-red-300 mb-2 sm:mb-3">⚠️ SURVIVAL RULES ⚠️</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
@@ -663,10 +545,9 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               </div>
             </div>
           </div>
-
           <div className="text-center">
             <p className="text-base sm:text-lg text-gray-300 mb-3 sm:mb-4">Game starting soon...</p>
-            <div className="animate-pulse text-red-500 font-bold text-sm sm:text-base">PREPARE FOR ELIMINATION</div>
+            <div className="animate-pulse text-red-500 font-bold text-sm sm:text-base">Prepare for Elimination</div>
           </div>
         </div>
       </div>
@@ -696,7 +577,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                 />
               </div>
             </div>
-
             <AgentsList
               players={players}
               health={health}
@@ -705,7 +585,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               showReadyStatus={false}
             />
           </div>
-
           {/* Game Result Display */}
           <div className="relative mb-4 sm:mb-6">
             <div className="h-16 sm:h-20">
@@ -749,7 +628,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               )}
             </div>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <div className="order-2 lg:order-1">
               <HintDisplay
@@ -758,7 +636,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                 key={`hints-${currentTarget.targetIndex}-${hints.length}`}
               />
             </div>
-
             <div className="order-1 lg:order-2">
               <GuessInput
                 onSubmit={submitGuess}
@@ -777,7 +654,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
     const winner = gameData?.winner;
     const results = gameData?.results || [];
     const isWinner = winner?.name === playerName;
-
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
         <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-sm sm:max-w-4xl w-full text-black border border-gray-200">
@@ -792,7 +668,6 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               {isWinner ? `Agent ${playerName} survived the elimination!` : `Agent ${winner?.name} is the sole survivor!`}
             </p>
           </div>
-
           <div className="bg-gray-900 rounded-lg p-3 sm:p-6 mb-6 sm:mb-8">
             <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4 text-center">FINAL AGENT STATUS</h3>
             <div className="space-y-2 sm:space-y-3">
@@ -801,8 +676,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                   key={player.id}
                   className={`flex items-center justify-between p-3 sm:p-4 rounded-lg ${
                     index === 0 ? 'bg-green-600' : player.isAlive ? 'bg-gray-700' : 'bg-red-900'
-                  }`}
-                >
+                  }`}>
                   <div className="flex items-center space-x-2 sm:space-x-3">
                     <span className="text-lg sm:text-2xl">
                       {index === 0 ? '🏆' : player.isAlive ? '💚' : '☠️'}
@@ -823,13 +697,12 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               ))}
             </div>
           </div>
-
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
             <Button onClick={() => window.location.reload()} variant="primary" className="flex-1 text-sm sm:text-base py-2 sm:py-3">
-              🔄 NEW SURVIVAL MISSION
+              New Survival Mission
             </Button>
             <Button onClick={handleCancel} variant="secondary" className="flex-1 text-sm sm:text-base py-2 sm:py-3">
-              🏠 BACK TO HQ
+              Back to Main Menu
             </Button>
           </div>
         </div>
