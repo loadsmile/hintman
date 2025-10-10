@@ -26,6 +26,7 @@ const corsOptions = {
     'http://localhost:3000',
     'http://localhost:5173',
     'https://hintman.vercel.app',
+    'https://hintman-frontend.vercel.app',
     /\.vercel\.app$/,
     /^https?:\/\/localhost(:\d+)?$/
   ],
@@ -49,15 +50,11 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://red-d3jnigvfte5s73fuedh0.ren
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
 
-const pubClient = createClient({ url: REDIS_URL });
-const subClient = pubClient.duplicate();
+const sharedRedisClient = createClient({ url: REDIS_URL });
+sharedRedisClient.on('error', (err) => console.error('❌ Redis Error:', err));
+sharedRedisClient.on('connect', () => console.log('✅ Shared Redis Client Connected'));
 
-Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
-  io.adapter(createAdapter(pubClient, subClient));
-  console.log('✅ Socket.IO Redis Adapter ready');
-}).catch((err) => {
-  console.warn('⚠️  Redis Adapter failed:', err.message);
-});
+const subClient = sharedRedisClient.duplicate();
 
 let redisService = null;
 let gameManager = null;
@@ -67,23 +64,33 @@ async function initializeServices() {
   if (isInitialized) return true;
 
   try {
-    console.log('🔄 Initializing Redis persistence...');
+    console.log('🔄 Connecting to Redis...');
 
-    redisService = new RedisService(REDIS_URL);
+    // Connect both clients
+    await sharedRedisClient.connect();
+    await subClient.connect();
+
+    // Setup Socket.IO adapter
+    io.adapter(createAdapter(sharedRedisClient, subClient));
+    console.log('✅ Socket.IO Redis Adapter ready');
+
+    // Create RedisService using the SAME connected client
+    redisService = new RedisService(REDIS_URL, sharedRedisClient);
     await redisService.connect();
-    console.log('✅ RedisService connected');
+    console.log('✅ RedisService ready (persistence enabled)');
 
     gameManager = new GameManager(questionsData, redisService);
-    console.log('✅ GameManager initialized with Redis');
+    console.log('✅ GameManager initialized WITH Redis persistence');
 
     isInitialized = true;
     return true;
   } catch (error) {
-    console.error('❌ Redis error:', error.message);
-    console.warn('⚠️  Starting without persistence');
+    console.error('❌ Redis initialization failed:', error.message);
+    console.error('Stack:', error.stack);
+    console.warn('⚠️  Starting without Redis persistence');
 
     gameManager = new GameManager(questionsData, null);
-    console.log('✅ GameManager initialized (no Redis)');
+    console.log('✅ GameManager initialized (no persistence)');
 
     isInitialized = true;
     return false;
@@ -96,6 +103,7 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     uptime: Math.floor(process.uptime()),
     redis: redisService ? 'connected' : 'disconnected',
+    redisPersistence: redisService ? 'enabled' : 'disabled',
     players: stats.totalPlayers || 0,
     rooms: stats.totalRooms || 0
   });
@@ -105,8 +113,49 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Hintman Backend',
     version: '1.0.0',
-    redis: redisService ? 'enabled' : 'disabled'
+    redis: redisService ? 'enabled' : 'disabled',
+    initialized: isInitialized
   });
+});
+
+app.get('/admin/redis-test', async (req, res) => {
+  if (!redisService) {
+    return res.json({
+      error: 'Redis not connected',
+      redisService: 'null'
+    });
+  }
+
+  try {
+    // Test basic Redis operations
+    await redisService.client.set('test:key', 'Hello Redis!', { EX: 60 });
+    const value = await redisService.client.get('test:key');
+
+    // Get all game-related keys
+    const roomKeys = await redisService.getAllKeys('room:*');
+    const survivalKeys = await redisService.getAllKeys('survival:*');
+    const playerKeys = await redisService.getAllKeys('player:*');
+
+    res.json({
+      status: '✅ Redis is working!',
+      testValue: value,
+      persistence: {
+        roomsInRedis: roomKeys.length,
+        survivalRoomsInRedis: survivalKeys.length,
+        playersInRedis: playerKeys.length
+      },
+      keys: {
+        rooms: roomKeys,
+        survivalRooms: survivalKeys,
+        players: playerKeys
+      }
+    });
+  } catch (error) {
+    res.json({
+      error: error.message,
+      stack: error.stack
+    });
+  }
 });
 
 app.get('/admin/stats', (req, res) => {
@@ -114,52 +163,12 @@ app.get('/admin/stats', (req, res) => {
     server: {
       uptime: Math.floor(process.uptime()),
       memory: process.memoryUsage(),
-      redis: redisService ? 'enabled' : 'disabled'
+      redis: redisService ? 'enabled' : 'disabled',
+      redisPersistence: redisService ? 'enabled' : 'disabled'
     },
     game: gameManager ? gameManager.getStats() : {}
   });
 });
-
-  // Add this route to test Redis persistence
-  app.get('/admin/redis-test', async (req, res) => {
-    if (!redisService) {
-      return res.json({
-        error: 'Redis not connected',
-        redisService: redisService ? 'exists' : 'null'
-      });
-    }
-
-    try {
-      // Test basic Redis operations
-      await redisService.client.set('test:key', 'Hello Redis!', { EX: 60 });
-      const value = await redisService.client.get('test:key');
-
-      // Get all game-related keys
-      const roomKeys = await redisService.getAllKeys('room:*');
-      const survivalKeys = await redisService.getAllKeys('survival:*');
-      const playerKeys = await redisService.getAllKeys('player:*');
-
-      res.json({
-        status: '✅ Redis is working!',
-        testValue: value,
-        persistence: {
-          roomsInRedis: roomKeys.length,
-          survivalRoomsInRedis: survivalKeys.length,
-          playersInRedis: playerKeys.length
-        },
-        keys: {
-          rooms: roomKeys,
-          survivalRooms: survivalKeys,
-          players: playerKeys
-        }
-      });
-    } catch (error) {
-      res.json({
-        error: error.message,
-        stack: error.stack
-      });
-    }
-  });
 
 io.on('connection', (socket) => {
   if (!isInitialized || !gameManager) {
@@ -197,8 +206,8 @@ async function gracefulShutdown(signal) {
     await redisService.disconnect();
   }
 
-  if (pubClient) {
-    await pubClient.quit();
+  if (sharedRedisClient && !redisService?.isSharedClient) {
+    await sharedRedisClient.quit();
   }
 
   if (subClient) {
@@ -218,7 +227,7 @@ async function startServer() {
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log('\n✅ Server running on port', PORT);
-    console.log('✅ Redis:', redisService ? 'ENABLED' : 'DISABLED');
+    console.log('✅ Redis Persistence:', redisService ? 'ENABLED' : 'DISABLED');
     console.log('✅ GameManager ready\n');
   });
 }

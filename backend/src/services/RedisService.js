@@ -1,36 +1,56 @@
 const redis = require('redis');
 
 class RedisService {
-  constructor(redisUrl) {
-    this.client = redis.createClient({
-      url: redisUrl,
-      socket: {
-        reconnectStrategy: (retries) => {
-          if (retries > 10) {
-            return new Error('Redis connection failed after 10 retries');
+  constructor(redisUrl, existingClient = null) {
+    if (existingClient) {
+      // Use existing connected client (shared with Socket.IO adapter)
+      this.client = existingClient;
+      this.isConnected = true;
+      this.isSharedClient = true;
+      console.log('✅ RedisService using shared client');
+    } else {
+      // Create new client
+      this.client = redis.createClient({
+        url: redisUrl,
+        socket: {
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              return new Error('Redis connection failed after 10 retries');
+            }
+            return Math.min(retries * 100, 3000);
           }
-          return Math.min(retries * 100, 3000);
         }
-      }
-    });
+      });
 
-    this.client.on('error', (err) => console.error('❌ Redis Client Error:', err));
-    this.client.on('connect', () => console.log('✅ Redis Client Connected'));
-    this.client.on('ready', () => console.log('✅ Redis Client Ready'));
-    this.client.on('reconnecting', () => console.log('🔄 Redis Client Reconnecting...'));
+      this.client.on('error', (err) => console.error('❌ Redis Client Error:', err));
+      this.client.on('connect', () => console.log('✅ Redis Client Connected'));
+      this.client.on('ready', () => console.log('✅ Redis Client Ready'));
+      this.client.on('reconnecting', () => console.log('🔄 Redis Client Reconnecting...'));
 
-    this.isConnected = false;
+      this.isConnected = false;
+      this.isSharedClient = false;
+    }
   }
 
   async connect() {
+    if (this.isSharedClient) {
+      console.log('✅ RedisService ready (using shared connection)');
+      return;
+    }
+
     if (!this.isConnected) {
       await this.client.connect();
       this.isConnected = true;
-      console.log('✅ RedisService initialized and connected');
+      console.log('✅ RedisService connected');
     }
   }
 
   async disconnect() {
+    if (this.isSharedClient) {
+      console.log('⚠️  Skipping disconnect (shared Redis client)');
+      return;
+    }
+
     if (this.isConnected) {
       await this.client.quit();
       this.isConnected = false;
@@ -59,10 +79,7 @@ class RedisService {
         categoryMix: JSON.stringify(roomData.categoryMix || [])
       });
 
-      // Set expiration: 2 hours
       await this.client.expire(key, 7200);
-
-      console.log(`💾 Saved room ${roomId} to Redis`);
       return true;
     } catch (error) {
       console.error(`❌ Error saving room ${roomId}:`, error);
@@ -104,7 +121,6 @@ class RedisService {
     try {
       const key = `room:${roomId}`;
       await this.client.del(key);
-      console.log(`🗑️ Deleted room ${roomId} from Redis`);
       return true;
     } catch (error) {
       console.error(`❌ Error deleting room ${roomId}:`, error);
@@ -144,10 +160,7 @@ class RedisService {
         eliminatedPlayers: JSON.stringify(Array.from(roomData.eliminatedPlayers || []))
       });
 
-      // Set expiration: 2 hours
       await this.client.expire(key, 7200);
-
-      console.log(`💾 Saved survival room ${roomId} to Redis`);
       return true;
     } catch (error) {
       console.error(`❌ Error saving survival room ${roomId}:`, error);
@@ -190,7 +203,6 @@ class RedisService {
     try {
       const key = `survival:${roomId}`;
       await this.client.del(key);
-      console.log(`🗑️ Deleted survival room ${roomId} from Redis`);
       return true;
     } catch (error) {
       console.error(`❌ Error deleting survival room ${roomId}:`, error);
@@ -220,9 +232,7 @@ class RedisService {
         roomType: playerData.roomType || ''
       });
 
-      // Set expiration: 1 hour
       await this.client.expire(key, 3600);
-
       return true;
     } catch (error) {
       console.error(`❌ Error saving player ${playerId}:`, error);
