@@ -18,17 +18,17 @@ class GameRoom {
     this.createdAt = Date.now();
     this.questionsData = questionsData;
     this.playerCategories = [];
+    this.pausedState = null; // Store state when paused
   }
 
-  // Damage penalties
   damageByHint(hintCount) {
     switch (hintCount) {
       case 0:
-      case 1: return 500;  // Update from 1000
-      case 2: return 400;  // Update from 800
-      case 3: return 300;  // Update from 600
-      case 4: return 200;  // Update from 400
-      case 5: return 100;  // Update from 200
+      case 1: return 500;
+      case 2: return 400;
+      case 3: return 300;
+      case 4: return 200;
+      case 5: return 100;
       default: return 100;
     }
   }
@@ -49,11 +49,8 @@ class GameRoom {
     this.health[socket.id] = 5000;
     this.playerCategories.push(personalCategory);
 
-    console.log(`🎯 Player added to room ${this.id}: ${playerName} (${socket.id}) - Health: 5000`);
-
     if (this.players.length === 2) {
       this.questions = this.prepareGameQuestions();
-      console.log(`🎯 Room ${this.id} ready with 2 players - ${this.questions.length} questions prepared`);
     }
 
     return true;
@@ -153,15 +150,12 @@ class GameRoom {
 
   updatePlayerHealth(socketId, healthChange) {
     if (this.health[socketId] !== undefined) {
-      const oldHealth = this.health[socketId];
       this.health[socketId] = Math.max(0, Math.min(5000, this.health[socketId] + healthChange));
 
       const player = this.players.find(p => p.id === socketId);
       if (player) {
         player.health = this.health[socketId];
       }
-
-      console.log(`🎯 Health update for ${player?.name || socketId}: ${oldHealth} -> ${this.health[socketId]} (${healthChange >= 0 ? '+' : ''}${healthChange})`);
     }
   }
 
@@ -173,16 +167,81 @@ class GameRoom {
     return this.players.filter(p => this.isPlayerAlive(p.id)).length;
   }
 
-  startGame() {
-    if (this.players.length !== 2 || this.questions.length === 0) {
-      console.warn(`GameRoom ${this.id}: Cannot start game`);
-      return;
+  pauseGame(reason = 'Game paused') {
+    if (this.gameState !== 'playing') return false;
+
+    this.pausedState = {
+      currentQuestion: this.currentQuestion,
+      currentHintIndex: this.currentHintIndex,
+      questionAnswered: this.questionAnswered,
+      startTime: this.startTime,
+      pausedAt: Date.now(),
+      reason: reason
+    };
+
+    this.gameState = 'paused';
+    this.clearTimers();
+
+    this.broadcast('gamePaused', {
+      reason: reason,
+      message: reason
+    });
+
+    return true;
+  }
+
+  resumeGame() {
+    if (this.gameState !== 'paused' || !this.pausedState) return false;
+
+    const pauseDuration = Date.now() - this.pausedState.pausedAt;
+
+    // Restore state
+    this.gameState = 'playing';
+    this.currentQuestion = this.pausedState.currentQuestion;
+    this.currentHintIndex = this.pausedState.currentHintIndex;
+    this.questionAnswered = this.pausedState.questionAnswered;
+
+    // Adjust start time to account for pause
+    if (this.pausedState.startTime) {
+      this.startTime = this.pausedState.startTime + pauseDuration;
     }
 
-    console.log(`🎯 Starting game in room ${this.id} with OneVsOne system`);
+    this.pausedState = null;
+
+    this.broadcast('gameResumed', {
+      message: 'Game resumed',
+      currentQuestion: this.currentQuestion + 1,
+      totalQuestions: this.questionsPerGame
+    });
+
+    // Restart timers for current question
+    const remainingHints = 5 - this.currentHintIndex;
+    if (remainingHints > 0 && !this.questionAnswered) {
+      this.hintTimer = setInterval(() => {
+        if (this.gameState === 'playing' && !this.questionAnswered) {
+          this.revealHint();
+        }
+      }, 15000);
+
+      this.questionTimer = setTimeout(() => {
+        if (this.gameState === 'playing' && !this.questionAnswered) {
+          this.handleQuestionTimeout();
+        }
+      }, 120000);
+    }
+
+    return true;
+  }
+
+  startGame() {
+    if (this.players.length !== 2 || this.questions.length === 0) {
+      return false;
+    }
+
     this.gameState = 'playing';
     this.currentQuestion = 0;
     this.startQuestion();
+    return true;
   }
 
   startQuestion() {
@@ -195,8 +254,6 @@ class GameRoom {
     this.currentHintIndex = 0;
     this.startTime = Date.now();
     this.questionAnswered = false;
-
-    console.log(`🎯 Room ${this.id}: Starting question ${this.currentQuestion + 1}/${this.questionsPerGame} - "${question.answer}"`);
 
     this.broadcast('questionStart', {
       targetIndex: this.currentQuestion + 1,
@@ -225,9 +282,7 @@ class GameRoom {
     }, 120000);
   }
 
-  // CRITICAL: OneVsOne system - NO HP deduction for hints
   revealHint() {
-    console.log('🎯🎯🎯 REVEALING HINT - NO HP DEDUCTION 🎯🎯🎯');
     const question = this.questions[this.currentQuestion];
     if (!question || this.currentHintIndex >= 5 || this.currentHintIndex >= question.getTotalHints()) {
       return;
@@ -235,16 +290,12 @@ class GameRoom {
 
     const hintText = question.getHint(this.currentHintIndex);
 
-    // NO HP DEDUCTION HERE - OneVsOne system
-    console.log('🎯 HEALTH BEFORE HINT:', JSON.stringify(this.health));
-
     this.broadcast('hintRevealed', {
       index: this.currentHintIndex,
       text: hintText,
       health: this.health
     });
 
-    console.log('🎯 HEALTH AFTER HINT:', JSON.stringify(this.health), '- NO CHANGE (OneVsOne system)');
     this.currentHintIndex++;
   }
 
@@ -258,22 +309,15 @@ class GameRoom {
 
     const isCorrect = question.checkAnswer(guess);
 
-    console.log(`🎯 GUESS: "${guess}" by ${player.name} - ${isCorrect ? 'CORRECT' : 'WRONG'}`);
-    console.log(`🎯 Health BEFORE guess: ${JSON.stringify(this.health)}`);
-
     if (isCorrect) {
       this.questionAnswered = true;
 
       const hintCount = this.currentHintIndex;
       const damageToOpponent = this.damageByHint(hintCount);
 
-      console.log(`🎯 CORRECT! Dealing ${damageToOpponent} damage (hint ${hintCount})`);
-
-      // Damage opponent
       this.players.forEach(p => {
         if (p.id !== socketId && this.isPlayerAlive(p.id)) {
           this.updatePlayerHealth(p.id, -damageToOpponent);
-          console.log(`🎯 Damaged ${p.name}: ${this.health[p.id]} HP remaining`);
         }
       });
 
@@ -289,16 +333,11 @@ class GameRoom {
 
       this.nextQuestion();
     } else {
-      console.log(`🎯 WRONG ANSWER - NO PENALTY! (OneVsOne system)`);
-
-      // NO HP PENALTY for wrong answers in OneVsOne system
       this.broadcast('wrongAnswer', {
         playerId: socketId,
         playerName: player.name,
         guess
       });
-
-      console.log(`🎯 Health AFTER wrong guess: ${JSON.stringify(this.health)} - NO CHANGE (OneVsOne system)`);
 
       if (this.getAlivePlayersCount() <= 1) {
         this.questionAnswered = true;
@@ -311,9 +350,6 @@ class GameRoom {
     if (this.questionAnswered) return;
 
     const question = this.questions[this.currentQuestion];
-
-    console.log(`🎯 TIMEOUT - NO PENALTY! Room: ${this.id}`);
-    console.log(`🎯 Health after timeout: ${JSON.stringify(this.health)} - NO CHANGE (OneVsOne system)`);
 
     this.broadcast('questionResult', {
       winner: null,
@@ -341,8 +377,6 @@ class GameRoom {
   endGame() {
     this.clearTimers();
     this.gameState = 'finished';
-
-    console.log(`🎯 Game ended in room ${this.id}. Final health: ${JSON.stringify(this.health)}`);
 
     const results = this.players.map(p => ({
       id: p.id,
@@ -372,6 +406,7 @@ class GameRoom {
 
   cleanup() {
     this.clearTimers();
+    this.pausedState = null;
   }
 
   broadcast(event, data) {
@@ -380,7 +415,7 @@ class GameRoom {
         try {
           player.socket.emit(event, data);
         } catch (error) {
-          console.error(`GameRoom ${this.id}: Error broadcasting to ${player.id}:`, error.message);
+          console.error(`Broadcast error in room ${this.id}:`, error.message);
         }
       }
     });
@@ -398,7 +433,8 @@ class GameRoom {
       questionsInDatabase: this.questions.length,
       playersHealth: this.health,
       alivePlayersCount: this.getAlivePlayersCount(),
-      createdAt: this.createdAt
+      createdAt: this.createdAt,
+      isPaused: this.gameState === 'paused'
     };
   }
 }

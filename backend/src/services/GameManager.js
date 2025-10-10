@@ -8,37 +8,33 @@ class GameManager {
     this.survivalRooms = new Map();
     this.questionsData = questionsData;
     this.connectedPlayers = new Map();
-    this.redisService = redisService; // NEW: Redis service
+    this.redisService = redisService;
+    this.disconnectionTimers = new Map();
+    this.RECONNECT_GRACE_PERIOD = 60000; // 60 seconds
 
-    // NEW: Auto-save interval (every 30 seconds)
     if (this.redisService) {
       this.autoSaveInterval = setInterval(() => {
         this.saveAllRoomsToRedis();
       }, 30000);
-      console.log('✅ GameManager: Auto-save to Redis enabled (every 30s)');
     }
   }
 
-  // NEW: Save all active rooms to Redis
   async saveAllRoomsToRedis() {
     if (!this.redisService) return;
 
     try {
-      // Save regular rooms
       for (const [roomId, room] of this.gameRooms.entries()) {
         await this.saveRoomToRedis(room);
       }
 
-      // Save survival rooms
       for (const [roomId, room] of this.survivalRooms.entries()) {
         await this.saveSurvivalRoomToRedis(room);
       }
     } catch (error) {
-      console.error('❌ Error in auto-save:', error);
+      console.error('Redis save error:', error.message);
     }
   }
 
-  // NEW: Save individual room to Redis
   async saveRoomToRedis(room) {
     if (!this.redisService) return false;
 
@@ -67,7 +63,6 @@ class GameManager {
     return await this.redisService.saveRoom(room.id, roomData);
   }
 
-  // NEW: Save survival room to Redis
   async saveSurvivalRoomToRedis(room) {
     if (!this.redisService) return false;
 
@@ -97,65 +92,15 @@ class GameManager {
     return await this.redisService.saveSurvivalRoom(room.id, roomData);
   }
 
-  // NEW: Load room from Redis
-  async loadRoomFromRedis(roomId) {
-    if (!this.redisService) return null;
-
-    const roomData = await this.redisService.getRoom(roomId);
-    if (!roomData) return null;
-
-    // Reconstruct GameRoom object
-    const room = new GameRoom(roomData.id, this.questionsData, roomData.playerCategories[0], roomData.gameMode);
-    room.gameState = roomData.gameState;
-    room.currentQuestion = roomData.currentQuestion;
-    room.currentHintIndex = roomData.currentHintIndex;
-    room.questionsPerGame = roomData.questionsPerGame;
-    room.questionAnswered = roomData.questionAnswered;
-    room.createdAt = roomData.createdAt;
-    room.questions = roomData.questions;
-    room.health = roomData.health;
-    room.playerCategories = roomData.playerCategories;
-    room.categoryMix = roomData.categoryMix;
-
-    // Note: Players will need to reconnect, sockets can't be serialized
-    console.log(`📥 Loaded room ${roomId} from Redis`);
-    return room;
-  }
-
-  // NEW: Load survival room from Redis
-  async loadSurvivalRoomFromRedis(roomId) {
-    if (!this.redisService) return null;
-
-    const roomData = await this.redisService.getSurvivalRoom(roomId);
-    if (!roomData) return null;
-
-    // Reconstruct SurvivalRoom object
-    const room = new SurvivalRoom(roomData.id, this.questionsData, 'general', 'survival');
-    room.gameState = roomData.gameState;
-    room.currentQuestion = roomData.currentQuestion;
-    room.currentHintIndex = roomData.currentHintIndex;
-    room.questionsPerGame = roomData.questionsPerGame;
-    room.maxPlayers = roomData.maxPlayers;
-    room.questionAnswered = roomData.questionAnswered;
-    room.createdAt = roomData.createdAt;
-    room.questions = roomData.questions;
-    room.health = roomData.health;
-    room.readyPlayers = roomData.readyPlayers;
-    room.eliminatedPlayers = roomData.eliminatedPlayers;
-
-    console.log(`📥 Loaded survival room ${roomId} from Redis`);
-    return room;
-  }
-
   handleConnection(socket) {
     this.connectedPlayers.set(socket.id, {
       socket,
       connectedAt: Date.now(),
       currentRoom: null,
-      roomType: null
+      roomType: null,
+      playerName: null
     });
 
-    // NEW: Save player to Redis
     if (this.redisService) {
       this.redisService.savePlayerInfo(socket.id, {
         connectedAt: Date.now(),
@@ -163,8 +108,6 @@ class GameManager {
         roomType: null
       });
     }
-
-    console.log(`🔗 Player connected: ${socket.id}`);
 
     socket.on('disconnect', () => {
       this.handleDisconnection(socket);
@@ -193,91 +136,203 @@ class GameManager {
 
   async handleDisconnection(socket) {
     const playerInfo = this.connectedPlayers.get(socket.id);
-    console.log(`🔗 Player disconnected: ${socket.id}`);
 
-    if (playerInfo && playerInfo.currentRoom) {
-      if (playerInfo.roomType === 'survival') {
-        const room = this.survivalRooms.get(playerInfo.currentRoom);
-        if (room) {
-          console.log(`🎯 Removing player from survival room: ${playerInfo.currentRoom}`);
-          room.removePlayer(socket.id);
+    if (!playerInfo || !playerInfo.currentRoom) {
+      this.connectedPlayers.delete(socket.id);
+      if (this.redisService) {
+        await this.redisService.deletePlayer(socket.id);
+      }
+      return;
+    }
 
-          // Save to Redis after player removal
-          if (this.redisService) {
-            await this.saveSurvivalRoomToRedis(room);
-          }
+    const room = playerInfo.roomType === 'survival'
+      ? this.survivalRooms.get(playerInfo.currentRoom)
+      : this.gameRooms.get(playerInfo.currentRoom);
 
-          if (room.players.length > 0) {
-            room.broadcast('playerUnready', {
-              playerId: socket.id,
-              readyPlayers: room.getReadyPlayerIds()
-            });
-          }
+    if (!room) {
+      this.connectedPlayers.delete(socket.id);
+      return;
+    }
 
-          if (room.players.length === 0) {
-            this.survivalRooms.delete(playerInfo.currentRoom);
-            // Delete from Redis
-            if (this.redisService) {
-              await this.redisService.deleteSurvivalRoom(playerInfo.currentRoom);
-            }
-            console.log(`🎯 Deleted empty survival room: ${playerInfo.currentRoom}`);
-          }
+    // If game is active, start grace period
+    if (room.gameState === 'playing') {
+      const player = room.players.find(p => p.id === socket.id);
+      const playerName = player?.name || playerInfo.playerName || 'Player';
+
+      // Pause the game
+      room.pauseGame(`${playerName} disconnected`);
+
+      room.broadcast('playerDisconnectedTemporary', {
+        playerId: socket.id,
+        playerName: playerName,
+        reconnectTimeLeft: this.RECONNECT_GRACE_PERIOD / 1000,
+        message: `${playerName} disconnected. Waiting ${this.RECONNECT_GRACE_PERIOD / 1000}s for reconnection...`
+      });
+
+      // Set grace period timer
+      const timerId = setTimeout(async () => {
+        await this.handlePermanentDisconnection(socket.id, playerInfo, room);
+      }, this.RECONNECT_GRACE_PERIOD);
+
+      this.disconnectionTimers.set(socket.id, timerId);
+
+    } else {
+      // In waiting/lobby state - remove immediately
+      await this.removePlayerFromRoom(socket.id, playerInfo, room);
+    }
+  }
+
+  async handleReconnection(socket, roomId) {
+    // Cancel disconnection timer if exists
+    const timerId = this.disconnectionTimers.get(socket.id);
+    if (timerId) {
+      clearTimeout(timerId);
+      this.disconnectionTimers.delete(socket.id);
+    }
+
+    const playerInfo = this.connectedPlayers.get(socket.id);
+    if (!playerInfo) return false;
+
+    const room = playerInfo.roomType === 'survival'
+      ? this.survivalRooms.get(roomId)
+      : this.gameRooms.get(roomId);
+
+    if (!room) return false;
+
+    // Update socket reference
+    const player = room.players.find(p => p.id === socket.id);
+    if (player) {
+      player.socket = socket;
+      playerInfo.socket = socket;
+
+      // Resume game
+      room.resumeGame();
+
+      room.broadcast('playerReconnected', {
+        playerId: socket.id,
+        playerName: player.name,
+        message: `${player.name} reconnected. Game resumed.`
+      });
+
+      if (this.redisService) {
+        if (playerInfo.roomType === 'survival') {
+          await this.saveSurvivalRoomToRedis(room);
+        } else {
+          await this.saveRoomToRedis(room);
+        }
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  async handlePermanentDisconnection(socketId, playerInfo, room) {
+    this.disconnectionTimers.delete(socketId);
+
+    const player = room.players.find(p => p.id === socketId);
+    const playerName = player?.name || 'Player';
+
+    room.broadcast('playerDisconnectedPermanent', {
+      playerId: socketId,
+      playerName: playerName,
+      message: `${playerName} did not reconnect.`
+    });
+
+    if (playerInfo.roomType === 'survival') {
+      room.removePlayer(socketId);
+
+      if (room.players.length === 0) {
+        this.survivalRooms.delete(playerInfo.currentRoom);
+        if (this.redisService) {
+          await this.redisService.deleteSurvivalRoom(playerInfo.currentRoom);
         }
       } else {
-        const room = this.gameRooms.get(playerInfo.currentRoom);
-        if (room) {
-          room.removePlayer(socket.id);
-
-          // Save to Redis after player removal
-          if (this.redisService) {
-            await this.saveRoomToRedis(room);
-          }
-
-          if (room.players.length > 0) {
-            room.broadcast('playerDisconnected', {
-              disconnectedPlayer: socket.id
-            });
-          }
-
-          if (room.players.length === 0) {
-            this.gameRooms.delete(playerInfo.currentRoom);
-            // Delete from Redis
-            if (this.redisService) {
-              await this.redisService.deleteRoom(playerInfo.currentRoom);
-            }
-          }
+        // Resume game for remaining players
+        room.resumeGame();
+        if (this.redisService) {
+          await this.saveSurvivalRoomToRedis(room);
         }
+      }
+    } else {
+      // 1v1: Award win to remaining player
+      room.removePlayer(socketId);
+
+      if (room.players.length === 1) {
+        room.endGame();
+      }
+
+      if (room.players.length === 0) {
+        this.gameRooms.delete(playerInfo.currentRoom);
+        if (this.redisService) {
+          await this.redisService.deleteRoom(playerInfo.currentRoom);
+        }
+      } else if (this.redisService) {
+        await this.saveRoomToRedis(room);
       }
     }
 
-    this.connectedPlayers.delete(socket.id);
-
-    // Delete player from Redis
+    this.connectedPlayers.delete(socketId);
     if (this.redisService) {
-      await this.redisService.deletePlayer(socket.id);
+      await this.redisService.deletePlayer(socketId);
+    }
+  }
+
+  async removePlayerFromRoom(socketId, playerInfo, room) {
+    room.removePlayer(socketId);
+
+    if (playerInfo.roomType === 'survival') {
+      if (room.players.length > 0) {
+        room.broadcast('playerUnready', {
+          playerId: socketId,
+          readyPlayers: room.getReadyPlayerIds()
+        });
+      }
+
+      if (room.players.length === 0) {
+        this.survivalRooms.delete(playerInfo.currentRoom);
+        if (this.redisService) {
+          await this.redisService.deleteSurvivalRoom(playerInfo.currentRoom);
+        }
+      } else if (this.redisService) {
+        await this.saveSurvivalRoomToRedis(room);
+      }
+    } else {
+      if (room.players.length > 0) {
+        room.broadcast('playerDisconnected', {
+          disconnectedPlayer: socketId
+        });
+      }
+
+      if (room.players.length === 0) {
+        this.gameRooms.delete(playerInfo.currentRoom);
+        if (this.redisService) {
+          await this.redisService.deleteRoom(playerInfo.currentRoom);
+        }
+      } else if (this.redisService) {
+        await this.saveRoomToRedis(room);
+      }
+    }
+
+    this.connectedPlayers.delete(socketId);
+    if (this.redisService) {
+      await this.redisService.deletePlayer(socketId);
     }
   }
 
   async handlePlayerReady(socket) {
     const playerInfo = this.connectedPlayers.get(socket.id);
     if (!playerInfo || !playerInfo.currentRoom || playerInfo.roomType !== 'survival') {
-      console.log(`❌ Player ${socket.id} tried to ready but not in survival room`);
       return;
     }
 
     const room = this.survivalRooms.get(playerInfo.currentRoom);
-    if (!room) {
-      console.log(`❌ Room not found for player ${socket.id}`);
-      return;
-    }
+    if (!room) return;
 
     const success = room.setPlayerReady(socket.id, true);
-    if (!success) {
-      console.log(`❌ Failed to set player ${socket.id} as ready`);
-      return;
-    }
+    if (!success) return;
 
-    // Save to Redis after ready state change
     if (this.redisService) {
       await this.saveSurvivalRoomToRedis(room);
     }
@@ -287,20 +342,14 @@ class GameManager {
       readyPlayers: room.getReadyPlayerIds()
     });
 
-    console.log(`✅ Player ${socket.id} is ready (${room.readyPlayers.size}/${room.players.length})`);
-
     if (room.areAllPlayersReady()) {
-      console.log(`🚀 ALL PLAYERS READY in room ${room.id} - Starting game!`);
       room.broadcast('allPlayersReady');
 
       setTimeout(async () => {
         if (room.canStartGame() && room.gameState === 'waiting') {
-          const started = room.startGame();
-          if (started && this.redisService) {
+          room.startGame();
+          if (this.redisService) {
             await this.saveSurvivalRoomToRedis(room);
-          }
-          if (!started) {
-            console.error(`❌ Failed to start game in room ${room.id}`);
           }
         }
       }, 3000);
@@ -318,7 +367,6 @@ class GameManager {
 
     room.setPlayerReady(socket.id, false);
 
-    // Save to Redis after unready state change
     if (this.redisService) {
       await this.saveSurvivalRoomToRedis(room);
     }
@@ -327,8 +375,6 @@ class GameManager {
       playerId: socket.id,
       readyPlayers: room.getReadyPlayerIds()
     });
-
-    console.log(`⏳ Player ${socket.id} is NOT ready (${room.readyPlayers.size}/${room.players.length})`);
   }
 
   async findMatch(socket, playerData) {
@@ -338,8 +384,6 @@ class GameManager {
       personalCategory = 'general',
       personalCategoryName = 'General Knowledge'
     } = playerData;
-
-    console.log(`🎯 Finding regular match for ${playerName} (${gameMode})`);
 
     let availableRoom = null;
     for (const room of this.gameRooms.values()) {
@@ -367,14 +411,13 @@ class GameManager {
         if (playerInfo) {
           playerInfo.currentRoom = availableRoom.id;
           playerInfo.roomType = 'regular';
+          playerInfo.playerName = playerName;
 
-          // Save player info to Redis
           if (this.redisService) {
             await this.redisService.savePlayerInfo(socket.id, playerInfo);
           }
         }
 
-        // Save room to Redis
         if (this.redisService) {
           await this.saveRoomToRedis(availableRoom);
         }
@@ -416,7 +459,6 @@ class GameManager {
       }
     }
 
-    // Create new room
     const roomId = uuidv4().split('-')[0].toUpperCase();
     const gameRoom = new GameRoom(roomId, this.questionsData, personalCategory, gameMode);
 
@@ -428,14 +470,13 @@ class GameManager {
       if (playerInfo) {
         playerInfo.currentRoom = roomId;
         playerInfo.roomType = 'regular';
+        playerInfo.playerName = playerName;
 
-        // Save player info to Redis
         if (this.redisService) {
           await this.redisService.savePlayerInfo(socket.id, playerInfo);
         }
       }
 
-      // Save new room to Redis
       if (this.redisService) {
         await this.saveRoomToRedis(gameRoom);
       }
@@ -454,7 +495,6 @@ class GameManager {
           }
           this.gameRooms.delete(roomId);
 
-          // Delete from Redis
           if (this.redisService) {
             await this.redisService.deleteRoom(roomId);
           }
@@ -471,13 +511,10 @@ class GameManager {
       personalCategoryName = 'General Knowledge'
     } = playerData;
 
-    console.log(`🎯 Finding survival match for ${playerName}`);
-
     let availableRoom = null;
     for (const room of this.survivalRooms.values()) {
       if (room.gameState === 'waiting' && room.players.length < room.maxPlayers) {
         availableRoom = room;
-        console.log(`🎯 Found available survival room: ${room.id} (${room.players.length}/${room.maxPlayers})`);
         break;
       }
     }
@@ -489,19 +526,16 @@ class GameManager {
         if (playerInfo) {
           playerInfo.currentRoom = availableRoom.id;
           playerInfo.roomType = 'survival';
+          playerInfo.playerName = playerName;
 
-          // Save player info to Redis
           if (this.redisService) {
             await this.redisService.savePlayerInfo(socket.id, playerInfo);
           }
         }
 
-        // Save room to Redis
         if (this.redisService) {
           await this.saveSurvivalRoomToRedis(availableRoom);
         }
-
-        console.log(`🎯 Player ${playerName} joined survival room ${availableRoom.id} (${availableRoom.players.length}/${availableRoom.maxPlayers})`);
 
         const players = availableRoom.players.map(p => ({
           id: p.id,
@@ -520,13 +554,10 @@ class GameManager {
           }
         });
 
-        console.log(`🎯 Sent matchFound to ${availableRoom.players.length} players - they should be in lobby now`);
-
         return;
       }
     }
 
-    // Create new survival room
     const roomId = `SURVIVAL-${uuidv4().split('-')[0].toUpperCase()}`;
     const survivalRoom = new SurvivalRoom(roomId, this.questionsData, personalCategory, gameMode);
 
@@ -538,19 +569,16 @@ class GameManager {
       if (playerInfo) {
         playerInfo.currentRoom = roomId;
         playerInfo.roomType = 'survival';
+        playerInfo.playerName = playerName;
 
-        // Save player info to Redis
         if (this.redisService) {
           await this.redisService.savePlayerInfo(socket.id, playerInfo);
         }
       }
 
-      // Save new survival room to Redis
       if (this.redisService) {
         await this.saveSurvivalRoomToRedis(survivalRoom);
       }
-
-      console.log(`🎯 Created new survival room ${roomId} for player ${playerName}`);
 
       socket.emit('waitingForMatch', {
         roomId,
@@ -563,7 +591,6 @@ class GameManager {
 
       setTimeout(async () => {
         if (survivalRoom.players.length < 2 && survivalRoom.gameState === 'waiting') {
-          console.log(`🎯 Auto-cleaning up survival room ${roomId} due to timeout`);
           survivalRoom.players.forEach(player => {
             if (player.socket && player.socket.connected) {
               player.socket.emit('matchTimeout');
@@ -571,7 +598,6 @@ class GameManager {
           });
           this.survivalRooms.delete(roomId);
 
-          // Delete from Redis
           if (this.redisService) {
             await this.redisService.deleteSurvivalRoom(roomId);
           }
@@ -599,7 +625,6 @@ class GameManager {
 
     room.handleGuess(socket.id, guess);
 
-    // Save room state to Redis after guess
     if (this.redisService) {
       if (playerInfo.roomType === 'survival') {
         await this.saveSurvivalRoomToRedis(room);
@@ -631,6 +656,7 @@ class GameManager {
     const roomStats = {
       waiting: 0,
       playing: 0,
+      paused: 0,
       finished: 0,
       general: 0,
       category: 0,
@@ -646,8 +672,6 @@ class GameManager {
       roomStats[room.gameState] = (roomStats[room.gameState] || 0) + 1;
       roomStats.survival = (roomStats.survival || 0) + 1;
     }
-
-    console.log(`📊 GameManager Stats: ${totalPlayers} players, ${totalRooms} rooms (${roomStats.survival} survival)`);
 
     return {
       totalRooms,
@@ -677,7 +701,6 @@ class GameManager {
     }
 
     for (const roomId of regularRoomsToDelete) {
-      console.log(`🗑️ Cleaning up empty regular room: ${roomId}`);
       this.gameRooms.delete(roomId);
       if (this.redisService) {
         await this.redisService.deleteRoom(roomId);
@@ -685,29 +708,25 @@ class GameManager {
     }
 
     for (const roomId of survivalRoomsToDelete) {
-      console.log(`🗑️ Cleaning up empty survival room: ${roomId}`);
       this.survivalRooms.delete(roomId);
       if (this.redisService) {
         await this.redisService.deleteSurvivalRoom(roomId);
       }
     }
-
-    if (regularRoomsToDelete.length > 0 || survivalRoomsToDelete.length > 0) {
-      console.log(`🗑️ Cleaned up ${regularRoomsToDelete.length} regular rooms and ${survivalRoomsToDelete.length} survival rooms`);
-    }
   }
 
   async shutdown() {
-    console.log('🔥 GameManager shutting down...');
-
-    // Stop auto-save interval
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval);
     }
 
-    // Final save to Redis before shutdown
+    // Clear all disconnection timers
+    for (const timerId of this.disconnectionTimers.values()) {
+      clearTimeout(timerId);
+    }
+    this.disconnectionTimers.clear();
+
     if (this.redisService) {
-      console.log('💾 Final save to Redis before shutdown...');
       await this.saveAllRoomsToRedis();
     }
 
@@ -732,8 +751,6 @@ class GameManager {
     this.gameRooms.clear();
     this.survivalRooms.clear();
     this.connectedPlayers.clear();
-
-    console.log('🔥 GameManager shutdown complete');
   }
 
   getSurvivalRoomsInfo() {
@@ -749,22 +766,6 @@ class GameManager {
       });
     }
     return roomsInfo;
-  }
-
-  logDebugInfo() {
-    console.log('🎯 === GAMEMANAGER DEBUG INFO ===');
-    console.log(`Connected Players: ${this.connectedPlayers.size}`);
-    console.log(`Regular Rooms: ${this.gameRooms.size}`);
-    console.log(`Survival Rooms: ${this.survivalRooms.size}`);
-    console.log(`Redis Persistence: ${this.redisService ? 'ENABLED ✅' : 'DISABLED ❌'}`);
-
-    if (this.survivalRooms.size > 0) {
-      console.log('🎯 Survival Rooms Details:');
-      this.getSurvivalRoomsInfo().forEach(room => {
-        console.log(`  - ${room.id}: ${room.players}/${room.maxPlayers} players (${room.state}) - Ready: ${room.readyCount} - [${room.playerNames.join(', ')}]`);
-      });
-    }
-    console.log('🎯 ================================');
   }
 }
 
