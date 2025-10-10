@@ -170,6 +170,28 @@ app.get('/admin/stats', (req, res) => {
   });
 });
 
+ app.get('/admin/redis-connections', async (req, res) => {
+  if (!redisService) {
+    return res.json({ error: 'Redis not connected' });
+  }
+
+  try {
+    // Get client info
+    const clientInfo = await redisService.client.client('LIST');
+    const lines = clientInfo.split('\n').filter(line => line.trim());
+
+    res.json({
+      totalConnections: lines.length,
+      maxConnections: 50, // Free tier limit
+      available: 50 - lines.length,
+      percentUsed: ((lines.length / 50) * 100).toFixed(1) + '%',
+      connectionDetails: lines.slice(0, 10) // Show first 10
+    });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
+});
+
 io.on('connection', (socket) => {
   if (!isInitialized || !gameManager) {
     socket.emit('serverError', { message: 'Server initializing' });

@@ -93,7 +93,6 @@ class GameManager {
     return await this.redisService.saveSurvivalRoom(room.id, roomData);
   }
 
-  // CRITICAL: THIS METHOD WAS MISSING!
   handleConnection(socket) {
     socket.on('checkReconnect', ({ playerName }) => {
       if (!playerName) {
