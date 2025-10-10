@@ -27,7 +27,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [playerStats, setPlayerStats] = useState({});
 
-  // Reconnection & Pause states
   const [isPaused, setIsPaused] = useState(false);
   const [pauseReason, setPauseReason] = useState('');
   const [reconnectCountdown, setReconnectCountdown] = useState(0);
@@ -123,7 +122,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       if (!mountedRef.current) return;
       setMyPlayerId(socket.id);
       setConnectionError(false);
-      socket.emit('checkReconnect');
+      socket.emit('checkReconnect', { playerName });
       setGameState('matchmaking');
     });
 
@@ -166,6 +165,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       });
       setHealth(data.health);
       setPlayers(data.players);
+      setMyPlayerId(socket.id);
     });
 
     socket.on('reconnectFailed', ({ reason }) => {
@@ -393,7 +393,10 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
   const handleReconnect = () => {
     if (reconnectInfo && socketRef.current) {
-      socketRef.current.emit('reconnectToGame', { roomId: reconnectInfo.roomId });
+      socketRef.current.emit('reconnectToGame', {
+        roomId: reconnectInfo.roomId,
+        playerName: playerName
+      });
       setGameState('connecting');
     }
   };
@@ -460,7 +463,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     return finalHealth[playerId] || health[playerId] || 0;
   };
 
-  // Reconnection Screen
   if (gameState === 'reconnect-available' && reconnectInfo) {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
@@ -493,7 +495,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Mode Selection
   if (gameState === 'mode-selection') {
     return (
       <ModeSelector
@@ -504,7 +505,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Category Selection
   if (gameState === 'category-selection') {
     return (
       <CategorySelector
@@ -515,7 +515,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Connection Error
   if (connectionError) {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
@@ -548,7 +547,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Connecting
   if (gameState === 'connecting') {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
@@ -572,7 +570,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Matchmaking
   if (gameState === 'matchmaking') {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
@@ -663,7 +660,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Waiting for Match
   if (gameState === 'waiting') {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
@@ -688,7 +684,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Game Finished
   if (gameState === 'finished') {
     const results = gameData?.results || [];
     const winner = results[0];
@@ -775,7 +770,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     );
   }
 
-  // Playing
   if (gameState === 'playing' && currentTarget) {
     const opponent = players.find(p => p.name !== playerName);
     const myHealth = health[players.find(p => p.name === playerName)?.id] || 5000;
@@ -785,7 +779,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
 
     return (
       <div className="relative z-20 min-h-screen p-2 sm:p-4">
-        {/* Pause Overlay */}
         {isPaused && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
             <div className="bg-white p-6 sm:p-8 rounded-lg shadow-2xl max-w-md w-full mx-4 text-center">
