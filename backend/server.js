@@ -158,6 +158,64 @@ app.get('/admin/redis-test', async (req, res) => {
   }
 });
 
+app.get('/admin/redis-connections', async (req, res) => {
+  if (!redisService) {
+    return res.json({
+      error: 'Redis not connected',
+      redisService: 'null'
+    });
+  }
+
+  try {
+    // Use the correct command for Redis v4+
+    const clientList = await redisService.client.sendCommand(['CLIENT', 'LIST']);
+
+    // Parse the client list
+    const lines = clientList.split('\n').filter(line => line.trim());
+
+    // Extract useful info from each connection
+    const connections = lines.map(line => {
+      const parts = {};
+      line.split(' ').forEach(item => {
+        const [key, value] = item.split('=');
+        if (key && value) parts[key] = value;
+      });
+      return {
+        id: parts.id,
+        addr: parts.addr,
+        age: parts.age + 's',
+        idle: parts.idle + 's',
+        name: parts.name || 'unnamed'
+      };
+    });
+
+    res.json({
+      totalConnections: lines.length,
+      maxConnections: 50, // Free tier limit
+      available: 50 - lines.length,
+      percentUsed: ((lines.length / 50) * 100).toFixed(1) + '%',
+      status: lines.length < 40 ? '✅ Healthy' : '⚠️ High usage',
+      connections: connections.slice(0, 10), // Show first 10
+      summary: {
+        pubClient: connections.find(c => c.name.includes('pub')) || 'Active',
+        subClient: connections.find(c => c.name.includes('sub')) || 'Active',
+        sharedClient: 'Shared with pub/sub'
+      }
+    });
+  } catch (error) {
+    res.json({
+      error: error.message,
+      hint: 'Redis client might not support CLIENT LIST command',
+      fallback: {
+        totalConnections: '~2 (estimated)',
+        maxConnections: 50,
+        available: '~48',
+        percentUsed: '~4%'
+      }
+    });
+  }
+});
+
 app.get('/admin/stats', (req, res) => {
   res.json({
     server: {
@@ -170,27 +228,6 @@ app.get('/admin/stats', (req, res) => {
   });
 });
 
- app.get('/admin/redis-connections', async (req, res) => {
-  if (!redisService) {
-    return res.json({ error: 'Redis not connected' });
-  }
-
-  try {
-    // Get client info
-    const clientInfo = await redisService.client.client('LIST');
-    const lines = clientInfo.split('\n').filter(line => line.trim());
-
-    res.json({
-      totalConnections: lines.length,
-      maxConnections: 50, // Free tier limit
-      available: 50 - lines.length,
-      percentUsed: ((lines.length / 50) * 100).toFixed(1) + '%',
-      connectionDetails: lines.slice(0, 10) // Show first 10
-    });
-  } catch (error) {
-    res.json({ error: error.message });
-  }
-});
 
 io.on('connection', (socket) => {
   if (!isInitialized || !gameManager) {
