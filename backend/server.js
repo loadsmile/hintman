@@ -19,12 +19,6 @@ try {
   process.exit(1);
 }
 
-const gameRoomPath = path.resolve(__dirname, './src/models/GameRoom');
-delete require.cache[gameRoomPath];
-
-const gameManagerPath = path.resolve(__dirname, './src/services/GameManager');
-delete require.cache[gameManagerPath];
-
 const GameManager = require('./src/services/GameManager');
 
 const app = express();
@@ -57,10 +51,7 @@ const io = socketIo(server, {
 });
 
 const PROD_REDIS_URL = 'redis://red-d3jnigvfte5s73fuedh0:6379';
-
-const REDIS_URL =
-  process.env.REDIS_URL ||
-  (process.env.NODE_ENV === 'production' ? PROD_REDIS_URL : 'redis://localhost:6379');
+const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === 'production' ? PROD_REDIS_URL : 'redis://localhost:6379');
 
 const redisConn = url.parse(REDIS_URL);
 const redisOpts = {
@@ -75,11 +66,19 @@ if (redisConn.protocol === 'rediss:') {
 }
 io.adapter(redisAdapter(redisOpts));
 
-let redisService;
-let gameManager;
+let redisService = null;
+let gameManager = null;
+let isInitialized = false;
 
 async function initializeServices() {
+  if (isInitialized) {
+    console.log('⚠️  Services already initialized');
+    return true;
+  }
+
   try {
+    console.log('🔄 Initializing services...');
+
     redisService = new RedisService(REDIS_URL);
     await redisService.connect();
     console.log('✅ RedisService connected');
@@ -87,11 +86,16 @@ async function initializeServices() {
     gameManager = new GameManager(questionsData, redisService);
     console.log('✅ GameManager initialized');
 
+    isInitialized = true;
     return true;
   } catch (error) {
-    console.error('❌ Failed to initialize services:', error);
+    console.error('❌ Redis initialization failed:', error.message);
     console.warn('⚠️  Starting without Redis persistence');
+
     gameManager = new GameManager(questionsData, null);
+    console.log('✅ GameManager initialized (without Redis)');
+
+    isInitialized = true;
     return false;
   }
 }
@@ -101,6 +105,7 @@ app.get('/health', (req, res) => {
     const stats = gameManager ? gameManager.getStats() : {};
     res.status(200).json({
       status: 'healthy',
+      initialized: isInitialized,
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
       memory: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
@@ -111,10 +116,9 @@ app.get('/health', (req, res) => {
       redisPersistence: redisService ? 'enabled' : 'disabled'
     });
   } catch (error) {
-    console.error('Health check error:', error);
     res.status(500).json({
       status: 'error',
-      timestamp: new Date().toISOString(),
+      initialized: isInitialized,
       error: error.message
     });
   }
@@ -124,9 +128,8 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Hintman Backend Server',
     version: '1.0.0',
+    initialized: isInitialized,
     timestamp: new Date().toISOString(),
-    endpoints: ['/health', '/admin/stats'],
-    websocket: 'enabled',
     questionsLoaded: questionsData.length,
     redisPersistence: redisService ? 'enabled' : 'disabled'
   });
@@ -138,12 +141,13 @@ app.get('/admin/stats', (req, res) => {
       server: {
         uptime: Math.floor(process.uptime()),
         memory: process.memoryUsage(),
+        initialized: isInitialized,
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'production',
         nodeVersion: process.version,
         redisPersistence: redisService ? 'enabled' : 'disabled'
       },
-      game: gameManager ? gameManager.getStats() : {}
+      game: gameManager ? gameManager.getStats() : { error: 'GameManager not initialized' }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -153,16 +157,20 @@ app.get('/admin/stats', (req, res) => {
 io.on('connection', (socket) => {
   console.log('🔗 Player connected:', socket.id);
 
+  if (!isInitialized || !gameManager) {
+    console.error('❌ Server not ready - GameManager not initialized');
+    socket.emit('serverError', {
+      message: 'Server is initializing. Please wait a moment and try again.',
+      code: 'SERVER_INITIALIZING'
+    });
+    setTimeout(() => socket.disconnect(), 1000);
+    return;
+  }
+
   try {
-    if (gameManager && typeof gameManager.handleConnection === 'function') {
-      gameManager.handleConnection(socket);
-    } else {
-      console.error('❌ GameManager not ready or handleConnection not available');
-      socket.emit('connectionError', { message: 'Server initializing, please retry' });
-      socket.disconnect();
-    }
+    gameManager.handleConnection(socket);
   } catch (error) {
-    console.error('Error in GameManager.handleConnection:', error);
+    console.error('❌ Error in handleConnection:', error);
     socket.emit('connectionError', { message: 'Failed to initialize connection' });
   }
 
@@ -183,17 +191,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('error', (error) => {
-    console.error('⚠️  Socket error for', socket.id, ':', error);
+    console.error('⚠️  Socket error:', socket.id, error);
   });
 });
 
 io.engine.on('connection_error', (err) => {
-  console.log('🚨 Socket.IO connection error:');
-  console.log('  Request:', err.req?.url);
-  console.log('  Origin:', err.req?.headers?.origin);
-  console.log('  Error code:', err.code);
-  console.log('  Error message:', err.message);
-  console.log('  Error context:', err.context);
+  if (err.code === 1 && err.message === 'Session ID unknown') {
+    return;
+  }
+  console.log('🚨 Socket.IO connection error:', err.message);
 });
 
 app.use((err, req, res, next) => {
@@ -207,45 +213,40 @@ app.use((err, req, res, next) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Not Found',
-    path: req.originalUrl,
-    method: req.method
+    path: req.originalUrl
   });
 });
 
 async function gracefulShutdown(signal) {
-  console.log(`\n🔄 Received ${signal}, starting graceful shutdown...`);
+  console.log(`\n🔄 Received ${signal}, shutting down...`);
 
-  try {
-    if (gameManager) {
+  if (gameManager) {
+    try {
       await gameManager.shutdown();
-      console.log('✅ GameManager shutdown complete');
+      console.log('✅ GameManager shutdown');
+    } catch (error) {
+      console.error('❌ GameManager shutdown error:', error);
     }
-  } catch (error) {
-    console.error('❌ Error during GameManager shutdown:', error);
   }
 
-  try {
-    if (redisService) {
+  if (redisService) {
+    try {
       await redisService.disconnect();
       console.log('✅ Redis disconnected');
+    } catch (error) {
+      console.error('❌ Redis disconnect error:', error);
     }
-  } catch (error) {
-    console.error('❌ Error disconnecting Redis:', error);
   }
 
   server.close((err) => {
-    if (err) {
-      console.error('❌ Error closing HTTP server:', err);
-    } else {
-      console.log('🔒 HTTP server closed');
-    }
+    console.log(err ? '❌ Server close error' : '✅ Server closed');
     process.exit(err ? 1 : 0);
   });
 
   setTimeout(() => {
-    console.log('⏰ Forcing shutdown after timeout');
+    console.log('⏰ Force exit');
     process.exit(1);
-  }, 30000);
+  }, 10000);
 }
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
@@ -253,41 +254,35 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
   console.error('💥 Uncaught Exception:', err);
-  console.error('Stack:', err.stack);
   gracefulShutdown('uncaughtException');
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('💥 Unhandled Rejection at:', promise);
-  console.error('Reason:', reason);
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 Unhandled Rejection:', reason);
   gracefulShutdown('unhandledRejection');
 });
 
 const PORT = process.env.PORT || 10000;
 
-// CRITICAL: Wait for services to initialize before starting server
-initializeServices()
-  .then(() => {
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log('🎯 HINTMAN SERVER STARTUP');
-      console.log('========================');
-      console.log('🚀 Server running on port:', PORT);
-      console.log('🌍 Environment:', process.env.NODE_ENV || 'production');
-      console.log('📊 Questions loaded:', questionsData.length);
-      console.log('💾 Memory usage:', `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-      console.log('🌐 CORS enabled');
-      console.log('💾 Redis Persistence:', redisService ? 'ENABLED ✅' : 'DISABLED ❌');
-      console.log('✅ GameManager ready');
-      console.log('========================');
-      console.log('🎯 Server ready to accept connections!');
-    }).on('error', (err) => {
-      console.error('❌ Failed to start server:', err);
-      process.exit(1);
-    });
-  })
-  .catch((err) => {
-    console.error('❌ Fatal error during initialization:', err);
-    process.exit(1);
-  });
+async function startServer() {
+  try {
+    await initializeServices();
 
-module.exports = { app, server, io, gameManager, redisService };
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log('\n🎯 HINTMAN SERVER STARTED');
+      console.log('========================');
+      console.log('🚀 Port:', PORT);
+      console.log('📊 Questions:', questionsData.length);
+      console.log('💾 Redis:', redisService ? 'ENABLED ✅' : 'DISABLED ❌');
+      console.log('✅ GameManager: READY');
+      console.log('========================\n');
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
+
+module.exports = { app, server, io };
