@@ -93,63 +93,69 @@ class GameManager {
     return await this.redisService.saveSurvivalRoom(room.id, roomData);
   }
 
-  handleConnection(socket) {
-    socket.on('checkReconnect', ({ playerName }) => {
-      if (!playerName) {
-        socket.emit('canReconnect', { canReconnect: false });
-        return;
-      }
+  async handleReconnection(socket, roomId, playerName) {
+    const reconnectKey = `${playerName}:${roomId}`;
+    const reconnectInfo = this.disconnectedPlayers.get(reconnectKey);
 
-      for (const [key, reconnectInfo] of this.disconnectedPlayers.entries()) {
-        if (reconnectInfo.playerName === playerName) {
-          const timeRemaining = this.RECONNECT_GRACE_PERIOD - (Date.now() - reconnectInfo.disconnectedAt);
+    if (!reconnectInfo) {
+      socket.emit('reconnectFailed', { reason: 'No active game found' });
+      return;
+    }
 
-          if (timeRemaining > 0) {
-            socket.emit('canReconnect', {
-              roomId: reconnectInfo.roomId,
-              roomType: reconnectInfo.roomType,
-              playerName: reconnectInfo.playerName,
-              timeRemaining: timeRemaining,
-              canReconnect: true
-            });
-            return;
-          }
-        }
-      }
+    const timerId = this.disconnectionTimers.get(reconnectKey);
+    if (timerId) {
+      clearTimeout(timerId);
+      this.disconnectionTimers.delete(reconnectKey);
+    }
 
-      socket.emit('canReconnect', { canReconnect: false });
-    });
+    this.disconnectedPlayers.delete(reconnectKey);
 
-    socket.on('reconnectToGame', ({ roomId, playerName }) => {
-      this.handleReconnection(socket, roomId, playerName);
-    });
+    const room = reconnectInfo.roomType === 'survival'
+      ? this.survivalRooms.get(roomId)
+      : this.gameRooms.get(roomId);
 
-    this.connectedPlayers.set(socket.id, {
-      socket,
-      connectedAt: Date.now(),
-      currentRoom: null,
-      roomType: null,
-      playerName: null
-    });
+    if (!room) {
+      socket.emit('reconnectFailed', { reason: 'Game no longer exists' });
+      return;
+    }
 
-    if (this.redisService) {
-      this.redisService.savePlayerInfo(socket.id, {
+    const player = room.players.find(p => p.id === reconnectInfo.oldSocketId);
+    if (!player) {
+      socket.emit('reconnectFailed', { reason: 'Player not found in game' });
+      return;
+    }
+
+    player.id = socket.id;
+    player.socket = socket;
+
+    if (room.health[reconnectInfo.oldSocketId] !== undefined) {
+      room.health[socket.id] = room.health[reconnectInfo.oldSocketId];
+      delete room.health[reconnectInfo.oldSocketId];
+    }
+
+    let playerInfo = this.connectedPlayers.get(socket.id);
+    if (!playerInfo) {
+      playerInfo = {
+        socket,
         connectedAt: Date.now(),
-        currentRoom: null,
-        roomType: null
-      });
+        currentRoom: roomId,
+        roomType: reconnectInfo.roomType,
+        playerName: playerName
+      };
+      this.connectedPlayers.set(socket.id, playerInfo);
+    } else {
+      playerInfo.socket = socket;
+      playerInfo.currentRoom = roomId;
+      playerInfo.roomType = reconnectInfo.roomType;
+      playerInfo.playerName = playerName;
     }
 
     socket.on('disconnect', () => {
       this.handleDisconnection(socket);
     });
 
-    socket.on('findMatch', (playerData) => {
-      this.findMatch(socket, playerData);
-    });
-
-    socket.on('findSurvivalMatch', (playerData) => {
-      this.findSurvivalMatch(socket, playerData);
+    socket.on('submitGuess', ({ guess }) => {
+      this.handleGuess(socket, guess);
     });
 
     socket.on('playerReady', () => {
@@ -160,9 +166,66 @@ class GameManager {
       this.handlePlayerUnready(socket);
     });
 
-    socket.on('submitGuess', ({ guess }) => {
-      this.handleGuess(socket, guess);
+    room.resumeGame();
+
+    room.broadcast('playerReconnected', {
+      playerId: socket.id,
+      playerName: playerName,
+      message: `${playerName} reconnected. Game resumed.`
     });
+
+    // Build hints array from current question
+    const question = room.questions[room.currentQuestion];
+    const revealedHints = [];
+    for (let i = 0; i < room.currentHintIndex; i++) {
+      if (question && i < question.getTotalHints()) {
+        revealedHints.push({
+          index: i,
+          text: question.getHint(i)
+        });
+      }
+    }
+
+    // Get player stats (for Mission Tracker accuracy)
+    const getPlayerStats = () => {
+      const stats = {};
+      room.players.forEach(p => {
+        stats[p.id] = {
+          correctAnswers: 0,
+          mistakes: 0,
+          name: p.name
+        };
+      });
+      return stats;
+    };
+
+    socket.emit('reconnectSuccess', {
+      roomId: roomId,
+      gameState: room.gameState,
+      currentQuestion: room.currentQuestion + 1,
+      totalQuestions: room.questionsPerGame,
+      health: room.health,
+      players: room.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        health: room.health[p.id],
+        gameMode: p.gameMode,
+        personalCategory: p.personalCategory
+      })),
+      category: question?.category,
+      difficulty: question?.difficulty,
+      currentHints: room.currentHintIndex,
+      hints: revealedHints, // Send all revealed hints
+      playerStats: getPlayerStats() // Send player stats for accuracy tracking
+    });
+
+    if (this.redisService) {
+      if (reconnectInfo.roomType === 'survival') {
+        await this.saveSurvivalRoomToRedis(room);
+      } else {
+        await this.saveRoomToRedis(room);
+      }
+    }
   }
 
   async handleDisconnection(socket) {

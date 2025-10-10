@@ -166,6 +166,16 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setHealth(data.health);
       setPlayers(data.players);
       setMyPlayerId(socket.id);
+
+      // Restore hints
+      if (data.hints && Array.isArray(data.hints)) {
+        setHints(data.hints);
+      }
+
+      // Restore player stats for Mission Tracker
+      if (data.playerStats) {
+        setPlayerStats(data.playerStats);
+      }
     });
 
     socket.on('reconnectFailed', ({ reason }) => {
