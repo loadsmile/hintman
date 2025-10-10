@@ -1,12 +1,15 @@
 require('dotenv').config();
 
 const express = require('express');
-const http = require('http');
+const http = require('server');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const redisAdapter = require('socket.io-redis');
 const url = require('url');
+
+// NEW: Import RedisService
+const RedisService = require('./src/services/RedisService');
 
 // Import questions data
 let questionsData;
@@ -18,17 +21,15 @@ try {
   process.exit(1);
 }
 
-// Force clear require cache to ensure latest GameRoom.js is loaded
+// Force clear require cache
 const gameRoomPath = path.resolve(__dirname, './src/models/GameRoom');
 delete require.cache[gameRoomPath];
 console.log('🔄 Cleared GameRoom cache, loading fresh version...');
 
-// Clear GameManager cache too
 const gameManagerPath = path.resolve(__dirname, './src/services/GameManager');
 delete require.cache[gameManagerPath];
 console.log('🔄 Cleared GameManager cache, loading fresh version...');
 
-// Import GameManager
 const GameManager = require('./src/services/GameManager');
 
 const app = express();
@@ -62,18 +63,15 @@ const io = socketIo(server, {
   pingInterval: 25000
 });
 
-// ---- REDIS ADAPTER AUTO-CONFIG ----
+// ==== REDIS CONFIGURATION ====
 
-/**
- * Prefers REDIS_URL from env (i.e. in Render production)
- * Otherwise, falls back to your provided URL, otherwise to localhost for local dev
- */
 const PROD_REDIS_URL = 'redis://red-d3jnigvfte5s73fuedh0:6379';
 
 const REDIS_URL =
   process.env.REDIS_URL ||
   (process.env.NODE_ENV === 'production' ? PROD_REDIS_URL : 'redis://localhost:6379');
 
+// Socket.IO Redis adapter setup
 const redisConn = url.parse(REDIS_URL);
 const redisOpts = {
   host: redisConn.hostname,
@@ -83,32 +81,53 @@ if (redisConn.auth) {
   redisOpts.auth_pass = redisConn.auth.split(':')[1];
 }
 if (redisConn.protocol === 'rediss:') {
-  redisOpts.tls = {}; // For SSL, if using rediss://
+  redisOpts.tls = {};
 }
 io.adapter(redisAdapter(redisOpts));
 
+// NEW: Initialize RedisService for state persistence
+let redisService;
 let gameManager;
-try {
-  gameManager = new GameManager(questionsData);
-  console.log('✅ GameManager initialized successfully');
-} catch (error) {
-  console.error('❌ Failed to initialize GameManager:', error);
-  process.exit(1);
+
+async function initializeServices() {
+  try {
+    // Initialize Redis service
+    redisService = new RedisService(REDIS_URL);
+    await redisService.connect();
+    console.log('✅ RedisService connected and ready');
+
+    // Initialize GameManager with Redis
+    gameManager = new GameManager(questionsData, redisService);
+    console.log('✅ GameManager initialized with Redis persistence');
+
+    console.log('🎯 All services initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize services:', error);
+    console.warn('⚠️  Starting without Redis persistence');
+    gameManager = new GameManager(questionsData, null);
+  }
 }
+
+// Initialize services before starting server
+initializeServices().catch(err => {
+  console.error('❌ Fatal error during initialization:', err);
+  process.exit(1);
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   try {
-    const stats = gameManager.getStats();
+    const stats = gameManager ? gameManager.getStats() : {};
     res.status(200).json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
       memory: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
-      totalPlayers: stats.totalPlayers,
-      totalRooms: stats.totalRooms,
+      totalPlayers: stats.totalPlayers || 0,
+      totalRooms: stats.totalRooms || 0,
       questionsLoaded: questionsData.length,
-      nodeVersion: process.version
+      nodeVersion: process.version,
+      redisPersistence: redisService ? 'enabled' : 'disabled'
     });
   } catch (error) {
     console.error('Health check error:', error);
@@ -128,7 +147,8 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: ['/health', '/admin/stats'],
     websocket: 'enabled',
-    questionsLoaded: questionsData.length
+    questionsLoaded: questionsData.length,
+    redisPersistence: redisService ? 'enabled' : 'disabled'
   });
 });
 
@@ -141,9 +161,10 @@ app.get('/admin/stats', (req, res) => {
         memory: process.memoryUsage(),
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'production',
-        nodeVersion: process.version
+        nodeVersion: process.version,
+        redisPersistence: redisService ? 'enabled' : 'disabled'
       },
-      game: gameManager.getStats()
+      game: gameManager ? gameManager.getStats() : {}
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -155,7 +176,9 @@ io.on('connection', (socket) => {
   console.log('🔗 Player connected:', socket.id);
 
   try {
-    gameManager.handleConnection(socket);
+    if (gameManager) {
+      gameManager.handleConnection(socket);
+    }
   } catch (error) {
     console.error('Error in GameManager.handleConnection:', error);
     socket.emit('connectionError', { message: 'Failed to initialize connection' });
@@ -167,7 +190,7 @@ io.on('connection', (socket) => {
 
   socket.on('getServerStats', () => {
     try {
-      socket.emit('serverStats', gameManager.getStats());
+      socket.emit('serverStats', gameManager ? gameManager.getStats() : {});
     } catch (error) {
       socket.emit('serverStats', { error: error.message });
     }
@@ -211,14 +234,26 @@ app.use('*', (req, res) => {
 });
 
 // Graceful shutdown handlers
-function gracefulShutdown(signal) {
+async function gracefulShutdown(signal) {
   console.log(`\n🔄 Received ${signal}, starting graceful shutdown...`);
 
   try {
-    gameManager.shutdown();
-    console.log('✅ GameManager shutdown complete');
+    if (gameManager) {
+      await gameManager.shutdown();
+      console.log('✅ GameManager shutdown complete');
+    }
   } catch (error) {
     console.error('❌ Error during GameManager shutdown:', error);
+  }
+
+  // Disconnect Redis
+  try {
+    if (redisService) {
+      await redisService.disconnect();
+      console.log('✅ Redis disconnected');
+    }
+  } catch (error) {
+    console.error('❌ Error disconnecting Redis:', error);
   }
 
   server.close((err) => {
@@ -264,6 +299,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('💾 Memory usage:', `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
   console.log('🌐 CORS enabled for multiple origins');
   console.log('🎮 OneVsOne system: Hints FREE, Speed matters, No penalties');
+  console.log('💾 Redis Persistence:', redisService ? 'ENABLED ✅' : 'DISABLED ❌');
   console.log('========================');
 
   if (gameManager) {
@@ -276,4 +312,4 @@ server.listen(PORT, '0.0.0.0', () => {
   process.exit(1);
 });
 
-module.exports = { app, server, io, gameManager };
+module.exports = { app, server, io, gameManager, redisService };
