@@ -109,34 +109,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Test endpoint to verify Redis persistence
-app.get('/admin/redis-test', async (req, res) => {
-  if (!redisService) {
-    return res.json({ error: 'Redis not connected' });
-  }
-
-  try {
-    // Test save
-    await redisService.client.set('test:key', 'Hello Redis!', { EX: 60 });
-    const value = await redisService.client.get('test:key');
-
-    // Get all room keys
-    const roomKeys = await redisService.getAllKeys('room:*');
-    const survivalKeys = await redisService.getAllKeys('survival:*');
-
-    res.json({
-      status: 'Redis working!',
-      testValue: value,
-      roomsInRedis: roomKeys.length,
-      survivalRoomsInRedis: survivalKeys.length,
-      roomKeys,
-      survivalKeys
-    });
-  } catch (error) {
-    res.json({ error: error.message });
-  }
-});
-
 app.get('/admin/stats', (req, res) => {
   res.json({
     server: {
@@ -147,6 +119,47 @@ app.get('/admin/stats', (req, res) => {
     game: gameManager ? gameManager.getStats() : {}
   });
 });
+
+  // Add this route to test Redis persistence
+  app.get('/admin/redis-test', async (req, res) => {
+    if (!redisService) {
+      return res.json({
+        error: 'Redis not connected',
+        redisService: redisService ? 'exists' : 'null'
+      });
+    }
+
+    try {
+      // Test basic Redis operations
+      await redisService.client.set('test:key', 'Hello Redis!', { EX: 60 });
+      const value = await redisService.client.get('test:key');
+
+      // Get all game-related keys
+      const roomKeys = await redisService.getAllKeys('room:*');
+      const survivalKeys = await redisService.getAllKeys('survival:*');
+      const playerKeys = await redisService.getAllKeys('player:*');
+
+      res.json({
+        status: '✅ Redis is working!',
+        testValue: value,
+        persistence: {
+          roomsInRedis: roomKeys.length,
+          survivalRoomsInRedis: survivalKeys.length,
+          playersInRedis: playerKeys.length
+        },
+        keys: {
+          rooms: roomKeys,
+          survivalRooms: survivalKeys,
+          players: playerKeys
+        }
+      });
+    } catch (error) {
+      res.json({
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  });
 
 io.on('connection', (socket) => {
   if (!isInitialized || !gameManager) {
