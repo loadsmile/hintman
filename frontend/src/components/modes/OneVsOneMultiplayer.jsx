@@ -30,7 +30,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [pauseReason, setPauseReason] = useState('');
   const [reconnectCountdown, setReconnectCountdown] = useState(0);
-  const [canReconnect, setCanReconnect] = useState(false);
   const [reconnectInfo, setReconnectInfo] = useState(null);
 
   const socketRef = useRef(null);
@@ -143,7 +142,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     socket.on('canReconnect', (data) => {
       if (!mountedRef.current) return;
       if (data.canReconnect !== false && data.roomId) {
-        setCanReconnect(true);
         setReconnectInfo(data);
         setGameState('reconnect-available');
       }
@@ -154,7 +152,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setGameState('playing');
       setIsPaused(false);
       setPauseReason('');
-      setCanReconnect(false);
       setReconnectInfo(null);
 
       setCurrentTarget({
@@ -167,31 +164,28 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
       setPlayers(data.players);
       setMyPlayerId(socket.id);
 
-      // Restore hints
       if (data.hints && Array.isArray(data.hints)) {
         setHints(data.hints);
       }
 
-      // Restore player stats for Mission Tracker
       if (data.playerStats) {
         setPlayerStats(data.playerStats);
       }
     });
 
-    socket.on('reconnectFailed', ({ reason }) => {
+    socket.on('reconnectFailed', () => {
       if (!mountedRef.current) return;
-      setCanReconnect(false);
       setReconnectInfo(null);
       setGameState('mode-selection');
     });
 
-    socket.on('gamePaused', ({ reason, message }) => {
+    socket.on('gamePaused', ({ message }) => {
       if (!mountedRef.current) return;
       setIsPaused(true);
-      setPauseReason(message || reason);
+      setPauseReason(message || 'Game paused');
     });
 
-    socket.on('gameResumed', ({ message }) => {
+    socket.on('gameResumed', () => {
       if (!mountedRef.current) return;
       setIsPaused(false);
       setPauseReason('');
@@ -396,7 +390,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
     setIsPaused(false);
     setPauseReason('');
     setReconnectCountdown(0);
-    setCanReconnect(false);
     setReconnectInfo(null);
     setGameState('mode-selection');
   };
@@ -493,7 +486,6 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
               🔄 Reconnect to Game
             </Button>
             <Button onClick={() => {
-              setCanReconnect(false);
               setReconnectInfo(null);
               setGameState('mode-selection');
             }} variant="secondary" className="w-full text-sm sm:text-base py-2 sm:py-3">
@@ -892,7 +884,7 @@ const OneVsOneMultiplayer = ({ playerName, onBackToMenu }) => {
                     ) : gameResult.winner === 'disconnect' ? (
                       <p className="text-sm sm:text-lg font-bold">🏆 {gameResult.message}</p>
                     ) : gameResult.isWrongAnswer && gameResult.incorrectGuess ? (
-                      <p className="text-sm sm:text-lg font-bold">❌ {gameResult.incorrectPlayer} missed: "{gameResult.incorrectGuess}"</p>
+                      <p className="text-sm sm:text-lg font-bold">❌ {gameResult.incorrectPlayer} missed: &quot;{gameResult.incorrectGuess}&quot;</p>
                     ) : null}
                     {gameResult.correctAnswer && (
                       <p className="text-xs sm:text-sm mt-2">Answer: <strong>{gameResult.correctAnswer}</strong></p>
