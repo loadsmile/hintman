@@ -73,7 +73,7 @@ The following is the state observed on 2026-08-21. These facts should be updated
 
 | Area | Baseline |
 | --- | --- |
-| Roadmap/root documentation | No prior `ROADMAP.md` or root `README.md` |
+| Roadmap/root documentation | This roadmap was added during the audit; an upstream root README is now present but contains stale mode, question-count, rules, structure, and setup details |
 | Frontend documentation | Contains unresolved Git conflict markers and Vite template text |
 | Backend tests | Two passing survival lifecycle tests added; broader backend, frontend, integration, and E2E coverage is still absent |
 | Measured loaded-backend coverage | 38.45% overall; no frontend, server, Redis, or E2E coverage |
@@ -407,7 +407,7 @@ Priority: P1/P2
 
 Goal: make the project understandable and maintainable by someone who did not build it.
 
-- [ ] Add a root `README.md` with product overview, screenshots, architecture, prerequisites, installation, Redis setup, commands, tests, and troubleshooting.
+- [ ] Rewrite the root `README.md` with the current modes, accurate rules/counts, architecture, prerequisites, frontend/backend installation, Redis setup, commands, tests, and troubleshooting.
 - [ ] Replace the conflicted frontend README with frontend-specific development documentation.
 - [ ] Add backend documentation for HTTP endpoints, Socket.IO events, payloads, errors, room lifecycle, and Redis behavior.
 - [ ] Document the canonical question schema, validation command, authoring process, and synchronization/generation rules.
@@ -493,7 +493,7 @@ This register preserves audit findings that could otherwise be lost inside large
 | DX-06 | P0 | Repository | Dependencies and stale build artifacts are tracked | Untrack generated files and improve ignores |
 | DX-07 | P1 | Runtime version | Backend allows Node 18 while current Vite requires newer Node | Pin Node 22 LTS and npm |
 | DX-08 | P1 | Deployment | Platform settings and environment requirements are undocumented | Deployment-as-code and env examples |
-| DX-09 | P1 | Documentation | Frontend README has conflict markers; no root/backend docs | Rewrite tracked documentation |
+| DX-09 | P1 | Documentation | Frontend README has conflict markers, root README is stale, and backend docs are absent | Rewrite tracked documentation |
 | DX-10 | P2 | Maintenance | Hint replacement script uses an absolute path and one data copy | Make safe/path-independent or retire |
 | UI-01 | P1 | Accessibility | Inputs lack labels; clickable divs, timers, and statuses lack semantics | WCAG 2.2 AA pass |
 | UI-02 | P1 | Motion/scroll | Scrollbars are hidden and motion ignores user preference | Visible scrolling and reduced-motion styles |
