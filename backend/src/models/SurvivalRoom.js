@@ -1,10 +1,7 @@
-console.log('🔥🔥🔥 SURVIVALROOM.JS IS LOADING - NEW BATTLE ROYALE MODE 🔥🔥🔥');
-
 const Question = require('./Question');
 
 class SurvivalRoom {
   constructor(id, questionsData, questionCategory = 'general', gameMode = 'survival') {
-    console.log('🚀🚀🚀 USING SURVIVAL ROOM - BATTLE ROYALE MODE ACTIVE 🚀🚀🚀');
     this.id = id;
     this.players = [];
     this.maxPlayers = 6;
@@ -13,8 +10,15 @@ class SurvivalRoom {
     this.questions = [];
     this.gameState = 'waiting';
     this.currentHintIndex = 0;
-    this.hintTimer = null;
+    this.nextHintTimer = null;
     this.questionTimer = null;
+    this.nextQuestionTimer = null;
+    this.endGameTimer = null;
+    this.nextHintAt = null;
+    this.questionDeadlineAt = null;
+    this.nextQuestionAt = null;
+    this.nextQuestionAction = null;
+    this.endGameAt = null;
     this.health = {};
     this.startTime = null;
     this.questionAnswered = false;
@@ -25,7 +29,14 @@ class SurvivalRoom {
     this.eliminatedPlayers = [];
     this.round = 1;
     this.readyPlayers = new Set();
+    this.pausedState = null;
     this.MAX_HEALTH = 10000;
+    this.MAX_HINTS = 5;
+    this.FIRST_HINT_DELAY_MS = 1000;
+    this.HINT_INTERVAL_MS = 12000;
+    this.QUESTION_DURATION_MS = 120000;
+    this.ROUND_TRANSITION_DELAY_MS = 3000;
+    this.END_GAME_DELAY_MS = 2000;
   }
 
   getSurvivalDamage(playersRemaining, isWrongAnswer = false) {
@@ -57,9 +68,9 @@ class SurvivalRoom {
       id: socket.id,
       name: playerName,
       health: this.MAX_HEALTH,
-      gameMode: gameMode,
-      personalCategory: personalCategory,
-      socket: socket,
+      gameMode,
+      personalCategory,
+      socket,
       isEliminated: false,
       correctAnswers: 0,
       mistakes: 0,
@@ -70,29 +81,43 @@ class SurvivalRoom {
     this.health[socket.id] = this.MAX_HEALTH;
     this.playerCategories.push(personalCategory);
 
-    console.log(`🎯 Agent ${playerName} joined survival room ${this.id} (${socket.id}) - Health: ${this.MAX_HEALTH}`);
-    console.log(`🎯 Room ${this.id}: ${this.players.length}/${this.maxPlayers} agents ready`);
-
     if (this.players.length >= 2 && this.questions.length === 0) {
       this.questions = this.prepareGameQuestions();
-      console.log(`🎯 Survival room ${this.id} prepared with ${this.questions.length} questions`);
     }
 
     return true;
   }
 
+  replacePlayerSocket(oldSocketId, socket) {
+    const player = this.players.find((entry) => entry.id === oldSocketId);
+    if (!player) return null;
+
+    player.id = socket.id;
+    player.socket = socket;
+
+    if (this.health[oldSocketId] !== undefined) {
+      this.health[socket.id] = this.health[oldSocketId];
+      delete this.health[oldSocketId];
+    }
+
+    if (this.readyPlayers.has(oldSocketId)) {
+      this.readyPlayers.delete(oldSocketId);
+      this.readyPlayers.add(socket.id);
+    }
+
+    return player;
+  }
+
   setPlayerReady(socketId, isReady) {
-    const player = this.players.find(p => p.id === socketId);
+    const player = this.players.find((entry) => entry.id === socketId);
     if (!player) return false;
 
     player.isReady = isReady;
 
     if (isReady) {
       this.readyPlayers.add(socketId);
-      console.log(`✅ Agent ${player.name} is READY (${this.readyPlayers.size}/${this.players.length})`);
     } else {
       this.readyPlayers.delete(socketId);
-      console.log(`⏳ Agent ${player.name} is NOT READY (${this.readyPlayers.size}/${this.players.length})`);
     }
 
     return true;
@@ -100,9 +125,7 @@ class SurvivalRoom {
 
   areAllPlayersReady() {
     if (this.players.length < 2) return false;
-    const allReady = this.players.length === this.readyPlayers.size;
-    console.log(`🎯 Ready check: ${this.readyPlayers.size}/${this.players.length} - All ready: ${allReady}`);
-    return allReady;
+    return this.players.length === this.readyPlayers.size;
   }
 
   getReadyPlayerIds() {
@@ -112,97 +135,103 @@ class SurvivalRoom {
   prepareGameQuestions() {
     const shuffled = this.shuffleArray([...this.questionsData]);
     const selected = shuffled.slice(0, this.questionsPerGame);
-    return selected.map(q => new Question(q.id, q.answer, q.category, q.difficulty, q.hints));
+    return selected.map((question) => new Question(question.id, question.answer, question.category, question.difficulty, question.hints));
   }
 
   shuffleArray(array) {
     const result = [...array];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
     }
     return result;
   }
 
   removePlayer(socketId) {
-    const player = this.players.find(p => p.id === socketId);
-    if (player) {
-      console.log(`🎯 Agent ${player.name} disconnected from survival room ${this.id}`);
+    const player = this.players.find((entry) => entry.id === socketId);
+    if (!player) return;
 
-      this.readyPlayers.delete(socketId);
+    this.readyPlayers.delete(socketId);
 
-      if (this.gameState === 'playing' && !player.isEliminated) {
-        this.eliminatePlayer(socketId, 'disconnection');
-      }
+    if (this.gameState === 'playing' || this.gameState === 'paused') {
+      this.handlePermanentDisconnect(socketId);
+      return;
     }
 
-    this.players = this.players.filter(p => p.id !== socketId);
+    this.players = this.players.filter((entry) => entry.id !== socketId);
     delete this.health[socketId];
 
     if (this.players.length === 0) {
       this.cleanup();
-    } else if (this.gameState === 'playing' && this.getAlivePlayersCount() <= 1) {
-      this.endGame();
     }
   }
 
+  handlePermanentDisconnect(socketId, reason = 'disconnection') {
+    const player = this.players.find((entry) => entry.id === socketId);
+    if (!player) return false;
+
+    this.readyPlayers.delete(socketId);
+    player.socket = null;
+
+    if (!player.isEliminated) {
+      this.eliminatePlayer(socketId, reason);
+    }
+
+    return true;
+  }
+
   updatePlayerHealth(socketId, healthChange, reason = 'unknown') {
-    if (this.health[socketId] !== undefined) {
-      const oldHealth = this.health[socketId];
-      this.health[socketId] = Math.max(0, Math.min(this.MAX_HEALTH, this.health[socketId] + healthChange));
+    if (this.health[socketId] === undefined) return;
 
-      const player = this.players.find(p => p.id === socketId);
-      if (player) {
-        player.health = this.health[socketId];
-      }
+    this.health[socketId] = Math.max(0, Math.min(this.MAX_HEALTH, this.health[socketId] + healthChange));
 
-      console.log(`🎯 Agent ${player?.name || socketId} health update: ${oldHealth} -> ${this.health[socketId]} (${healthChange >= 0 ? '+' : ''}${healthChange}) - ${reason}`);
+    const player = this.players.find((entry) => entry.id === socketId);
+    if (player) {
+      player.health = this.health[socketId];
+    }
 
-      if (this.health[socketId] <= 0 && player && !player.isEliminated) {
-        this.eliminatePlayer(socketId, reason);
-      }
+    if (this.health[socketId] <= 0 && player && !player.isEliminated) {
+      this.eliminatePlayer(socketId, reason);
     }
   }
 
   eliminatePlayer(socketId, reason = 'health_depletion') {
-    const player = this.players.find(p => p.id === socketId);
+    const player = this.players.find((entry) => entry.id === socketId);
     if (!player || player.isEliminated) return;
 
     player.isEliminated = true;
+    player.health = 0;
     this.health[socketId] = 0;
     this.eliminatedPlayers.push({
       id: socketId,
       name: player.name,
       eliminatedAt: Date.now(),
-      reason: reason,
+      reason,
       finalRound: this.round
     });
 
     const alivePlayers = this.getAlivePlayersCount();
-    console.log(`☠️ AGENT ${player.name} ELIMINATED! ${alivePlayers} agents remaining (reason: ${reason})`);
 
     this.broadcast('playerEliminated', {
       eliminatedPlayerId: socketId,
       eliminatedPlayerName: player.name,
       health: this.health,
       playersRemaining: alivePlayers,
-      reason: reason
+      reason
     });
 
     if (alivePlayers <= 1) {
-      setTimeout(() => {
-        this.endGame();
-      }, 2000);
+      this.scheduleGameEnd(this.END_GAME_DELAY_MS);
     }
   }
 
   isPlayerAlive(socketId) {
-    const player = this.players.find(p => p.id === socketId);
-    return player && !player.isEliminated && (this.health[socketId] || 0) > 0;
+    const player = this.players.find((entry) => entry.id === socketId);
+    return Boolean(player && !player.isEliminated && (this.health[socketId] || 0) > 0);
   }
 
   getAlivePlayersCount() {
-    return this.players.filter(p => this.isPlayerAlive(p.id)).length;
+    return this.players.filter((player) => this.isPlayerAlive(player.id)).length;
   }
 
   canStartGame() {
@@ -211,20 +240,24 @@ class SurvivalRoom {
 
   startGame() {
     if (!this.canStartGame()) {
-      console.warn(`SurvivalRoom ${this.id}: Cannot start game - need at least 2 players and all must be ready`);
-      console.warn(`Players: ${this.players.length}, Ready: ${this.readyPlayers.size}, Questions: ${this.questions.length}`);
       return false;
     }
 
-    console.log(`🎯 Starting SURVIVAL BATTLE ROYALE in room ${this.id} with ${this.players.length} agents (ALL READY)`);
-    console.log(`🎯 All players starting with ${this.MAX_HEALTH} HP`);
+    this.clearTimers();
+    this.pausedState = null;
     this.gameState = 'playing';
     this.currentQuestion = 0;
     this.round = 1;
+    this.currentHintIndex = 0;
+    this.questionAnswered = false;
+    this.eliminatedPlayers = [];
 
-    this.players.forEach(player => {
-      this.health[player.id] = this.MAX_HEALTH;
+    this.players.forEach((player) => {
       player.health = this.MAX_HEALTH;
+      player.isEliminated = false;
+      player.correctAnswers = 0;
+      player.mistakes = 0;
+      this.health[player.id] = this.MAX_HEALTH;
     });
 
     this.broadcast('gameStart', {
@@ -232,10 +265,7 @@ class SurvivalRoom {
       health: this.health
     });
 
-    setTimeout(() => {
-      this.startQuestion();
-    }, 3000);
-
+    this.scheduleNextQuestionAction(this.ROUND_TRANSITION_DELAY_MS, 'start-current-question');
     return true;
   }
 
@@ -246,12 +276,16 @@ class SurvivalRoom {
     }
 
     const question = this.questions[this.currentQuestion];
+    if (!question) {
+      this.endGame();
+      return;
+    }
+
+    this.clearQuestionTimers();
     this.currentHintIndex = 0;
     this.startTime = Date.now();
     this.questionAnswered = false;
-
-    console.log(`🎯 Survival Room ${this.id}: Round ${this.round}, Question ${this.currentQuestion + 1}/${this.questionsPerGame} - "${question.answer}"`);
-    console.log(`🎯 ${this.getAlivePlayersCount()} agents still alive`);
+    question.start?.();
 
     this.broadcast('questionStart', {
       targetIndex: this.currentQuestion + 1,
@@ -259,35 +293,25 @@ class SurvivalRoom {
       category: question.category,
       difficulty: question.difficulty,
       health: this.health,
-      round: this.round
+      round: this.round,
+      remainingQuestionTimeMs: this.QUESTION_DURATION_MS
     });
 
-    // First hint after 1 second
-    setTimeout(() => {
-      if (this.gameState === 'playing' && !this.questionAnswered && this.getAlivePlayersCount() > 1) {
-        this.revealHint();
-      }
-    }, 1000);
+    this.scheduleQuestionTimeout(this.QUESTION_DURATION_MS);
 
-    // Subsequent hints every 12 seconds
-    this.hintTimer = setInterval(() => {
-      if (this.gameState === 'playing' && !this.questionAnswered && this.getAlivePlayersCount() > 1) {
-        this.revealHint();
-      }
-    }, 12000);
-
-    // FIXED: Question timeout after 120 seconds (2 minutes) to match frontend timer
-    this.questionTimer = setTimeout(() => {
-      if (this.gameState === 'playing' && !this.questionAnswered && this.getAlivePlayersCount() > 1) {
-        this.handleQuestionTimeout();
-      }
-    }, 120000); // Changed from 90000 to 120000
+    if (this.getMaxHintsForCurrentQuestion() > 0) {
+      this.scheduleNextHint(this.FIRST_HINT_DELAY_MS);
+    }
   }
 
   revealHint() {
-    console.log('🎯🎯🎯 REVEALING SURVIVAL HINT - TIME PENALTY TO ALL! 🎯🎯🎯');
+    if (this.gameState !== 'playing' || this.questionAnswered || this.getAlivePlayersCount() <= 1) {
+      return;
+    }
+
     const question = this.questions[this.currentQuestion];
-    if (!question || this.currentHintIndex >= 5 || this.currentHintIndex >= question.getTotalHints()) {
+    const maxHints = this.getMaxHintsForCurrentQuestion();
+    if (!question || this.currentHintIndex >= maxHints) {
       return;
     }
 
@@ -295,9 +319,7 @@ class SurvivalRoom {
     const alivePlayers = this.getAlivePlayersCount();
     const timePenalty = this.getSurvivalDamage(alivePlayers, false);
 
-    console.log(`🎯 Hint ${this.currentHintIndex + 1} revealed - ${timePenalty} HP penalty to ${alivePlayers} alive agents`);
-
-    this.players.forEach(player => {
+    this.players.forEach((player) => {
       if (this.isPlayerAlive(player.id)) {
         this.updatePlayerHealth(player.id, -timePenalty, `hint_${this.currentHintIndex + 1}_penalty`);
       }
@@ -307,15 +329,20 @@ class SurvivalRoom {
       index: this.currentHintIndex,
       text: hintText,
       health: this.health,
-      timePenalty: timePenalty
+      timePenalty,
+      remainingQuestionTimeMs: this.getRemainingQuestionTimeMs()
     });
 
-    this.currentHintIndex++;
+    this.currentHintIndex += 1;
+
+    if (this.currentHintIndex < maxHints && this.gameState === 'playing' && !this.questionAnswered && this.getAlivePlayersCount() > 1) {
+      this.scheduleNextHint(this.HINT_INTERVAL_MS);
+    }
   }
 
   handleGuess(socketId, guess) {
     const question = this.questions[this.currentQuestion];
-    const player = this.players.find(p => p.id === socketId);
+    const player = this.players.find((entry) => entry.id === socketId);
 
     if (!player || !question || this.gameState !== 'playing' || this.questionAnswered || !this.isPlayerAlive(socketId)) {
       return;
@@ -324,13 +351,10 @@ class SurvivalRoom {
     const isCorrect = question.checkAnswer(guess);
     const alivePlayers = this.getAlivePlayersCount();
 
-    console.log(`🎯 SURVIVAL GUESS: "${guess}" by ${player.name} - ${isCorrect ? 'CORRECT' : 'WRONG'}`);
-
     if (isCorrect) {
       this.questionAnswered = true;
-      player.correctAnswers++;
-
-      console.log(`🎯 CORRECT! ${player.name} survives this round`);
+      this.clearQuestionTimers();
+      player.correctAnswers += 1;
 
       this.broadcast('questionResult', {
         winner: socketId,
@@ -341,28 +365,25 @@ class SurvivalRoom {
       });
 
       this.nextQuestion();
-    } else {
-      const wrongAnswerDamage = this.getSurvivalDamage(alivePlayers, true);
-      player.mistakes++;
+      return;
+    }
 
-      console.log(`🎯 WRONG ANSWER - ${wrongAnswerDamage} HP damage to ${player.name}`);
+    const wrongAnswerDamage = this.getSurvivalDamage(alivePlayers, true);
+    player.mistakes += 1;
+    this.updatePlayerHealth(socketId, -wrongAnswerDamage, 'wrong_answer');
 
-      this.updatePlayerHealth(socketId, -wrongAnswerDamage, 'wrong_answer');
+    this.broadcast('wrongAnswer', {
+      playerId: socketId,
+      playerName: player.name,
+      guess,
+      damage: wrongAnswerDamage,
+      health: this.health
+    });
 
-      this.broadcast('wrongAnswer', {
-        playerId: socketId,
-        playerName: player.name,
-        guess: guess,
-        damage: wrongAnswerDamage,
-        health: this.health
-      });
-
-      if (this.getAlivePlayersCount() <= 1) {
-        this.questionAnswered = true;
-        setTimeout(() => {
-          this.endGame();
-        }, 1000);
-      }
+    if (this.getAlivePlayersCount() <= 1) {
+      this.questionAnswered = true;
+      this.clearQuestionTimers();
+      this.scheduleGameEnd(1000);
     }
   }
 
@@ -370,99 +391,334 @@ class SurvivalRoom {
     if (this.questionAnswered) return;
 
     const question = this.questions[this.currentQuestion];
+    if (!question) {
+      this.endGame();
+      return;
+    }
+
+    this.questionAnswered = true;
+    this.clearQuestionTimers();
+
     const alivePlayers = this.getAlivePlayersCount();
     const timeoutPenalty = this.getSurvivalDamage(alivePlayers, true) / 2;
 
-    console.log(`⏱️ SURVIVAL TIMEOUT - No one answered! ${timeoutPenalty} HP penalty to ${alivePlayers} alive agents`);
-
-    // Apply timeout penalty to all alive players
-    this.players.forEach(player => {
+    this.players.forEach((player) => {
       if (this.isPlayerAlive(player.id)) {
         this.updatePlayerHealth(player.id, -timeoutPenalty, 'timeout_penalty');
       }
     });
 
-    // FIXED: Send timeout event with no winner
     this.broadcast('questionResult', {
       winner: null,
       winnerName: null,
       correctAnswer: question.answer,
-      timeElapsed: 120,
+      timeElapsed: this.QUESTION_DURATION_MS / 1000,
       health: this.health,
-      timeoutPenalty: timeoutPenalty,
-      isTimeout: true // NEW: Flag to indicate timeout
+      timeoutPenalty,
+      isTimeout: true
     });
 
     this.nextQuestion();
   }
 
   nextQuestion() {
-    this.clearTimers();
-    this.round++;
+    this.clearQuestionTimers();
+    this.round += 1;
+    this.scheduleNextQuestionAction(this.ROUND_TRANSITION_DELAY_MS, 'advance-question');
+  }
 
-    setTimeout(() => {
-      this.currentQuestion++;
+  pauseGame(reason = 'Game paused') {
+    if (this.gameState !== 'playing') return false;
+
+    this.pausedState = {
+      currentQuestion: this.currentQuestion,
+      currentHintIndex: this.currentHintIndex,
+      questionAnswered: this.questionAnswered,
+      startTime: this.startTime,
+      pausedAt: Date.now(),
+      reason,
+      nextHintRemainingMs: this.getRemainingNextHintTimeMs(),
+      questionRemainingMs: this.getRemainingQuestionTimeMs(),
+      nextQuestionRemainingMs: this.getRemainingNextQuestionTimeMs(),
+      nextQuestionAction: this.nextQuestionAction,
+      endGameRemainingMs: this.getRemainingEndGameTimeMs()
+    };
+
+    this.gameState = 'paused';
+    this.clearTimers();
+
+    this.broadcast('gamePaused', {
+      reason,
+      message: reason
+    });
+
+    return true;
+  }
+
+  resumeGame() {
+    if (this.gameState !== 'paused' || !this.pausedState) return false;
+
+    const pausedState = this.pausedState;
+    this.gameState = 'playing';
+    this.currentQuestion = pausedState.currentQuestion;
+    this.currentHintIndex = pausedState.currentHintIndex;
+    this.questionAnswered = pausedState.questionAnswered;
+    this.startTime = pausedState.startTime;
+    this.pausedState = null;
+
+    if (pausedState.questionRemainingMs !== null) {
+      this.startTime = Date.now() - (this.QUESTION_DURATION_MS - pausedState.questionRemainingMs);
+      this.scheduleQuestionTimeout(pausedState.questionRemainingMs);
+    }
+
+    if (pausedState.nextHintRemainingMs !== null && !this.questionAnswered && this.getAlivePlayersCount() > 1) {
+      this.scheduleNextHint(pausedState.nextHintRemainingMs);
+    }
+
+    if (pausedState.nextQuestionRemainingMs !== null && pausedState.nextQuestionAction) {
+      this.scheduleNextQuestionAction(pausedState.nextQuestionRemainingMs, pausedState.nextQuestionAction);
+    }
+
+    if (pausedState.endGameRemainingMs !== null) {
+      this.scheduleGameEnd(pausedState.endGameRemainingMs);
+    }
+
+    const question = this.questions[this.currentQuestion];
+    this.broadcast('gameResumed', {
+      message: 'Game resumed',
+      currentQuestion: this.currentQuestion + 1,
+      totalQuestions: this.questionsPerGame,
+      round: this.round,
+      category: question?.category,
+      difficulty: question?.difficulty,
+      remainingQuestionTimeMs: this.getRemainingQuestionTimeMs()
+    });
+
+    return true;
+  }
+
+  scheduleNextHint(delayMs) {
+    if (this.nextHintTimer) {
+      clearTimeout(this.nextHintTimer);
+    }
+
+    const delay = Math.max(0, delayMs);
+    this.nextHintAt = Date.now() + delay;
+    this.nextHintTimer = setTimeout(() => {
+      this.nextHintTimer = null;
+      this.nextHintAt = null;
+      this.revealHint();
+    }, delay);
+  }
+
+  scheduleQuestionTimeout(delayMs) {
+    if (this.questionTimer) {
+      clearTimeout(this.questionTimer);
+    }
+
+    const delay = Math.max(0, delayMs);
+    this.questionDeadlineAt = Date.now() + delay;
+    this.questionTimer = setTimeout(() => {
+      this.questionTimer = null;
+      this.questionDeadlineAt = null;
+      this.handleQuestionTimeout();
+    }, delay);
+  }
+
+  scheduleNextQuestionAction(delayMs, action) {
+    if (this.nextQuestionTimer) {
+      clearTimeout(this.nextQuestionTimer);
+    }
+
+    const delay = Math.max(0, delayMs);
+    this.nextQuestionAction = action;
+    this.nextQuestionAt = Date.now() + delay;
+    this.nextQuestionTimer = setTimeout(() => {
+      const nextAction = this.nextQuestionAction;
+      this.nextQuestionTimer = null;
+      this.nextQuestionAt = null;
+      this.nextQuestionAction = null;
+
+      if (nextAction === 'advance-question') {
+        this.currentQuestion += 1;
+      }
+
       if (this.currentQuestion < this.questionsPerGame && this.getAlivePlayersCount() > 1) {
         this.startQuestion();
       } else {
         this.endGame();
       }
-    }, 3000);
+    }, delay);
+  }
+
+  scheduleGameEnd(delayMs = 0) {
+    if (this.endGameTimer) {
+      clearTimeout(this.endGameTimer);
+    }
+
+    const delay = Math.max(0, delayMs);
+    this.endGameAt = Date.now() + delay;
+    this.endGameTimer = setTimeout(() => {
+      this.endGameTimer = null;
+      this.endGameAt = null;
+      this.endGame();
+    }, delay);
   }
 
   endGame() {
     this.clearTimers();
     this.gameState = 'finished';
+    this.pausedState = null;
 
-    console.log(`🎯 SURVIVAL BATTLE ROYALE ended in room ${this.id}. Final health: ${JSON.stringify(this.health)}`);
-
-    const results = this.players.map(p => ({
-      id: p.id,
-      name: p.name,
-      health: this.health[p.id] || 0,
-      isAlive: this.isPlayerAlive(p.id),
-      correctAnswers: p.correctAnswers || 0,
-      mistakes: p.mistakes || 0,
-      category: p.personalCategory,
-      isEliminated: p.isEliminated
-    })).sort((a, b) => {
-      if (a.isAlive && !b.isAlive) return -1;
-      if (!a.isAlive && b.isAlive) return 1;
-      if (a.health !== b.health) return b.health - a.health;
-      return b.correctAnswers - a.correctAnswers;
+    const results = this.players.map((player) => ({
+      id: player.id,
+      name: player.name,
+      health: this.health[player.id] || 0,
+      isAlive: this.isPlayerAlive(player.id),
+      correctAnswers: player.correctAnswers || 0,
+      mistakes: player.mistakes || 0,
+      category: player.personalCategory,
+      isEliminated: player.isEliminated
+    })).sort((first, second) => {
+      if (first.isAlive && !second.isAlive) return -1;
+      if (!first.isAlive && second.isAlive) return 1;
+      if (first.health !== second.health) return second.health - first.health;
+      return second.correctAnswers - first.correctAnswers;
     });
 
-    const winner = results.find(p => p.isAlive) || results[0];
-
-    console.log(`🏆 SURVIVAL WINNER: ${winner?.name || 'Unknown'} with ${winner?.health || 0} HP`);
+    const winner = results.find((player) => player.isAlive) || results[0] || null;
 
     this.broadcast('gameEnd', {
-      winner: winner,
-      results: results,
+      winner,
+      results,
       totalRounds: this.round,
       eliminatedPlayers: this.eliminatedPlayers
     });
   }
 
-  clearTimers() {
-    if (this.hintTimer) {
-      clearInterval(this.hintTimer);
-      this.hintTimer = null;
+  getMaxHintsForCurrentQuestion() {
+    const question = this.questions[this.currentQuestion];
+    if (!question) return 0;
+    return Math.min(this.MAX_HINTS, question.getTotalHints());
+  }
+
+  getRemainingTime(deadlineAt) {
+    if (deadlineAt === null || deadlineAt === undefined) return null;
+    return Math.max(0, deadlineAt - Date.now());
+  }
+
+  getRemainingQuestionTimeMs() {
+    if (this.gameState === 'paused' && this.pausedState) {
+      return this.pausedState.questionRemainingMs;
+    }
+    return this.getRemainingTime(this.questionDeadlineAt);
+  }
+
+  getRemainingNextHintTimeMs() {
+    if (this.gameState === 'paused' && this.pausedState) {
+      return this.pausedState.nextHintRemainingMs;
+    }
+    return this.getRemainingTime(this.nextHintAt);
+  }
+
+  getRemainingNextQuestionTimeMs() {
+    if (this.gameState === 'paused' && this.pausedState) {
+      return this.pausedState.nextQuestionRemainingMs;
+    }
+    return this.getRemainingTime(this.nextQuestionAt);
+  }
+
+  getRemainingEndGameTimeMs() {
+    if (this.gameState === 'paused' && this.pausedState) {
+      return this.pausedState.endGameRemainingMs;
+    }
+    return this.getRemainingTime(this.endGameAt);
+  }
+
+  getRevealedHints() {
+    const question = this.questions[this.currentQuestion];
+    if (!question) return [];
+
+    const hints = [];
+    for (let index = 0; index < this.currentHintIndex; index += 1) {
+      if (index < question.getTotalHints()) {
+        hints.push({
+          index,
+          text: question.getHint(index)
+        });
+      }
+    }
+
+    return hints;
+  }
+
+  getReconnectState() {
+    const question = this.questions[this.currentQuestion];
+    const questionActive = this.getRemainingQuestionTimeMs() !== null && !this.questionAnswered;
+
+    return {
+      roomId: this.id,
+      gameState: this.gameState,
+      round: this.round,
+      currentQuestion: this.currentQuestion + 1,
+      totalQuestions: this.questionsPerGame,
+      health: { ...this.health },
+      players: this.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        health: this.health[player.id] || 0,
+        gameMode: player.gameMode,
+        personalCategory: player.personalCategory,
+        isEliminated: player.isEliminated
+      })),
+      category: questionActive ? question?.category : null,
+      difficulty: questionActive ? question?.difficulty : null,
+      hints: this.getRevealedHints(),
+      readyPlayers: this.getReadyPlayerIds(),
+      remainingQuestionTimeMs: this.getRemainingQuestionTimeMs(),
+      questionActive,
+      pauseReason: this.pausedState?.reason || null
+    };
+  }
+
+  clearQuestionTimers() {
+    if (this.nextHintTimer) {
+      clearTimeout(this.nextHintTimer);
+      this.nextHintTimer = null;
     }
     if (this.questionTimer) {
       clearTimeout(this.questionTimer);
       this.questionTimer = null;
     }
+    this.nextHintAt = null;
+    this.questionDeadlineAt = null;
+  }
+
+  clearTimers() {
+    this.clearQuestionTimers();
+
+    if (this.nextQuestionTimer) {
+      clearTimeout(this.nextQuestionTimer);
+      this.nextQuestionTimer = null;
+    }
+    if (this.endGameTimer) {
+      clearTimeout(this.endGameTimer);
+      this.endGameTimer = null;
+    }
+
+    this.nextQuestionAt = null;
+    this.nextQuestionAction = null;
+    this.endGameAt = null;
   }
 
   cleanup() {
     this.clearTimers();
     this.readyPlayers.clear();
-    console.log(`🗑️ Survival room ${this.id} cleaned up`);
+    this.pausedState = null;
   }
 
   broadcast(event, data) {
-    this.players.forEach(player => {
+    this.players.forEach((player) => {
       if (player.socket && player.socket.connected) {
         try {
           player.socket.emit(event, data);
@@ -490,7 +746,10 @@ class SurvivalRoom {
       readyPlayersCount: this.readyPlayers.size,
       allPlayersReady: this.areAllPlayersReady(),
       maxHealth: this.MAX_HEALTH,
-      createdAt: this.createdAt
+      createdAt: this.createdAt,
+      remainingQuestionTimeMs: this.getRemainingQuestionTimeMs(),
+      remainingNextHintTimeMs: this.getRemainingNextHintTimeMs(),
+      remainingNextQuestionTimeMs: this.getRemainingNextQuestionTimeMs()
     };
   }
 }

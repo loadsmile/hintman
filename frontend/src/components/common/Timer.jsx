@@ -7,11 +7,12 @@ const Timer = ({
   className = '',
   showProgress = true
 }) => {
-  const [timeLeft, setTimeLeft] = useState(duration);
+  const safeDuration = Math.max(0, duration);
+  const [timeLeft, setTimeLeft] = useState(safeDuration);
 
   useEffect(() => {
-    setTimeLeft(duration);
-  }, [duration]);
+    setTimeLeft(safeDuration);
+  }, [safeDuration]);
 
   useEffect(() => {
     if (!isActive || timeLeft <= 0) return;
@@ -35,7 +36,9 @@ const Timer = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progressPercentage = ((duration - timeLeft) / duration) * 100;
+  const progressPercentage = safeDuration > 0
+    ? ((safeDuration - timeLeft) / safeDuration) * 100
+    : 100;
   const isWarning = timeLeft <= 10;
 
   return (

@@ -93,6 +93,109 @@ class GameManager {
     return await this.redisService.saveSurvivalRoom(room.id, roomData);
   }
 
+  registerSocketHandlers(socket) {
+    socket.on('disconnect', () => {
+      this.handleDisconnection(socket);
+    });
+
+    socket.on('findMatch', (playerData) => {
+      this.findMatch(socket, playerData);
+    });
+
+    socket.on('findSurvivalMatch', (playerData) => {
+      this.findSurvivalMatch(socket, playerData);
+    });
+
+    socket.on('playerReady', () => {
+      this.handlePlayerReady(socket);
+    });
+
+    socket.on('playerUnready', () => {
+      this.handlePlayerUnready(socket);
+    });
+
+    socket.on('submitGuess', ({ guess }) => {
+      this.handleGuess(socket, guess);
+    });
+  }
+
+  getRoom(roomType, roomId) {
+    if (!roomId) return null;
+    return roomType === 'survival'
+      ? this.survivalRooms.get(roomId)
+      : this.gameRooms.get(roomId);
+  }
+
+  getPendingReconnectCount(roomId) {
+    let pendingCount = 0;
+    for (const reconnectInfo of this.disconnectedPlayers.values()) {
+      if (reconnectInfo.roomId === roomId) {
+        pendingCount += 1;
+      }
+    }
+    return pendingCount;
+  }
+
+  buildRegularReconnectPayload(room, roomId) {
+    const question = room.questions[room.currentQuestion];
+    const revealedHints = [];
+    for (let i = 0; i < room.currentHintIndex; i++) {
+      if (question && i < question.getTotalHints()) {
+        revealedHints.push({
+          index: i,
+          text: question.getHint(i)
+        });
+      }
+    }
+
+    const playerStats = {};
+    room.players.forEach((player) => {
+      playerStats[player.id] = {
+        correctAnswers: 0,
+        mistakes: 0,
+        name: player.name
+      };
+    });
+
+    return {
+      roomId,
+      gameState: room.gameState,
+      currentQuestion: room.currentQuestion + 1,
+      totalQuestions: room.questionsPerGame,
+      health: room.health,
+      players: room.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        health: room.health[player.id],
+        gameMode: player.gameMode,
+        personalCategory: player.personalCategory
+      })),
+      category: question?.category,
+      difficulty: question?.difficulty,
+      currentHints: room.currentHintIndex,
+      hints: revealedHints,
+      playerStats
+    };
+  }
+
+  buildSurvivalReconnectPayload(room) {
+    const roomState = room.getReconnectState();
+
+    const playerStats = {};
+    room.players.forEach((player) => {
+      playerStats[player.id] = {
+        correctAnswers: player.correctAnswers || 0,
+        mistakes: player.mistakes || 0,
+        name: player.name
+      };
+    });
+
+    return {
+      ...roomState,
+      playerStats
+    };
+  }
+
   handleConnection(socket) {
     socket.on('checkReconnect', ({ playerName }) => {
       if (!playerName) {
@@ -140,29 +243,7 @@ class GameManager {
       });
     }
 
-    socket.on('disconnect', () => {
-      this.handleDisconnection(socket);
-    });
-
-    socket.on('findMatch', (playerData) => {
-      this.findMatch(socket, playerData);
-    });
-
-    socket.on('findSurvivalMatch', (playerData) => {
-      this.findSurvivalMatch(socket, playerData);
-    });
-
-    socket.on('playerReady', () => {
-      this.handlePlayerReady(socket);
-    });
-
-    socket.on('playerUnready', () => {
-      this.handlePlayerUnready(socket);
-    });
-
-    socket.on('submitGuess', ({ guess }) => {
-      this.handleGuess(socket, guess);
-    });
+    this.registerSocketHandlers(socket);
   }
 
   async handleDisconnection(socket) {
@@ -176,20 +257,23 @@ class GameManager {
       return;
     }
 
-    const room = playerInfo.roomType === 'survival'
-      ? this.survivalRooms.get(playerInfo.currentRoom)
-      : this.gameRooms.get(playerInfo.currentRoom);
+    const room = this.getRoom(playerInfo.roomType, playerInfo.currentRoom);
 
     if (!room) {
       this.connectedPlayers.delete(socket.id);
       return;
     }
 
-    if (room.gameState === 'playing') {
+    if (room.gameState === 'playing' || room.gameState === 'paused') {
       const player = room.players.find(p => p.id === socket.id);
       const playerName = player?.name || playerInfo.playerName || 'Player';
 
       const reconnectKey = `${playerName}:${playerInfo.currentRoom}`;
+
+      const existingTimerId = this.disconnectionTimers.get(reconnectKey);
+      if (existingTimerId) {
+        clearTimeout(existingTimerId);
+      }
 
       this.disconnectedPlayers.set(reconnectKey, {
         oldSocketId: socket.id,
@@ -199,7 +283,9 @@ class GameManager {
         disconnectedAt: Date.now()
       });
 
-      room.pauseGame(`${playerName} disconnected`);
+      if (room.gameState === 'playing') {
+        room.pauseGame(`${playerName} disconnected`);
+      }
 
       room.broadcast('playerDisconnectedTemporary', {
         playerId: socket.id,
@@ -209,7 +295,7 @@ class GameManager {
       });
 
       const timerId = setTimeout(async () => {
-        await this.handlePermanentDisconnection(reconnectKey, socket.id, playerInfo, room);
+        await this.handlePermanentDisconnection(reconnectKey, socket.id, playerInfo);
       }, this.RECONNECT_GRACE_PERIOD);
 
       this.disconnectionTimers.set(reconnectKey, timerId);
@@ -236,28 +322,33 @@ class GameManager {
 
     this.disconnectedPlayers.delete(reconnectKey);
 
-    const room = reconnectInfo.roomType === 'survival'
-      ? this.survivalRooms.get(roomId)
-      : this.gameRooms.get(roomId);
+    const room = this.getRoom(reconnectInfo.roomType, roomId);
 
     if (!room) {
       socket.emit('reconnectFailed', { reason: 'Game no longer exists' });
       return;
     }
 
-    const player = room.players.find(p => p.id === reconnectInfo.oldSocketId);
+    const player = reconnectInfo.roomType === 'survival'
+      ? room.replacePlayerSocket(reconnectInfo.oldSocketId, socket)
+      : room.players.find(p => p.id === reconnectInfo.oldSocketId);
+
     if (!player) {
       socket.emit('reconnectFailed', { reason: 'Player not found in game' });
       return;
     }
 
-    player.id = socket.id;
-    player.socket = socket;
+    if (reconnectInfo.roomType !== 'survival') {
+      player.id = socket.id;
+      player.socket = socket;
 
-    if (room.health[reconnectInfo.oldSocketId] !== undefined) {
-      room.health[socket.id] = room.health[reconnectInfo.oldSocketId];
-      delete room.health[reconnectInfo.oldSocketId];
+      if (room.health[reconnectInfo.oldSocketId] !== undefined) {
+        room.health[socket.id] = room.health[reconnectInfo.oldSocketId];
+        delete room.health[reconnectInfo.oldSocketId];
+      }
     }
+
+    this.connectedPlayers.delete(reconnectInfo.oldSocketId);
 
     let playerInfo = this.connectedPlayers.get(socket.id);
     if (!playerInfo) {
@@ -276,72 +367,31 @@ class GameManager {
       playerInfo.playerName = playerName;
     }
 
-    socket.on('disconnect', () => {
-      this.handleDisconnection(socket);
-    });
+    if (this.redisService) {
+      await this.redisService.deletePlayer(reconnectInfo.oldSocketId);
+      await this.redisService.savePlayerInfo(socket.id, playerInfo);
+    }
 
-    socket.on('submitGuess', ({ guess }) => {
-      this.handleGuess(socket, guess);
-    });
-
-    socket.on('playerReady', () => {
-      this.handlePlayerReady(socket);
-    });
-
-    socket.on('playerUnready', () => {
-      this.handlePlayerUnready(socket);
-    });
-
-    room.resumeGame();
+    const pendingReconnects = this.getPendingReconnectCount(roomId);
+    const shouldResume = pendingReconnects === 0 && room.gameState === 'paused';
+    if (shouldResume) {
+      room.resumeGame();
+    }
 
     room.broadcast('playerReconnected', {
       playerId: socket.id,
-      playerName: playerName,
-      message: `${playerName} reconnected. Game resumed.`
+      playerName,
+      message: shouldResume
+        ? `${playerName} reconnected. Game resumed.`
+        : `${playerName} reconnected. Waiting for remaining agents...`,
+      pendingReconnects
     });
 
-    const question = room.questions[room.currentQuestion];
-    const revealedHints = [];
-    for (let i = 0; i < room.currentHintIndex; i++) {
-      if (question && i < question.getTotalHints()) {
-        revealedHints.push({
-          index: i,
-          text: question.getHint(i)
-        });
-      }
-    }
+    const reconnectPayload = reconnectInfo.roomType === 'survival'
+      ? this.buildSurvivalReconnectPayload(room)
+      : this.buildRegularReconnectPayload(room, roomId);
 
-    const getPlayerStats = () => {
-      const stats = {};
-      room.players.forEach(p => {
-        stats[p.id] = {
-          correctAnswers: 0,
-          mistakes: 0,
-          name: p.name
-        };
-      });
-      return stats;
-    };
-
-    socket.emit('reconnectSuccess', {
-      roomId: roomId,
-      gameState: room.gameState,
-      currentQuestion: room.currentQuestion + 1,
-      totalQuestions: room.questionsPerGame,
-      health: room.health,
-      players: room.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        health: room.health[p.id],
-        gameMode: p.gameMode,
-        personalCategory: p.personalCategory
-      })),
-      category: question?.category,
-      difficulty: question?.difficulty,
-      currentHints: room.currentHintIndex,
-      hints: revealedHints,
-      playerStats: getPlayerStats()
-    });
+    socket.emit('reconnectSuccess', reconnectPayload);
 
     if (this.redisService) {
       if (reconnectInfo.roomType === 'survival') {
@@ -352,9 +402,18 @@ class GameManager {
     }
   }
 
-  async handlePermanentDisconnection(reconnectKey, oldSocketId, playerInfo, room) {
+  async handlePermanentDisconnection(reconnectKey, oldSocketId, playerInfo) {
     this.disconnectionTimers.delete(reconnectKey);
     this.disconnectedPlayers.delete(reconnectKey);
+
+    const room = this.getRoom(playerInfo.roomType, playerInfo.currentRoom);
+    if (!room) {
+      this.connectedPlayers.delete(oldSocketId);
+      if (this.redisService) {
+        await this.redisService.deletePlayer(oldSocketId);
+      }
+      return;
+    }
 
     const player = room.players.find(p => p.id === oldSocketId);
     const playerName = player?.name || 'Player';
@@ -366,7 +425,7 @@ class GameManager {
     });
 
     if (playerInfo.roomType === 'survival') {
-      room.removePlayer(oldSocketId);
+      room.handlePermanentDisconnect(oldSocketId);
 
       if (room.players.length === 0) {
         this.survivalRooms.delete(playerInfo.currentRoom);
@@ -374,7 +433,10 @@ class GameManager {
           await this.redisService.deleteSurvivalRoom(playerInfo.currentRoom);
         }
       } else {
-        room.resumeGame();
+        const pendingReconnects = this.getPendingReconnectCount(playerInfo.currentRoom);
+        if (pendingReconnects === 0 && room.gameState === 'paused' && room.getAlivePlayersCount() > 1) {
+          room.resumeGame();
+        }
         if (this.redisService) {
           await this.saveSurvivalRoomToRedis(room);
         }
@@ -384,6 +446,8 @@ class GameManager {
 
       if (room.players.length === 1) {
         room.endGame();
+      } else if (this.getPendingReconnectCount(playerInfo.currentRoom) === 0 && room.gameState === 'paused') {
+        room.resumeGame();
       }
 
       if (room.players.length === 0) {

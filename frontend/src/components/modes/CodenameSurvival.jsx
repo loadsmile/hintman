@@ -10,6 +10,7 @@ import CategoryService from '../../services/CategoryService';
 // Constants
 const MAX_HEALTH = 10000;
 const MAX_PLAYERS = 6;
+const QUESTION_TIME_SEC = 120;
 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:10000';
 
 const getDamageValues = (playersRemaining, isWrongAnswer = false) => {
@@ -127,10 +128,17 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
   const [readyPlayers, setReadyPlayers] = useState(new Set());
   const [connectionError, setConnectionError] = useState(false);
   const [gameData, setGameData] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseReason, setPauseReason] = useState('');
+  const [reconnectCountdown, setReconnectCountdown] = useState(0);
+  const [reconnectInfo, setReconnectInfo] = useState(null);
+  const [timerDuration, setTimerDuration] = useState(QUESTION_TIME_SEC);
+  const [timerKey, setTimerKey] = useState(0);
 
   const socketRef = useRef(null);
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
+  const countdownIntervalRef = useRef(null);
 
   const mergeHealthState = useCallback((currentHealth, newHealth) => {
     const merged = { ...currentHealth };
@@ -140,6 +148,44 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       });
     }
     return merged;
+  }, []);
+
+  const resetPauseState = useCallback(() => {
+    setIsPaused(false);
+    setPauseReason('');
+    setReconnectCountdown(0);
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+  }, []);
+
+  const startReconnectCountdown = useCallback((seconds) => {
+    setReconnectCountdown(seconds);
+
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    countdownIntervalRef.current = setInterval(() => {
+      setReconnectCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const syncQuestionTimer = useCallback((remainingQuestionTimeMs) => {
+    const nextDuration = remainingQuestionTimeMs == null
+      ? QUESTION_TIME_SEC
+      : Math.max(0, Math.ceil(remainingQuestionTimeMs / 1000));
+
+    setTimerDuration(nextDuration);
+    setTimerKey(prev => prev + 1);
   }, []);
 
   const alivePlayers = useMemo(() =>
@@ -170,18 +216,73 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       setMyPlayerId(socket.id);
       setGameState('matchmaking');
       setConnectionError(false);
+      socket.emit('checkReconnect', { playerName });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       if (!mountedRef.current) return;
-      setConnectionError(true);
-      setGameState('connecting');
+      if (reason !== 'io client disconnect') {
+        setConnectionError(true);
+        setGameState('connecting');
+      }
     });
 
     socket.on('connect_error', () => {
       if (!mountedRef.current) return;
       setConnectionError(true);
       setGameState('connecting');
+    });
+
+    socket.on('canReconnect', (data) => {
+      if (!mountedRef.current) return;
+      if (data.canReconnect !== false && data.roomId) {
+        setReconnectInfo(data);
+        setGameState('reconnect-available');
+      }
+    });
+
+    socket.on('reconnectSuccess', (data) => {
+      if (!mountedRef.current) return;
+
+      setPlayers(data.players || []);
+      setHealth(data.health || {});
+      setMyPlayerId(socket.id);
+      setSurvivalRound(data.round || 1);
+      setReadyPlayers(new Set(data.readyPlayers || []));
+      setIsReady((data.readyPlayers || []).includes(socket.id));
+      setHints(Array.isArray(data.hints) ? data.hints : []);
+      setReconnectInfo(null);
+      setConnectionError(false);
+      setGameResult(null);
+      setGameData(null);
+
+      if (data.questionActive && data.category) {
+        setCurrentTarget({
+          targetIndex: data.currentQuestion,
+          totalTargets: data.totalQuestions,
+          category: data.category,
+          difficulty: data.difficulty
+        });
+      } else {
+        setCurrentTarget(null);
+      }
+
+      if (data.gameState === 'paused') {
+        setIsPaused(true);
+        setPauseReason(data.pauseReason || 'Game paused');
+      } else {
+        resetPauseState();
+      }
+
+      syncQuestionTimer(data.remainingQuestionTimeMs);
+      setGameState('playing');
+    });
+
+    socket.on('reconnectFailed', () => {
+      if (!mountedRef.current) return;
+      setReconnectInfo(null);
+      resetPauseState();
+      setGameState('matchmaking');
     });
 
     socket.on('waitingForMatch', ({ playersInRoom }) => {
@@ -194,6 +295,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       if (!mountedRef.current) return;
       setPlayers(matchedPlayers);
       setGameState('lobby');
+      resetPauseState();
       const initialHealth = {};
       matchedPlayers.forEach(player => {
         initialHealth[player.id] = MAX_HEALTH;
@@ -221,6 +323,9 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       if (!mountedRef.current) return;
       setSurvivalRound(round);
       setGameState('playing');
+      setCurrentTarget(null);
+      syncQuestionTimer(QUESTION_TIME_SEC * 1000);
+      resetPauseState();
       if (gameHealth) {
         const verifiedHealth = {};
         Object.keys(gameHealth).forEach(playerId => {
@@ -230,12 +335,13 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       }
     });
 
-    socket.on('questionStart', ({ targetIndex, totalTargets, category, difficulty, health: newHealth, round }) => {
+    socket.on('questionStart', ({ targetIndex, totalTargets, category, difficulty, health: newHealth, round, remainingQuestionTimeMs }) => {
       if (!mountedRef.current) return;
       setCurrentTarget({ targetIndex, totalTargets, category, difficulty });
       setHints([]);
       setGameResult(null);
       setSurvivalRound(round);
+      syncQuestionTimer(remainingQuestionTimeMs);
       if (newHealth) setHealth(prev => mergeHealthState(prev, newHealth));
     });
 
@@ -282,8 +388,55 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
 
     socket.on('gameEnd', ({ winner, results }) => {
       if (!mountedRef.current) return;
+      resetPauseState();
       setGameState('finished');
       setGameData({ winner, results });
+    });
+
+    socket.on('gamePaused', ({ message }) => {
+      if (!mountedRef.current) return;
+      setIsPaused(true);
+      setPauseReason(message || 'Game paused');
+    });
+
+    socket.on('gameResumed', ({ message, remainingQuestionTimeMs }) => {
+      if (!mountedRef.current) return;
+      resetPauseState();
+      if (message) {
+        setGameResult({ type: 'status', message });
+        setTimeout(() => mountedRef.current && setGameResult(null), 2000);
+      }
+      if (remainingQuestionTimeMs != null) {
+        syncQuestionTimer(remainingQuestionTimeMs);
+      }
+    });
+
+    socket.on('playerDisconnectedTemporary', ({ playerName: disconnectedName, reconnectTimeLeft, message }) => {
+      if (!mountedRef.current) return;
+      setIsPaused(true);
+      setPauseReason(message || `${disconnectedName} disconnected. Waiting for reconnection...`);
+      startReconnectCountdown(reconnectTimeLeft);
+    });
+
+    socket.on('playerReconnected', ({ playerName: reconnectedName, message, pendingReconnects }) => {
+      if (!mountedRef.current) return;
+      if (!pendingReconnects) {
+        resetPauseState();
+      }
+      setGameResult({
+        type: 'status',
+        message: message || `Agent ${reconnectedName} reconnected`
+      });
+      setTimeout(() => mountedRef.current && setGameResult(null), 2500);
+    });
+
+    socket.on('playerDisconnectedPermanent', ({ playerName: disconnectedName, message }) => {
+      if (!mountedRef.current) return;
+      setGameResult({
+        type: 'disconnect',
+        message: message || `Agent ${disconnectedName} did not reconnect`
+      });
+      setTimeout(() => mountedRef.current && setGameResult(null), 3000);
     });
 
     socket.on('playerDisconnected', ({ disconnectedPlayer, disconnectedPlayerId, playersRemaining }) => {
@@ -300,13 +453,17 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
         playersRemaining
       });
     });
-  }, [mergeHealthState]);
+  }, [mergeHealthState, playerName, resetPauseState, startReconnectCountdown, syncQuestionTimer]);
 
   useEffect(() => {
     mountedRef.current = true;
     initializeSocket();
     return () => {
       mountedRef.current = false;
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
       if (socketRef.current) {
         socketRef.current.removeAllListeners();
         socketRef.current.close();
@@ -329,6 +486,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
       personalCategory: generalCategory?.id || 'general',
       personalCategoryName: generalCategory?.name || 'General Knowledge'
     });
+    setReconnectInfo(null);
     setGameState('waiting');
   }, [playerName]);
 
@@ -345,6 +503,7 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
   }, [gameState, isEliminated]);
 
   const handleCancel = useCallback(() => {
+    resetPauseState();
     if (socketRef.current) {
       socketRef.current.removeAllListeners();
       socketRef.current.close();
@@ -352,9 +511,47 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
     }
     initializedRef.current = false;
     onBackToMenu();
-  }, [onBackToMenu]);
+  }, [onBackToMenu, resetPauseState]);
+
+  const handleReconnect = useCallback(() => {
+    if (reconnectInfo && socketRef.current) {
+      socketRef.current.emit('reconnectToGame', {
+        roomId: reconnectInfo.roomId,
+        playerName
+      });
+      setGameState('connecting');
+    }
+  }, [playerName, reconnectInfo]);
 
   // UI Screens
+  if (gameState === 'reconnect-available' && reconnectInfo) {
+    return (
+      <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
+        <div className="bg-white p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-black text-center border border-gray-200">
+          <h2 className="text-lg sm:text-2xl font-bold text-green-600 mb-3 sm:mb-4 font-spy">RECONNECT AVAILABLE</h2>
+          <div className="mb-4 sm:mb-6">
+            <p className="text-sm sm:text-base mb-2">Your survival mission is still active.</p>
+            <div className="bg-blue-100 border border-blue-300 rounded p-2 sm:p-3">
+              <p className="text-xs sm:text-sm text-blue-800">
+                <strong>Room:</strong> {reconnectInfo.roomId}<br />
+                <strong>Player:</strong> {reconnectInfo.playerName}<br />
+                <strong>Time Remaining:</strong> {Math.floor(reconnectInfo.timeRemaining / 1000)}s
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2 sm:space-y-3">
+            <Button onClick={handleReconnect} variant="primary" className="w-full text-sm sm:text-base py-2 sm:py-3">
+              Reconnect to Mission
+            </Button>
+            <Button onClick={handleCancel} variant="secondary" className="w-full text-sm sm:text-base py-2 sm:py-3">
+              Back to Main Menu
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (connectionError) {
     return (
       <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
@@ -554,10 +751,42 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
     );
   }
 
+  if (gameState === 'playing' && !currentTarget) {
+    return (
+      <div className="relative z-20 flex min-h-screen items-center justify-center p-3 sm:p-4">
+        <div className="bg-black p-4 sm:p-8 rounded-lg shadow-2xl max-w-xs sm:max-w-md w-full text-white text-center border-2 border-red-600">
+          <LoadingSpinner size="lg" message={isPaused ? 'Mission paused' : 'Restoring survival round...'} />
+          <p className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-300">
+            {isPaused ? (pauseReason || 'Waiting for all agents to reconnect...') : 'Preparing the next survival question...'}
+          </p>
+          {isPaused && reconnectCountdown > 0 && (
+            <p className="mt-2 text-xs sm:text-sm text-yellow-400">
+              Reconnect window: {reconnectCountdown}s
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (gameState === 'playing' && currentTarget) {
     return (
       <div className="relative z-20 min-h-screen p-2 sm:p-4">
         <div className="max-w-6xl mx-auto">
+          {isPaused && (
+            <div className="mb-4 sm:mb-6 rounded-lg border-2 border-yellow-500 bg-yellow-900/80 p-3 sm:p-4 text-center text-white">
+              <p className="text-sm sm:text-lg font-bold">MISSION PAUSED</p>
+              <p className="mt-1 text-xs sm:text-sm text-yellow-100">
+                {pauseReason || 'Waiting for disconnected agents to reconnect...'}
+              </p>
+              {reconnectCountdown > 0 && (
+                <p className="mt-2 text-xs sm:text-sm text-yellow-300">
+                  Reconnect window: {reconnectCountdown}s
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="bg-black bg-opacity-90 p-3 sm:p-6 rounded-lg mb-4 sm:mb-6 border border-red-600">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4 space-y-2 sm:space-y-0">
               <div className="text-white text-sm sm:text-base">
@@ -571,9 +800,9 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
               </div>
               <div className="w-full sm:w-auto flex justify-center">
                 <Timer
-                  duration={120}
-                  isActive={!isEliminated}
-                  key={`timer-${currentTarget.targetIndex}`}
+                  duration={timerDuration}
+                  isActive={!isEliminated && !isPaused}
+                  key={`timer-${currentTarget.targetIndex}-${timerKey}`}
                 />
               </div>
             </div>
@@ -619,6 +848,9 @@ const CodenameSurvival = ({ playerName, onBackToMenu }) => {
                     )}
                     {gameResult.type === 'disconnect' && (
                       <p className="text-sm sm:text-lg font-bold">📡 {gameResult.message} ({gameResult.playersRemaining} remaining)</p>
+                    )}
+                    {gameResult.type === 'status' && (
+                      <p className="text-sm sm:text-lg font-bold">📡 {gameResult.message}</p>
                     )}
                     {gameResult.correctAnswer && gameResult.type === 'correct' && (
                       <p className="text-xs sm:text-sm mt-1 sm:mt-2">The intel was: <strong>{gameResult.correctAnswer}</strong></p>
